@@ -144,44 +144,6 @@ def format_path(tuple_paths):
     out_path.append((curr_ctg, ori))
     return out_path
 
-#
-# def find_next_node(neighbours, node, visited):
-#     "Decide greedily which node to visit next. Return in a tuple (next_node, unvisited nodes)"
-#     sorted_neighbours = sorted([n for n in neighbours if n[0] != node and n[0] not in visited], key=lambda x:x[1])
-#     if sorted_neighbours and sorted_neighbours[0][1] >= 2:
-#         return sorted_neighbours[0][0], [n[0] for n in sorted_neighbours[1:]]
-#     else:
-#         return None, [n[0] for n in sorted_neighbours]
-
-
-# def dfs_search(graph, sources):
-#     "Find the simple paths in the graph, guided by the edge weights"
-#     new_nodes = []
-#
-#     visited = set()
-#     paths = []
-#     while sources:
-#         curr_node = sources.pop()
-#         if curr_node in visited:
-#             continue
-#         path = [curr_node]
-#         visited.add(curr_node)
-#         neighbours = [(n, len(graph[curr_node][n]['weight'])) for n in nx.neighbors(graph, curr_node)]
-#         while neighbours:
-#             # Decide which neighbour to visit next
-#             next_node, other_nodes = find_next_node(neighbours, curr_node, visited)
-#             for node in other_nodes:  # Remember the other nodes we have to visit at some point
-#                 sources.append(node)
-#             if next_node is None:  # No more nodes to visit, just exit out
-#                 break
-#             # visit this next node, add to the path
-#             path.append(next_node)
-#             visited.add(next_node)
-#             curr_node = next_node
-#             neighbours = [(n, len(graph[curr_node][n]['weight'])) for n in nx.neighbors(graph, curr_node)]
-#         paths.append(path)
-#     return paths
-
 
 def read_dot(dotfile_name):
     "Given a dot file, reads into a graph data structure"
