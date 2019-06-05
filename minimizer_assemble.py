@@ -158,20 +158,20 @@ def read_dot(dotfile_name):
     return graph
 
 
-def find_components(component):
+def find_components(component, min_weight):
     "Remove edges with low assembly support, and find the induced subgraphs"
-    to_remove_edges = [(u, v) for u, v, e_prop in component.edges.data() if len(e_prop['weight']) < 2]
+    to_remove_edges = [(u, v) for u, v, e_prop in component.edges.data() if len(e_prop['weight']) < min_weight]
     component = component.remove_edges_from(to_remove_edges)
     return [component.subgraph(c) for c in nx.connected_components(component)]
 
-def find_paths(graph, list_mx_info):
+def find_paths(graph, list_mx_info, min_weight):
     "Finds paths per input assembly file"
     paths = {}
     skipped = 0
     for assembly in list_mx_info:
         paths[assembly] = []
     for component in nx.connected_components(graph):
-        components = find_components(component)
+        components = find_components(component, min_weight)
         for filtered_component in components:
             source_nodes = [node for node in filtered_component.nodes if filtered_component.degree(node) == 1]
             if len(source_nodes) == 2:
@@ -273,6 +273,7 @@ def main():
     parser.add_argument("-p", help="Output prefix [out]", default="out",
                         type=str, required=False)
     parser.add_argument("-g", help="Gap size [50]", default=50, type=int)
+    parser.add_argument("-w", help="Minimum number of assemblies supporting an edge [2]", default=2, type=int)
     args = parser.parse_args()
 
     # Read in the minimizers
@@ -290,7 +291,7 @@ def main():
 
     print_graph(graph, args.p, list_mx_info)
 
-    paths = find_paths(graph, list_mx_info)
+    paths = find_paths(graph, list_mx_info, args.w)
 
     print_scaffolds(paths, args.p, args.g)
 

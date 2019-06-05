@@ -28,6 +28,9 @@ k=64
 # Number of threads
 t=4
 
+# Minimum assembly support for graph edge
+assembly_support=2
+
 # Reference genome (for analysis)
 ref=/projects/btl/lcoombe/reference-genomes/celegans/celegansN2_referencegenome.fna
 
@@ -45,6 +48,7 @@ help:
 	@echo "t	Number of threads [4]"
 	@echo "k	K-mer size for minimizers [64]"
 	@echo "w	Window size for minimizers [1000]"
+	@echo "assembly_support	Min. assembly support for an edge [2]"
 
 
 .PHONY: all analysis assemble help
@@ -55,7 +59,7 @@ help:
 	$(physlr_path)/physlr-indexlr -k $(k) -w $(w) $< > $@
 
 $(prefix).mx.dot $(fa_targets): $(min_targets)
-	$(assemble_path)/minimizer_assemble.py -p $(prefix) $^
+	$(assemble_path)/minimizer_assemble.py -p $(prefix) -w $(assembly_support) $^
 
 %.dot.png: %.dot
 	dot -Tpng -o $@ $<
