@@ -158,39 +158,40 @@ def read_dot(dotfile_name):
     return graph
 
 
-def find_components(component, min_weight):
-    "Remove edges with low assembly support, and find the induced subgraphs"
-    to_remove_edges = [(u, v) for u, v, e_prop in component.edges.data() if len(e_prop['weight']) < min_weight]
-    component = component.remove_edges_from(to_remove_edges)
-    return [component.subgraph(c) for c in nx.connected_components(component)]
+def filter_graph(graph, min_weight):
+    "Filter the graph by edge weights"
+    to_remove_edges = [(u, v) for u, v, e_prop in graph.edges.data() if len(e_prop['weight']) < min_weight]
+    new_graph = graph.copy()
+    new_graph.remove_edges_from(to_remove_edges)
+    return new_graph
 
-def find_paths(graph, list_mx_info, min_weight):
+
+def find_paths(graph, list_mx_info):
     "Finds paths per input assembly file"
     paths = {}
     skipped = 0
     for assembly in list_mx_info:
         paths[assembly] = []
     for component in nx.connected_components(graph):
-        components = find_components(component, min_weight)
-        for filtered_component in components:
-            source_nodes = [node for node in filtered_component.nodes if filtered_component.degree(node) == 1]
-            if len(source_nodes) == 2:
-                path = nx.shortest_path(filtered_component, source_nodes[0], source_nodes[1])
-                num_edges = len(path) - 1
-                if len(path) == len(filtered_component.nodes()) and\
-                        num_edges == len(filtered_component.edges()) and len(path) == len(set(path)):
-                    # All the nodes/edges from the graph are in the simple path, no repeated nodes
-                    for assembly in list_mx_info:
-                        file_name, list_mx = assembly, list_mx_info[assembly]
-                        tuple_paths = [list_mx[mx] for mx in path]
-                        ctg_path = format_path(tuple_paths)
-                        paths[file_name].append(ctg_path)
-                else:
-                    print("WARNING: Component with node", list(component.nodes)[0], "was skipped.", sep=" ")
-                    skipped += 1
+        component_graph = nx.subgraph(graph, component)
+        source_nodes = [node for node in component_graph.nodes if component_graph.degree(node) == 1]
+        if len(source_nodes) == 2:
+            path = nx.shortest_path(component_graph, source_nodes[0], source_nodes[1])
+            num_edges = len(path) - 1
+            if len(path) == len(component_graph.nodes()) and \
+                    num_edges == len(component_graph.edges()) and len(path) == len(set(path)):
+                # All the nodes/edges from the graph are in the simple path, no repeated nodes
+                for assembly in list_mx_info:
+                    file_name, list_mx = assembly, list_mx_info[assembly]
+                    tuple_paths = [list_mx[mx] for mx in path]
+                    ctg_path = format_path(tuple_paths)
+                    paths[file_name].append(ctg_path)
             else:
-                print("WARNING: Component with node", list(component.nodes)[0], "was skipped.", sep=" ")
+                print("WARNING: Component with node", list(component_graph.nodes)[0], "was skipped.", sep=" ")
                 skipped += 1
+        else:
+            print("WARNING: Component with node", list(component_graph.nodes)[0], "was skipped.", sep=" ")
+            skipped += 1
 
     print("Warning: ", skipped, " paths were skipped", sep=" ")
 
@@ -289,9 +290,11 @@ def main():
 
     graph = build_graph(list_mxs)
 
+    graph = filter_graph(graph, args.w)
+
     print_graph(graph, args.p, list_mx_info)
 
-    paths = find_paths(graph, list_mx_info, args.w)
+    paths = find_paths(graph, list_mx_info)
 
     print_scaffolds(paths, args.p, args.g)
 
