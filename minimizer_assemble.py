@@ -163,13 +163,15 @@ def filter_graph(graph, min_weight):
     to_remove_edges = [(u, v) for u, v, e_prop in graph.edges.data() if len(e_prop['weight']) < min_weight]
     new_graph = graph.copy()
     new_graph.remove_edges_from(to_remove_edges)
+    to_remove_nodes = [u for u in graph.nodes if graph.degree(u) > 2]
+    new_graph.remove_nodes_from(to_remove_nodes)
     return new_graph
 
 
 def find_paths(graph, list_mx_info):
     "Finds paths per input assembly file"
     paths = {}
-    skipped = 0
+    skipped, total = 0, 0
     for assembly in list_mx_info:
         paths[assembly] = []
     for component in nx.connected_components(graph):
@@ -186,6 +188,7 @@ def find_paths(graph, list_mx_info):
                     tuple_paths = [list_mx[mx] for mx in path]
                     ctg_path = format_path(tuple_paths)
                     paths[file_name].append(ctg_path)
+                total += 1
             else:
                 print("WARNING: Component with node", list(component_graph.nodes)[0], "was skipped.", sep=" ")
                 skipped += 1
@@ -193,7 +196,7 @@ def find_paths(graph, list_mx_info):
             print("WARNING: Component with node", list(component_graph.nodes)[0], "was skipped.", sep=" ")
             skipped += 1
 
-    print("Warning: ", skipped, " paths were skipped", sep=" ")
+    print("Warning: ", skipped, " paths of", total ,"were skipped", sep=" ")
 
     return paths
 
@@ -289,6 +292,8 @@ def main():
     list_mxs = filter_minimizers(list_mxs)
 
     graph = build_graph(list_mxs)
+
+    print_graph(graph, args.p + "-before", list_mx_info)
 
     graph = filter_graph(graph, args.w)
 
