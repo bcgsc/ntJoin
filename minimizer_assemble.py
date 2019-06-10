@@ -125,7 +125,7 @@ def determine_orientation(positions):
     return "?"
 
 
-def find_path(tuple_paths):
+def format_path(tuple_paths):
     "Given a list of tuples (ctg, position), print out the order and orientation of the contigs"
     out_path = [] # List of (ctg, orientation)
     curr_ctg = None
@@ -145,34 +145,58 @@ def find_path(tuple_paths):
     return out_path
 
 
+def read_dot(dotfile_name):
+    "Given a dot file, reads into a graph data structure"
+    graph = nx.Graph(nx.drawing.nx_pydot.read_dot(dotfile_name))
+    for _, _, eprop in graph.edges.data():
+        if eprop['color'] == "black":
+            eprop['weight'] = [1, 2, 3]
+        elif eprop['color'] == 'lightgrey':
+            eprop['weight'] = [1, 2]
+        else:
+            eprop['weight'] = [1]
+    return graph
+
+
+def filter_graph(graph, min_weight):
+    "Filter the graph by edge weights"
+    to_remove_edges = [(u, v) for u, v, e_prop in graph.edges.data() if len(e_prop['weight']) < min_weight]
+    new_graph = graph.copy()
+    new_graph.remove_edges_from(to_remove_edges)
+    to_remove_nodes = [u for u in graph.nodes if graph.degree(u) > 2]
+    new_graph.remove_nodes_from(to_remove_nodes)
+    return new_graph
+
+
 def find_paths(graph, list_mx_info):
-    # Finds paths per input assembly file
+    "Finds paths per input assembly file"
     paths = {}
-    skipped = 0
+    skipped, total = 0, 0
     for assembly in list_mx_info:
         paths[assembly] = []
     for component in nx.connected_components(graph):
-        component = graph.subgraph(component)
-        source_nodes = [node for node in component.nodes if component.degree(node) == 1]
+        component_graph = nx.subgraph(graph, component)
+        source_nodes = [node for node in component_graph.nodes if component_graph.degree(node) == 1]
         if len(source_nodes) == 2:
-            path = nx.shortest_path(component, source_nodes[0], source_nodes[1])
+            path = nx.shortest_path(component_graph, source_nodes[0], source_nodes[1])
             num_edges = len(path) - 1
-            if len(path) == len(component.nodes()) and\
-                    num_edges == len(component.edges()) and len(path) == len(set(path)):
+            if len(path) == len(component_graph.nodes()) and \
+                    num_edges == len(component_graph.edges()) and len(path) == len(set(path)):
                 # All the nodes/edges from the graph are in the simple path, no repeated nodes
                 for assembly in list_mx_info:
                     file_name, list_mx = assembly, list_mx_info[assembly]
                     tuple_paths = [list_mx[mx] for mx in path]
-                    ctg_path = find_path(tuple_paths)
+                    ctg_path = format_path(tuple_paths)
                     paths[file_name].append(ctg_path)
+                total += 1
             else:
-                print("WARNING: Component with node", list(component.nodes)[0], "was skipped.", sep=" ")
+                print("WARNING: Component with node", list(component_graph.nodes)[0], "was skipped.", sep=" ")
                 skipped += 1
         else:
-            print("WARNING: Component with node", list(component.nodes)[0], "was skipped.", sep=" ")
+            print("WARNING: Component with node", list(component_graph.nodes)[0], "was skipped.", sep=" ")
             skipped += 1
 
-    print("Warning: ", skipped, " paths were skipped", sep=" ")
+    print("Warning: ", skipped, " paths of", total ,"were skipped", sep=" ")
 
     return paths
 
@@ -253,6 +277,7 @@ def main():
     parser.add_argument("-p", help="Output prefix [out]", default="out",
                         type=str, required=False)
     parser.add_argument("-g", help="Gap size [50]", default=50, type=int)
+    parser.add_argument("-w", help="Minimum number of assemblies supporting an edge [2]", default=2, type=int)
     args = parser.parse_args()
 
     # Read in the minimizers
@@ -267,6 +292,10 @@ def main():
     list_mxs = filter_minimizers(list_mxs)
 
     graph = build_graph(list_mxs)
+
+    print_graph(graph, args.p + "-before", list_mx_info)
+
+    graph = filter_graph(graph, args.w)
 
     print_graph(graph, args.p, list_mx_info)
 
