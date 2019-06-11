@@ -20,14 +20,13 @@ def read_minimizers(tsv_filename):
         for line in tsv:
             line = line.strip().split("\t")
             if len(line) > 1:
-                mxs.append(line[1].split(" "))
-                mx_cnt = 0
-                for mx in line[1].split(" "):
+                mxs.append([mx_pos.split(":")[0] for mx_pos in line[1].split(" ")])
+                for mx_pos in line[1].split(" "):
+                    mx, pos = mx_pos.split(":")
                     if mx in mx_info:  # This is a duplicate, add to dup set, don't add to dict
                         dup_mxs.add(mx)
                     else:
-                        mx_info[mx] = (line[0], mx_cnt)
-                    mx_cnt += 1
+                        mx_info[mx] = (line[0], int(pos))
 
     mx_info = {key: mx_info[key] for key in mx_info if key not in dup_mxs}
     mxs_filt = []
