@@ -56,7 +56,7 @@ help:
 .SECONDARY:
 
 %.fa.tsv: %.fa
-	$(physlr_path)/physlr-indexlr -k $(k) -w $(w) $< > $@
+	$(assemble_path)/minimerize.py -k $(k) -w $(w) $< > $@
 
 $(prefix).mx.dot $(fa_targets): $(min_targets)
 	$(assemble_path)/minimizer_assemble.py -p $(prefix) -w $(assembly_support) $^

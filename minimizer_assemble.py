@@ -190,7 +190,8 @@ def find_paths(graph, list_mx_info):
                     paths[file_name].append(ctg_path)
                 total += 1
             else:
-                print("WARNING: Component with node", list(component_graph.nodes)[0], "was skipped.", sep=" ")
+                print("WARNING: Component with node", list(component.nodes)[0],
+                      "was skipped.", sep=" ")
                 skipped += 1
         else:
             print("WARNING: Component with node", list(component_graph.nodes)[0], "was skipped.", sep=" ")
