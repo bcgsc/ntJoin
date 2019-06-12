@@ -8,7 +8,7 @@ import argparse
 import re
 from collections import defaultdict
 import networkx as nx
-
+import sys
 
 
 def read_minimizers(tsv_filename):
@@ -53,7 +53,12 @@ def filter_minimizers(list_mxs):
     return return_mxs
 
 
-def build_graph(list_mxs):
+def calc_total_weight(list_files, weights):
+    "Given a list of supporting files for an edges, and dictionary specifying their weights, calculate the total weight"
+    return sum([weights[f] for f in list_files])
+
+
+def build_graph(list_mxs, weights):
     "Builds an undirected graph: minimizers=nodes; edges=between adjacent minimizers"
     graph = nx.Graph()
 
@@ -71,9 +76,13 @@ def build_graph(list_mxs):
                 else:
                     edges[assembly_mx_list[i]][assembly_mx_list[i+1]] = [assembly]
 
-    formatted_edges = [(s, t, edges[s][t]) for s in edges for t in edges[s]]
+    formatted_edges = [(s, t) for s in edges for t in edges[s]]
+    edge_attributes = {(s, t): {"support": edges[s][t],
+                                "weight": calc_total_weight(edges[s][t], weights)}
+                       for s in edges for t in edges[s]}
 
-    graph.add_weighted_edges_from(formatted_edges)
+    graph.add_edges_from(formatted_edges)
+    nx.set_edge_attributes(graph, edge_attributes)
     return graph
 
 
@@ -97,7 +106,7 @@ def print_graph(graph, prefix, list_mxs_info):
         outfile.write("\"%s\" -- \"%s\"" %
                       (edge[0], edge[1]))
         # For debugging only
-        weight = edge[2]['weight']
+        weight = edge[2]['support']
         if len(weight) == 1:
             colour = colours[list_files.index(weight[0])]
         elif len(weight) == 2:
@@ -126,7 +135,7 @@ def determine_orientation(positions):
 
 def format_path(tuple_paths):
     "Given a list of tuples (ctg, position), print out the order and orientation of the contigs"
-    out_path = [] # List of (ctg, orientation)
+    out_path = []  # List of (ctg, orientation)
     curr_ctg = None
     positions = []
     for tup in tuple_paths:
@@ -159,7 +168,7 @@ def read_dot(dotfile_name):
 
 def filter_graph(graph, min_weight):
     "Filter the graph by edge weights"
-    to_remove_edges = [(u, v) for u, v, e_prop in graph.edges.data() if len(e_prop['weight']) < min_weight]
+    to_remove_edges = [(u, v) for u, v, e_prop in graph.edges.data() if e_prop['weight'] < min_weight]
     new_graph = graph.copy()
     new_graph.remove_edges_from(to_remove_edges)
     to_remove_nodes = [u for u in graph.nodes if graph.degree(u) > 2]
@@ -277,25 +286,34 @@ def main():
     parser.add_argument("-p", help="Output prefix [out]", default="out",
                         type=str, required=False)
     parser.add_argument("-g", help="Gap size [50]", default=50, type=int)
-    parser.add_argument("-w", help="Minimum number of assemblies supporting an edge [2]", default=2, type=int)
+    parser.add_argument("-n", help="Minimum edge weight [2]", default=2, type=int)
+    parser.add_argument("-l", help="List of assembly weights", required=True, type=str)
     args = parser.parse_args()
+
+    # Parse the weights
+    input_weights = re.split(r'\s+', args.l)
+    if len(input_weights) != len(args.FILES):
+        print("ERROR: The length of supplied weights and number of assembly files must be equal.")
+        print("Supplied lengths:", len(input_weights), len(args.FILES), sep=" ")
+        sys.exit(1)
 
     # Read in the minimizers
     list_mx_info = {}  # Dictionary of dictionaries of form mx -> (ctg, pos)
     list_mxs = {}  # Dictionary of Lists of minimizers (1 list per assembly file)
+    weights = {}  # Dictionary of form file -> weight
     for assembly in args.FILES:
-        #list_files.append(assembly)
         mxs_info, mxs = read_minimizers(assembly)
         list_mx_info[assembly] = mxs_info
         list_mxs[assembly] = mxs
+        weights[assembly] = float(input_weights.pop(0))
 
     list_mxs = filter_minimizers(list_mxs)
 
-    graph = build_graph(list_mxs)
+    graph = build_graph(list_mxs, weights)
 
     print_graph(graph, args.p + "-before", list_mx_info)
 
-    graph = filter_graph(graph, args.w)
+    graph = filter_graph(graph, args.n)
 
     print_graph(graph, args.p, list_mx_info)
 

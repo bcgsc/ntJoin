@@ -3,10 +3,13 @@
 # Use minimizers to scaffold assemblies
 # Written by Lauren Coombe @lcoombe
 
-list_files=$(shell seq 1 3)
+list_files=None
 min_targets=$(addsuffix .tsv, $(list_files))
 fa_targets=$(addsuffix .scaffolds.fa, $(list_files))
 bam_targets=$(addsuffix .scaffolds.fa.bam.bai, $(list_files))
+
+# List of edge weights
+list_weights=None
 
 # Prefix for output files
 prefix=out
@@ -28,8 +31,8 @@ k=64
 # Number of threads
 t=4
 
-# Minimum assembly support for graph edge
-assembly_support=2
+# Minimum edge weight
+n=2
 
 # Reference genome (for analysis)
 ref=/projects/btl/lcoombe/reference-genomes/celegans/celegansN2_referencegenome.fna
@@ -39,19 +42,30 @@ assemble: $(min_targets) \
 
 analysis: $(bam_targets)
 
-all: assemble analysis
+all: check_params assemble analysis
+
+check_params:
+ifeq ($(list_weights), None)
+	$(error must set list_weights)
+endif
+ifeq ($(list_files), None)
+	$(error must set list_files)
+endif
+
 
 help:
 	@echo "Assembly merging with minimizers"
-	@echo "Usage: minimizer_assembler-make assemble prefix=<prefix> list_files='List of fasta files'"
+	@echo "Usage: minimizer_assembler-make assemble prefix=<prefix> list_files='List of fasta files' list_weights='List of weights (ints) per assembly'"
+	@echo ""
+	@echo "Note: ensure the lists of assemblies and weights are in the same order, and that both are space-separated"
 	@echo "Commands:"
 	@echo "t	Number of threads [4]"
 	@echo "k	K-mer size for minimizers [64]"
 	@echo "w	Window size for minimizers [1000]"
-	@echo "assembly_support	Min. assembly support for an edge [2]"
+	@echo "n	Min. edge weight [2]"
 
 
-.PHONY: all analysis assemble help
+.PHONY: all analysis assemble help check_params
 .DELETE_ON_ERROR: $(prefix).mx.dot
 .SECONDARY:
 
@@ -59,7 +73,7 @@ help:
 	$(assemble_path)/minimerize.py -k $(k) -w $(w) $< > $@
 
 $(prefix).mx.dot $(fa_targets): $(min_targets)
-	$(assemble_path)/minimizer_assemble.py -p $(prefix) -w $(assembly_support) $^
+	$(assemble_path)/minimizer_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" $^
 
 %.dot.png: %.dot
 	dot -Tpng -o $@ $<
