@@ -213,16 +213,9 @@ def find_paths(graph, list_mx_info):
 def read_fasta(filename):
     "Read a fasta file into memory"
     scaffolds = {}
-    header = None
-    header_match = re.compile(r'^>(\S+)')
     with open(filename, 'r') as fasta:
-        for line in fasta:
-            line = line.strip()
-            line_match = re.search(header_match, line)
-            if line_match:
-                header = line_match.group(1)
-            else:
-                scaffolds[header] = line
+        for header, seq, _, _ in read_fasta(fasta):
+            scaffolds[header] = seq
     return scaffolds
 
 
