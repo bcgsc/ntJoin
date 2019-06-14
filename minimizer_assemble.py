@@ -7,8 +7,18 @@ Written by Lauren Coombe
 import argparse
 import re
 from collections import defaultdict
+from collections import namedtuple
 import networkx as nx
+import pybedtools
+import shlex
+import subprocess
 import sys
+from read_fasta import read_fasta
+
+
+# Defining namedtuples
+PathNode = namedtuple("PathNode", ["contig", "ori", "start", "end"])
+Bed = namedtuple("Bed", ["contig", "start", "end"])
 
 
 def read_minimizers(tsv_filename):
@@ -134,8 +144,8 @@ def determine_orientation(positions):
 
 
 def format_path(tuple_paths):
-    "Given a list of tuples (ctg, position), print out the order and orientation of the contigs"
-    out_path = []  # List of (ctg, orientation)
+    "Given a list of tuples (ctg, position), print out the order, orientation, and blocks of the contigs"
+    out_path = []  # List of PathNode
     curr_ctg = None
     positions = []
     for tup in tuple_paths:
@@ -145,11 +155,11 @@ def format_path(tuple_paths):
             # This is either the first tuple, or we are past a stretch of repeating contigs
             if curr_ctg is not None:
                 ori = determine_orientation(positions)
-                out_path.append((curr_ctg, ori))
+                out_path.append(PathNode(curr_ctg, ori, min(positions), max(positions)))
             curr_ctg = tup[0]
             positions = [tup[1]]
     ori = determine_orientation(positions)
-    out_path.append((curr_ctg, ori))
+    out_path.append(PathNode(curr_ctg, ori, min(positions), max(positions)))
     return out_path
 
 
@@ -210,7 +220,7 @@ def find_paths(graph, list_mx_info):
     return paths
 
 
-def read_fasta(filename):
+def read_fasta_file(filename):
     "Read a fasta file into memory"
     scaffolds = {}
     with open(filename, 'r') as fasta:
@@ -230,8 +240,25 @@ def reverse_complement(sequence):
         new_sequence += mappings[char.upper()]
     return new_sequence
 
+def get_fasta_segment(path_node, sequence, k):
+    "Given a PathNode, and the contig sequence, return the segment with the right bounds and orientation"
+    if path_node.ori == "-":
+        return reverse_complement(sequence[path_node.start:path_node.end+k+1])
+    else:
+        return sequence[path_node.start:path_node.end+k+1]
 
-def print_scaffolds(paths, prefix, gap_size):
+
+def format_bedtools_genome(scaffolds):
+    "Format a BED file and genome dictionary for bedtools"
+    bed_str = "\n".join(["%s\t%d\t%d" % (scaffold, 0, len(scaffolds[scaffold])) for scaffold in scaffolds])
+    bed = pybedtools.BedTool(bed_str, from_string=True)
+
+    genome_dict = {scaffold: (0, len(scaffolds[scaffold])) for scaffold in scaffolds}
+
+    return bed, genome_dict
+
+
+def print_scaffolds(paths, prefix, gap_size, k):
     "Given the paths, print out the scaffolds fasta"
     pathfile = open(prefix + ".path", 'w')
 
@@ -239,33 +266,46 @@ def print_scaffolds(paths, prefix, gap_size):
         min_match = re.search(r'^(\S+)\.tsv', assembly)
         assembly_fa = min_match.group(1)
         outfile = open(assembly_fa + ".scaffolds.fa", 'w')
-        all_scaffolds = read_fasta(assembly_fa)
+        all_scaffolds = read_fasta_file(assembly_fa)
+        incorporated_segments = []  # List of Bed entries
 
         scaffolded = set()  # Track the pieces incorporated into a scaffold
         ct = 0
         pathfile.write(assembly + "\n")
         for path in paths[assembly]:
             sequences = []
-            for ctg, ori in path:
-                if ori == "?":
+            path_segments = []
+            for node in path:
+                if node.ori == "?":
                     continue
-                elif ori == "+":
-                    sequences.append((ctg, all_scaffolds[ctg]))
-                else:
-                    sequences.append((ctg, reverse_complement(all_scaffolds[ctg])))
-                #scaffolded.add(ctg)
+                sequences.append(get_fasta_segment(node, all_scaffolds[node.contig], k))
+                path_segments.append(Bed(contig=node.contig, start=node.start,
+                                                 end=node.end))
             if len(sequences) < 2:
                 continue
             outfile.write(">%s\n%s\n" %
                           ("mx" + str(ct),
-                           ("N"*gap_size).join([seq[1] for seq in sequences])))
-            scaffolded = scaffolded.union(set([seq[0] for seq in sequences]))
-            pathfile.write("%s\t%s\n" % ("mx" + str(ct), " ".join(["".join(tup) for tup in path])))
+                           ("N"*gap_size).join([seq for seq in sequences])))
+            incorporated_segments.extend(path_segments)
+            pathfile.write("%s\t%s\n" % ("mx" + str(ct),
+                                         " ".join(["%s%s:%d-%d" % (tup.contig, tup.ori, tup.start, tup.end)
+                                                   for tup in path])))
             ct += 1
+
         # Also print out the sequences that were NOT scaffolded
-        for ctg in all_scaffolds:
-            if ctg not in scaffolded:
-                outfile.write(">%s\n%s\n" % (ctg, all_scaffolds[ctg]))
+        incorporated_segments_str = "\n".join(["%s\t%s\t%s" % (chr, s, e) for chr, s, e in incorporated_segments])
+        incorporated_segments_bed = pybedtools.BedTool(incorporated_segments_str, from_string=True).sort()
+        genome_bed, genome_dict = format_bedtools_genome(all_scaffolds)
+
+        missing_bed = genome_bed.complement(i=incorporated_segments_bed, g=genome_dict)
+        missing_bed.saveas(prefix + ".unassigned.bed")
+
+        # cmd = "bedtools getfasta -fi %s -bed %s" % (assembly_fa, prefix + ".unassigned.bed")
+        # cmd_shlex = shlex.split(cmd)
+        #
+        # out_fasta = subprocess.Popen(cmd_shlex, stdout=subprocess.PIPE, universal_newlines=True)
+        # for line in iter(out_fasta.stdout.readline, ''):
+        #     outfile.write(line)
 
         outfile.close()
     pathfile.close()
@@ -281,6 +321,7 @@ def main():
     parser.add_argument("-g", help="Gap size [50]", default=50, type=int)
     parser.add_argument("-n", help="Minimum edge weight [2]", default=2, type=int)
     parser.add_argument("-l", help="List of assembly weights", required=True, type=str)
+    parser.add_argument("-k", help="k value used for minimizering", required=True, type=int)
     args = parser.parse_args()
 
     # Parse the weights
@@ -312,7 +353,7 @@ def main():
 
     paths = find_paths(graph, list_mx_info)
 
-    print_scaffolds(paths, args.p, args.g)
+    print_scaffolds(paths, args.p, args.g, args.k)
 
 
 if __name__ == "__main__":

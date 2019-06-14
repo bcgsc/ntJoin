@@ -7,6 +7,7 @@ list_files=None
 min_targets=$(addsuffix .tsv, $(list_files))
 fa_targets=$(addsuffix .scaffolds.fa, $(list_files))
 bam_targets=$(addsuffix .scaffolds.fa.bam.bai, $(list_files))
+fai_targets=$(addsuffix .fai, $(list_files))
 
 # List of edge weights
 list_weights=None
@@ -38,6 +39,7 @@ n=2
 ref=/projects/btl/lcoombe/reference-genomes/celegans/celegansN2_referencegenome.fna
 
 assemble: $(min_targets) \
+	$(fai_targets) \
 	$(prefix).mx.dot
 
 analysis: $(bam_targets)
@@ -72,8 +74,11 @@ help:
 %.fa.tsv: %.fa
 	$(assemble_path)/minimerize.py -k $(k) -w $(w) $< > $@
 
+%.fa.fai: %.fa
+	samtools faidx $<
+
 $(prefix).mx.dot $(fa_targets): $(min_targets)
-	$(assemble_path)/minimizer_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" $^
+	$(assemble_path)/minimizer_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) $^
 
 %.dot.png: %.dot
 	dot -Tpng -o $@ $<
