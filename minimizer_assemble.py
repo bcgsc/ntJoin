@@ -398,7 +398,6 @@ def main():
 
     # Find the min and max pos of minimizers per assembly, per ctg
     mx_extremes = find_mx_min_max(list_mx_info, graph)
-    print(mx_extremes)
 
     # Load scaffolds into memory
     scaffolds = {}
