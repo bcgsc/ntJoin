@@ -41,6 +41,8 @@ def main():
 
     with open(args.fasta) as fin:
         for name, seq, bx, _ in read_fasta(fin):
+            if len(seq) < args.w:
+                continue
             print(name, sep="", end="\t")
             mxs_formatted = ["{0[0]}:{0[1]}".format(tup) for tup in minimerize(args.k, args.w, seq.upper())]
             print(*mxs_formatted)
