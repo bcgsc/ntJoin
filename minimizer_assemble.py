@@ -8,11 +8,11 @@ import argparse
 import re
 from collections import defaultdict
 from collections import namedtuple
-import networkx as nx
-import pybedtools
 import shlex
 import subprocess
 import sys
+import networkx as nx
+import pybedtools
 from read_fasta import read_fasta
 
 
@@ -48,9 +48,8 @@ def read_minimizers(tsv_filename):
 
 def filter_minimizers(list_mxs):
     "Filters out minimizers from each dictionary of lists that are not found in all other sets"
-    list_sets = []
-    for assembly in list_mxs:
-        list_sets.append(set([mx for mx_list in list_mxs[assembly] for mx in mx_list]))
+    list_sets = [{mx for mx_list in list_mxs[assembly] for mx in mx_list}
+                 for assembly in list_mxs]
 
     mx_intersection = set.intersection(*list_sets)
 
@@ -64,7 +63,7 @@ def filter_minimizers(list_mxs):
 
 
 def calc_total_weight(list_files, weights):
-    "Given a list of supporting files for an edges, and dictionary specifying their weights, calculate the total weight"
+    "Calculate the total weight of an edge given the assembly support"
     return sum([weights[f] for f in list_files])
 
 
@@ -147,20 +146,18 @@ def calc_min_coord(positions, ctg_min_mx):
     "Calculates the minimum coordinate for a contig region in a path"
     if min(positions) == ctg_min_mx:
         return 0
-    else:
-        return min(positions)
+    return min(positions)
 
 
 def calc_max_coord(positions, ctg_max_mx, ctg_len):
     "Calculates the maximum coordinate for a contig region in a path"
     if max(positions) == ctg_max_mx:
         return ctg_len
-    else:
-        return max(positions)
+    return max(positions)
 
 
 def format_path(tuple_paths, mx_extremes, scaffolds):
-    "Given a list of tuples (ctg, position), print out the order, orientation, and blocks of the contigs"
+    "Given a list of tuples (ctg, position), print the order/orientation/regions of the contigs"
     out_path = []  # List of PathNode
     curr_ctg = None
     positions = []
@@ -200,7 +197,8 @@ def read_dot(dotfile_name):
 
 def filter_graph(graph, min_weight):
     "Filter the graph by edge weights"
-    to_remove_edges = [(u, v) for u, v, e_prop in graph.edges.data() if e_prop['weight'] < min_weight]
+    to_remove_edges = [(u, v) for u, v, e_prop in graph.edges.data()
+                       if e_prop['weight'] < min_weight]
     new_graph = graph.copy()
     new_graph.remove_edges_from(to_remove_edges)
     to_remove_nodes = [u for u in graph.nodes if graph.degree(u) > 2]
@@ -234,10 +232,11 @@ def find_paths(graph, list_mx_info, mx_extremes, scaffolds):
                       "was skipped.", sep=" ")
                 skipped += 1
         else:
-            print("WARNING: Component with node", list(component_graph.nodes)[0], "was skipped.", sep=" ")
+            print("WARNING: Component with node", list(component_graph.nodes)[0],
+                  "was skipped.", sep=" ")
             skipped += 1
 
-    print("Warning: ", skipped, " paths of", total ,"were skipped", sep=" ")
+    print("Warning: ", skipped, " paths of", total, "were skipped", sep=" ")
 
     return paths
 
@@ -263,16 +262,16 @@ def reverse_complement(sequence):
     return new_sequence
 
 def get_fasta_segment(path_node, sequence, k):
-    "Given a PathNode, and the contig sequence, return the segment with the right bounds and orientation"
+    "Given a PathNode and the contig sequence, return the corresponding sequence"
     if path_node.ori == "-":
         return reverse_complement(sequence[path_node.start:path_node.end+k+1])
-    else:
-        return sequence[path_node.start:path_node.end+k+1]
+    return sequence[path_node.start:path_node.end+k+1]
 
 
 def format_bedtools_genome(scaffolds):
     "Format a BED file and genome dictionary for bedtools"
-    bed_str = "\n".join(["%s\t%d\t%d" % (scaffold, 0, len(scaffolds[scaffold])) for scaffold in scaffolds])
+    bed_str = "\n".join(["%s\t%d\t%d" % (scaffold, 0, len(scaffolds[scaffold]))
+                         for scaffold in scaffolds])
     bed = pybedtools.BedTool(bed_str, from_string=True)
 
     genome_dict = {scaffold: (0, len(scaffolds[scaffold])) for scaffold in scaffolds}
@@ -301,7 +300,7 @@ def print_scaffolds(paths, prefix, gap_size, k):
                     continue
                 sequences.append(get_fasta_segment(node, all_scaffolds[node.contig], k))
                 path_segments.append(Bed(contig=node.contig, start=node.start,
-                                                 end=node.end))
+                                         end=node.end))
             if len(sequences) < 2:
                 continue
             outfile.write(">%s\n%s\n" %
@@ -309,13 +308,16 @@ def print_scaffolds(paths, prefix, gap_size, k):
                            ("N"*gap_size).join([seq for seq in sequences])))
             incorporated_segments.extend(path_segments)
             pathfile.write("%s\t%s\n" % ("mx" + str(ct),
-                                         " ".join(["%s%s:%d-%d" % (tup.contig, tup.ori, tup.start, tup.end)
+                                         " ".join(["%s%s:%d-%d" %
+                                                   (tup.contig, tup.ori, tup.start, tup.end)
                                                    for tup in path])))
             ct += 1
 
         # Also print out the sequences that were NOT scaffolded
-        incorporated_segments_str = "\n".join(["%s\t%s\t%s" % (chr, s, e) for chr, s, e in incorporated_segments])
-        incorporated_segments_bed = pybedtools.BedTool(incorporated_segments_str, from_string=True).sort()
+        incorporated_segments_str = "\n".join(["%s\t%s\t%s" % (chr, s, e)
+                                               for chr, s, e in incorporated_segments])
+        incorporated_segments_bed = pybedtools.BedTool(incorporated_segments_str,
+                                                       from_string=True).sort()
         genome_bed, genome_dict = format_bedtools_genome(all_scaffolds)
 
         missing_bed = genome_bed.complement(i=incorporated_segments_bed, g=genome_dict)
@@ -333,7 +335,7 @@ def print_scaffolds(paths, prefix, gap_size, k):
 
 
 def find_mx_min_max(list_mx_info, graph):
-    "Given a dictionary in the form assembly -> mx -> (ctg, pos), find the min and max mx position per ctg"
+    "Given a dictionary in the form assembly->mx->(ctg, pos), find the min/max mx position per ctg"
     mx_extremes = {} # assembly -> ctg -> (min_pos, max_pos)
     for assembly in list_mx_info:
         mx_extremes[assembly] = {}
