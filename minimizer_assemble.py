@@ -143,7 +143,23 @@ def determine_orientation(positions):
     return "?"
 
 
-def format_path(tuple_paths):
+def calc_min_coord(positions, ctg_min_mx):
+    "Calculates the minimum coordinate for a contig region in a path"
+    if min(positions) == ctg_min_mx:
+        return 0
+    else:
+        return min(positions)
+
+
+def calc_max_coord(positions, ctg_max_mx, ctg_len):
+    "Calculates the maximum coordinate for a contig region in a path"
+    if max(positions) == ctg_max_mx:
+        return ctg_len
+    else:
+        return max(positions)
+
+
+def format_path(tuple_paths, mx_extremes, scaffolds):
     "Given a list of tuples (ctg, position), print out the order, orientation, and blocks of the contigs"
     out_path = []  # List of PathNode
     curr_ctg = None
@@ -155,11 +171,17 @@ def format_path(tuple_paths):
             # This is either the first tuple, or we are past a stretch of repeating contigs
             if curr_ctg is not None:
                 ori = determine_orientation(positions)
-                out_path.append(PathNode(curr_ctg, ori, min(positions), max(positions)))
+                out_path.append(PathNode(contig=curr_ctg, ori=ori,
+                                         start=calc_min_coord(positions, mx_extremes[curr_ctg][0]),
+                                         end=calc_max_coord(positions, mx_extremes[curr_ctg][1],
+                                                            len(scaffolds[curr_ctg]))))
             curr_ctg = tup[0]
             positions = [tup[1]]
     ori = determine_orientation(positions)
-    out_path.append(PathNode(curr_ctg, ori, min(positions), max(positions)))
+    out_path.append(PathNode(contig=curr_ctg, ori=ori,
+                             start=calc_min_coord(positions, mx_extremes[curr_ctg][0]),
+                             end=calc_max_coord(positions, mx_extremes[curr_ctg][1],
+                                                len(scaffolds[curr_ctg]))))
     return out_path
 
 
@@ -186,7 +208,7 @@ def filter_graph(graph, min_weight):
     return new_graph
 
 
-def find_paths(graph, list_mx_info):
+def find_paths(graph, list_mx_info, mx_extremes, scaffolds):
     "Finds paths per input assembly file"
     paths = {}
     skipped, total = 0, 0
@@ -204,7 +226,7 @@ def find_paths(graph, list_mx_info):
                 for assembly in list_mx_info:
                     file_name, list_mx = assembly, list_mx_info[assembly]
                     tuple_paths = [list_mx[mx] for mx in path]
-                    ctg_path = format_path(tuple_paths)
+                    ctg_path = format_path(tuple_paths, mx_extremes[assembly], scaffolds[assembly])
                     paths[file_name].append(ctg_path)
                 total += 1
             else:
@@ -269,7 +291,6 @@ def print_scaffolds(paths, prefix, gap_size, k):
         all_scaffolds = read_fasta_file(assembly_fa)
         incorporated_segments = []  # List of Bed entries
 
-        scaffolded = set()  # Track the pieces incorporated into a scaffold
         ct = 0
         pathfile.write(assembly + "\n")
         for path in paths[assembly]:
@@ -300,15 +321,32 @@ def print_scaffolds(paths, prefix, gap_size, k):
         missing_bed = genome_bed.complement(i=incorporated_segments_bed, g=genome_dict)
         missing_bed.saveas(prefix + ".unassigned.bed")
 
-        # cmd = "bedtools getfasta -fi %s -bed %s" % (assembly_fa, prefix + ".unassigned.bed")
-        # cmd_shlex = shlex.split(cmd)
-        #
-        # out_fasta = subprocess.Popen(cmd_shlex, stdout=subprocess.PIPE, universal_newlines=True)
-        # for line in iter(out_fasta.stdout.readline, ''):
-        #     outfile.write(line)
+        cmd = "bedtools getfasta -fi %s -bed %s" % (assembly_fa, prefix + ".unassigned.bed")
+        cmd_shlex = shlex.split(cmd)
+
+        out_fasta = subprocess.Popen(cmd_shlex, stdout=subprocess.PIPE, universal_newlines=True)
+        for line in iter(out_fasta.stdout.readline, ''):
+            outfile.write(line)
 
         outfile.close()
     pathfile.close()
+
+
+def find_mx_min_max(list_mx_info, graph):
+    "Given a dictionary in the form assembly -> mx -> (ctg, pos), find the min and max mx position per ctg"
+    mx_extremes = {} # assembly -> ctg -> (min_pos, max_pos)
+    for assembly in list_mx_info:
+        mx_extremes[assembly] = {}
+        for mx in list_mx_info[assembly]:
+            if mx not in graph:
+                continue
+            ctg, pos = list_mx_info[assembly][mx]
+            if ctg in mx_extremes[assembly]:
+                mx_extremes[assembly][ctg] = (min(mx_extremes[assembly][ctg][0], pos),
+                                              max(mx_extremes[assembly][ctg][1], pos))
+            else:
+                mx_extremes[assembly][ctg] = (pos, pos)
+    return mx_extremes
 
 
 def main():
@@ -341,17 +379,33 @@ def main():
         list_mxs[assembly] = mxs
         weights[assembly] = float(input_weights.pop(0))
 
+    # Filter minimizers - Keep only if unique in an assembly and found in all assemblies
     list_mxs = filter_minimizers(list_mxs)
 
+    # Build a graph: Nodes = mx; Edges between adjacent mx in the assemblies
     graph = build_graph(list_mxs, weights)
 
+    # Print the DOT graph
     print_graph(graph, args.p + "-before", list_mx_info)
 
+    # Filter the graph edges + nodes
     graph = filter_graph(graph, args.n)
 
+    # Print the DOT graph
     print_graph(graph, args.p, list_mx_info)
 
-    paths = find_paths(graph, list_mx_info)
+    # Find the min and max pos of minimizers per assembly, per ctg
+    mx_extremes = find_mx_min_max(list_mx_info, graph)
+    print(mx_extremes)
+
+    # Load scaffolds into memory
+    scaffolds = {}
+    for assembly in args.FILES:
+        min_match = re.search(r'^(\S+)\.tsv', assembly) # TODO: Make this more general
+        assembly_fa = min_match.group(1)
+        scaffolds[assembly] = read_fasta_file(assembly_fa)
+
+    paths = find_paths(graph, list_mx_info, mx_extremes, scaffolds)
 
     print_scaffolds(paths, args.p, args.g, args.k)
 
