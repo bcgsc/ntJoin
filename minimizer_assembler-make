@@ -38,6 +38,18 @@ n=2
 # Reference genome (for analysis)
 ref=/projects/btl/lcoombe/reference-genomes/celegans/celegansN2_referencegenome.fna
 
+# Report run time and memory usage with zsh.
+export REPORTTIME=1
+export TIMEFMT=time user=%U system=%S elapsed=%E cpu=%P memory=%M job=%J
+endif
+
+# Record run time and memory usage in a file using GNU time.
+ifneq ($(shell command -v gtime),)
+time=command gtime -v -o $@.time
+else
+time=command time -v -o $@.time
+endif
+
 assemble: $(min_targets) \
 	$(fai_targets) \
 	$(prefix).mx.dot
@@ -72,13 +84,13 @@ help:
 .SECONDARY:
 
 %.fa.tsv: %.fa
-	$(assemble_path)/minimerize.py -k $(k) -w $(w) $< > $@
+	$(time) $(assemble_path)/minimerize.py -k $(k) -w $(w) $< > $@
 
 %.fa.fai: %.fa
 	samtools faidx $<
 
 $(prefix).mx.dot $(fa_targets): $(min_targets)
-	$(assemble_path)/minimizer_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) $^
+	$(time) $(assemble_path)/minimizer_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) $^
 
 %.dot.png: %.dot
 	dot -Tpng -o $@ $<
