@@ -93,8 +93,11 @@ help:
 %.fa.fai: %.fa
 	samtools faidx $<
 
-$(prefix).mx.dot $(fa_targets): $(min_targets)
-	$(time) $(assemble_path)/minimizer_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) $^
+$(prefix).mx.dot: $(addsuffix .k$(k).w$(w).tsv, $(list_files))
+	$(assemble_path)/minimizer_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) $^
+
+$(addsuffix .scaffolds.fa, $(list_files)): $(prefix).mx.dot
+	touch $@
 
 %.dot.png: %.dot
 	dot -Tpng -o $@ $<

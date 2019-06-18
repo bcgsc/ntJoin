@@ -284,7 +284,7 @@ def print_scaffolds(paths, prefix, gap_size, k):
     pathfile = open(prefix + ".path", 'w')
 
     for assembly in paths:
-        min_match = re.search(r'^(\S+)\.tsv', assembly)
+        min_match = re.search(r'^(\S+).k\d+.w\d+\.tsv', assembly)
         assembly_fa = min_match.group(1)
         outfile = open(assembly_fa + ".scaffolds.fa", 'w')
         all_scaffolds = read_fasta_file(assembly_fa)
@@ -402,7 +402,7 @@ def main():
     # Load scaffolds into memory
     scaffolds = {}
     for assembly in args.FILES:
-        min_match = re.search(r'^(\S+)\.tsv', assembly) # TODO: Make this more general
+        min_match = re.search(r'^(\S+).k\d+.w\d+\.tsv', assembly) # TODO: Make this more general
         assembly_fa = min_match.group(1)
         scaffolds[assembly] = read_fasta_file(assembly_fa)
 
