@@ -201,7 +201,7 @@ def filter_graph(graph, min_weight):
                        if e_prop['weight'] < min_weight]
     new_graph = graph.copy()
     new_graph.remove_edges_from(to_remove_edges)
-    to_remove_nodes = [u for u in graph.nodes if graph.degree(u) > 2]
+    to_remove_nodes = [u for u in new_graph.nodes if new_graph.degree(u) > 2]
     new_graph.remove_nodes_from(to_remove_nodes)
     return new_graph
 
