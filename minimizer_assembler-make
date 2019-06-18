@@ -4,7 +4,7 @@
 # Written by Lauren Coombe @lcoombe
 
 list_files=None
-min_targets=$(addsuffix .tsv, $(list_files))
+min_targets=$(addsuffix .k$(k).w$(w).tsv, $(list_files))
 fa_targets=$(addsuffix .scaffolds.fa, $(list_files))
 bam_targets=$(addsuffix .scaffolds.fa.bam.bai, $(list_files))
 fai_targets=$(addsuffix .fai, $(list_files))
@@ -13,7 +13,7 @@ fai_targets=$(addsuffix .fai, $(list_files))
 list_weights=None
 
 # Prefix for output files
-prefix=out
+prefix=out_k$(k)_w$(w)
 
 # Path to physlr installation
 physlr_path=/projects/btl/lcoombe/git/physlr/src
@@ -45,6 +45,13 @@ SHELL=zsh -e -o pipefail
 # Report run time and memory usage with zsh.
 export REPORTTIME=1
 export TIMEFMT=time user=%U system=%S elapsed=%E cpu=%P memory=%M job=%J
+endif
+
+# Record run time and memory usage in a file using GNU time.
+ifneq ($(shell command -v gtime),)
+time=command gtime -v -o $@.time
+else
+time=command time -v -o $@.time
 endif
 
 assemble: $(min_targets) \
@@ -80,7 +87,7 @@ help:
 .DELETE_ON_ERROR: $(prefix).mx.dot
 .SECONDARY:
 
-%.fa.tsv: %.fa
+%.fa.k$(k).w$(w).tsv: %.fa
 	$(time) $(assemble_path)/minimerize.py -k $(k) -w $(w) $< > $@
 
 %.fa.fai: %.fa
