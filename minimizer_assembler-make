@@ -12,7 +12,7 @@ fai_targets=$(addsuffix .fai, $(list_files))
 list_weights=None
 
 # Prefix for output files
-prefix=out_k$(k)_w$(w)
+prefix=out.k$(k).w$(w).n$(n)
 
 # Path to physlr installation
 physlr_path=/projects/btl/lcoombe/git/physlr/src
@@ -55,7 +55,7 @@ endif
 
 assemble: $(min_targets) \
 	$(fai_targets) \
-	$(prefix).n$(n).mx.dot
+	$(prefix).mx.dot
 
 analysis: $(bam_targets)
 
@@ -83,7 +83,7 @@ help:
 
 
 .PHONY: all analysis assemble help check_params
-.DELETE_ON_ERROR: $(prefix).mx.dot
+.DELETE_ON_ERROR: $(prefix).n$(n).mx.dot
 .SECONDARY:
 
 %.fa.k$(k).w$(w).tsv: %.fa
@@ -92,10 +92,10 @@ help:
 %.fa.fai: %.fa
 	samtools faidx $<
 
-$(prefix).n$(n).mx.dot: $(addsuffix .k$(k).w$(w).tsv, $(list_files))
+$(prefix).mx.dot: $(addsuffix .k$(k).w$(w).tsv, $(list_files))
 	$(time) $(assemble_path)/minimizer_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) $^
 
-$(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files)): $(prefix).n$(n).mx.dot
+$(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files)): $(prefix).mx.dot
 	touch $@
 
 %.dot.png: %.dot
