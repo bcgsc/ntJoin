@@ -5,8 +5,7 @@
 
 list_files=None
 min_targets=$(addsuffix .k$(k).w$(w).tsv, $(list_files))
-fa_targets=$(addsuffix .scaffolds.fa, $(list_files))
-bam_targets=$(addsuffix .scaffolds.fa.bam.bai, $(list_files))
+bam_targets=$(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa.bam.bai, $(list_files))
 fai_targets=$(addsuffix .fai, $(list_files))
 
 # List of edge weights
@@ -56,7 +55,7 @@ endif
 
 assemble: $(min_targets) \
 	$(fai_targets) \
-	$(prefix).mx.dot
+	$(prefix).n$(n).mx.dot
 
 analysis: $(bam_targets)
 
@@ -93,10 +92,10 @@ help:
 %.fa.fai: %.fa
 	samtools faidx $<
 
-$(prefix).mx.dot: $(addsuffix .k$(k).w$(w).tsv, $(list_files))
+$(prefix).n$(n).mx.dot: $(addsuffix .k$(k).w$(w).tsv, $(list_files))
 	$(time) $(assemble_path)/minimizer_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) $^
 
-$(addsuffix .scaffolds.fa, $(list_files)): $(prefix).mx.dot
+$(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files)): $(prefix).n$(n).mx.dot
 	touch $@
 
 %.dot.png: %.dot

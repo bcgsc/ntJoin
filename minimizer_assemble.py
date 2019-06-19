@@ -279,14 +279,14 @@ def format_bedtools_genome(scaffolds):
     return bed, genome_dict
 
 
-def print_scaffolds(paths, prefix, gap_size, k):
+def print_scaffolds(paths, prefix, gap_size, k, min_weight):
     "Given the paths, print out the scaffolds fasta"
     pathfile = open(prefix + ".path", 'w')
 
     for assembly in paths:
-        min_match = re.search(r'^(\S+).k\d+.w\d+\.tsv', assembly)
+        min_match = re.search(r'^(\S+)(.k\d+.w\d+)\.tsv', assembly)
         assembly_fa = min_match.group(1)
-        outfile = open(assembly_fa + ".scaffolds.fa", 'w')
+        outfile = open(assembly_fa + min_match.group(2) + "." + str(min_weight) + ".scaffolds.fa", 'w')
         all_scaffolds = read_fasta_file(assembly_fa)
         incorporated_segments = []  # List of Bed entries
 
@@ -408,7 +408,7 @@ def main():
 
     paths = find_paths(graph, list_mx_info, mx_extremes, scaffolds)
 
-    print_scaffolds(paths, args.p, args.g, args.k)
+    print_scaffolds(paths, args.p, args.g, args.k, args.n)
 
 
 if __name__ == "__main__":
