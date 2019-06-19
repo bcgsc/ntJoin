@@ -7,8 +7,18 @@ Written by Lauren Coombe
 import argparse
 import re
 from collections import defaultdict
+from collections import namedtuple
+import shlex
+import subprocess
+import sys
 import networkx as nx
+import pybedtools
+from read_fasta import read_fasta
 
+
+# Defining namedtuples
+PathNode = namedtuple("PathNode", ["contig", "ori", "start", "end"])
+Bed = namedtuple("Bed", ["contig", "start", "end"])
 
 
 def read_minimizers(tsv_filename):
@@ -20,14 +30,13 @@ def read_minimizers(tsv_filename):
         for line in tsv:
             line = line.strip().split("\t")
             if len(line) > 1:
-                mxs.append(line[1].split(" "))
-                mx_cnt = 0
-                for mx in line[1].split(" "):
+                mxs.append([mx_pos.split(":")[0] for mx_pos in line[1].split(" ")])
+                for mx_pos in line[1].split(" "):
+                    mx, pos = mx_pos.split(":")
                     if mx in mx_info:  # This is a duplicate, add to dup set, don't add to dict
                         dup_mxs.add(mx)
                     else:
-                        mx_info[mx] = (line[0], mx_cnt)
-                    mx_cnt += 1
+                        mx_info[mx] = (line[0], int(pos))
 
     mx_info = {key: mx_info[key] for key in mx_info if key not in dup_mxs}
     mxs_filt = []
@@ -39,9 +48,8 @@ def read_minimizers(tsv_filename):
 
 def filter_minimizers(list_mxs):
     "Filters out minimizers from each dictionary of lists that are not found in all other sets"
-    list_sets = []
-    for assembly in list_mxs:
-        list_sets.append(set([mx for mx_list in list_mxs[assembly] for mx in mx_list]))
+    list_sets = [{mx for mx_list in list_mxs[assembly] for mx in mx_list}
+                 for assembly in list_mxs]
 
     mx_intersection = set.intersection(*list_sets)
 
@@ -54,7 +62,12 @@ def filter_minimizers(list_mxs):
     return return_mxs
 
 
-def build_graph(list_mxs):
+def calc_total_weight(list_files, weights):
+    "Calculate the total weight of an edge given the assembly support"
+    return sum([weights[f] for f in list_files])
+
+
+def build_graph(list_mxs, weights):
     "Builds an undirected graph: minimizers=nodes; edges=between adjacent minimizers"
     graph = nx.Graph()
 
@@ -72,9 +85,13 @@ def build_graph(list_mxs):
                 else:
                     edges[assembly_mx_list[i]][assembly_mx_list[i+1]] = [assembly]
 
-    formatted_edges = [(s, t, edges[s][t]) for s in edges for t in edges[s]]
+    formatted_edges = [(s, t) for s in edges for t in edges[s]]
+    edge_attributes = {(s, t): {"support": edges[s][t],
+                                "weight": calc_total_weight(edges[s][t], weights)}
+                       for s in edges for t in edges[s]}
 
-    graph.add_weighted_edges_from(formatted_edges)
+    graph.add_edges_from(formatted_edges)
+    nx.set_edge_attributes(graph, edge_attributes)
     return graph
 
 
@@ -98,7 +115,7 @@ def print_graph(graph, prefix, list_mxs_info):
         outfile.write("\"%s\" -- \"%s\"" %
                       (edge[0], edge[1]))
         # For debugging only
-        weight = edge[2]['weight']
+        weight = edge[2]['support']
         if len(weight) == 1:
             colour = colours[list_files.index(weight[0])]
         elif len(weight) == 2:
@@ -125,9 +142,23 @@ def determine_orientation(positions):
     return "?"
 
 
-def format_path(tuple_paths):
-    "Given a list of tuples (ctg, position), print out the order and orientation of the contigs"
-    out_path = [] # List of (ctg, orientation)
+def calc_min_coord(positions, ctg_min_mx):
+    "Calculates the minimum coordinate for a contig region in a path"
+    if min(positions) == ctg_min_mx:
+        return 0
+    return min(positions)
+
+
+def calc_max_coord(positions, ctg_max_mx, ctg_len):
+    "Calculates the maximum coordinate for a contig region in a path"
+    if max(positions) == ctg_max_mx:
+        return ctg_len
+    return max(positions)
+
+
+def format_path(tuple_paths, mx_extremes, scaffolds):
+    "Given a list of tuples (ctg, position), print the order/orientation/regions of the contigs"
+    out_path = []  # List of PathNode
     curr_ctg = None
     positions = []
     for tup in tuple_paths:
@@ -137,11 +168,17 @@ def format_path(tuple_paths):
             # This is either the first tuple, or we are past a stretch of repeating contigs
             if curr_ctg is not None:
                 ori = determine_orientation(positions)
-                out_path.append((curr_ctg, ori))
+                out_path.append(PathNode(contig=curr_ctg, ori=ori,
+                                         start=calc_min_coord(positions, mx_extremes[curr_ctg][0]),
+                                         end=calc_max_coord(positions, mx_extremes[curr_ctg][1],
+                                                            len(scaffolds[curr_ctg]))))
             curr_ctg = tup[0]
             positions = [tup[1]]
     ori = determine_orientation(positions)
-    out_path.append((curr_ctg, ori))
+    out_path.append(PathNode(contig=curr_ctg, ori=ori,
+                             start=calc_min_coord(positions, mx_extremes[curr_ctg][0]),
+                             end=calc_max_coord(positions, mx_extremes[curr_ctg][1],
+                                                len(scaffolds[curr_ctg]))))
     return out_path
 
 
@@ -160,15 +197,16 @@ def read_dot(dotfile_name):
 
 def filter_graph(graph, min_weight):
     "Filter the graph by edge weights"
-    to_remove_edges = [(u, v) for u, v, e_prop in graph.edges.data() if len(e_prop['weight']) < min_weight]
+    to_remove_edges = [(u, v) for u, v, e_prop in graph.edges.data()
+                       if e_prop['weight'] < min_weight]
     new_graph = graph.copy()
     new_graph.remove_edges_from(to_remove_edges)
-    to_remove_nodes = [u for u in graph.nodes if graph.degree(u) > 2]
+    to_remove_nodes = [u for u in new_graph.nodes if new_graph.degree(u) > 2]
     new_graph.remove_nodes_from(to_remove_nodes)
     return new_graph
 
 
-def find_paths(graph, list_mx_info):
+def find_paths(graph, list_mx_info, mx_extremes, scaffolds):
     "Finds paths per input assembly file"
     paths = {}
     skipped, total = 0, 0
@@ -186,34 +224,29 @@ def find_paths(graph, list_mx_info):
                 for assembly in list_mx_info:
                     file_name, list_mx = assembly, list_mx_info[assembly]
                     tuple_paths = [list_mx[mx] for mx in path]
-                    ctg_path = format_path(tuple_paths)
+                    ctg_path = format_path(tuple_paths, mx_extremes[assembly], scaffolds[assembly])
                     paths[file_name].append(ctg_path)
                 total += 1
             else:
-                print("WARNING: Component with node", list(component_graph.nodes)[0], "was skipped.", sep=" ")
+                print("WARNING: Component with node", list(component.nodes)[0],
+                      "was skipped.", sep=" ")
                 skipped += 1
         else:
-            print("WARNING: Component with node", list(component_graph.nodes)[0], "was skipped.", sep=" ")
+            print("WARNING: Component with node", list(component_graph.nodes)[0],
+                  "was skipped.", sep=" ")
             skipped += 1
 
-    print("Warning: ", skipped, " paths of", total ,"were skipped", sep=" ")
+    print("Warning: ", skipped, " paths of", total, "were skipped", sep=" ")
 
     return paths
 
 
-def read_fasta(filename):
+def read_fasta_file(filename):
     "Read a fasta file into memory"
     scaffolds = {}
-    header = None
-    header_match = re.compile(r'^>(\S+)')
     with open(filename, 'r') as fasta:
-        for line in fasta:
-            line = line.strip()
-            line_match = re.search(header_match, line)
-            if line_match:
-                header = line_match.group(1)
-            else:
-                scaffolds[header] = line
+        for header, seq, _, _ in read_fasta(fasta):
+            scaffolds[header] = seq
     return scaffolds
 
 
@@ -228,45 +261,94 @@ def reverse_complement(sequence):
         new_sequence += mappings[char.upper()]
     return new_sequence
 
+def get_fasta_segment(path_node, sequence, k):
+    "Given a PathNode and the contig sequence, return the corresponding sequence"
+    if path_node.ori == "-":
+        return reverse_complement(sequence[path_node.start:path_node.end+k+1])
+    return sequence[path_node.start:path_node.end+k+1]
 
-def print_scaffolds(paths, prefix, gap_size):
+
+def format_bedtools_genome(scaffolds):
+    "Format a BED file and genome dictionary for bedtools"
+    bed_str = "\n".join(["%s\t%d\t%d" % (scaffold, 0, len(scaffolds[scaffold]))
+                         for scaffold in scaffolds])
+    bed = pybedtools.BedTool(bed_str, from_string=True)
+
+    genome_dict = {scaffold: (0, len(scaffolds[scaffold])) for scaffold in scaffolds}
+
+    return bed, genome_dict
+
+
+def print_scaffolds(paths, prefix, gap_size, k):
     "Given the paths, print out the scaffolds fasta"
     pathfile = open(prefix + ".path", 'w')
 
     for assembly in paths:
-        min_match = re.search(r'^(\S+)\.tsv', assembly)
+        min_match = re.search(r'^(\S+).k\d+.w\d+\.tsv', assembly)
         assembly_fa = min_match.group(1)
         outfile = open(assembly_fa + ".scaffolds.fa", 'w')
-        all_scaffolds = read_fasta(assembly_fa)
+        all_scaffolds = read_fasta_file(assembly_fa)
+        incorporated_segments = []  # List of Bed entries
 
-        scaffolded = set()  # Track the pieces incorporated into a scaffold
         ct = 0
         pathfile.write(assembly + "\n")
         for path in paths[assembly]:
             sequences = []
-            for ctg, ori in path:
-                if ori == "?":
+            path_segments = []
+            for node in path:
+                if node.ori == "?":
                     continue
-                elif ori == "+":
-                    sequences.append((ctg, all_scaffolds[ctg]))
-                else:
-                    sequences.append((ctg, reverse_complement(all_scaffolds[ctg])))
-                #scaffolded.add(ctg)
+                sequences.append(get_fasta_segment(node, all_scaffolds[node.contig], k))
+                path_segments.append(Bed(contig=node.contig, start=node.start,
+                                         end=node.end))
             if len(sequences) < 2:
                 continue
             outfile.write(">%s\n%s\n" %
                           ("mx" + str(ct),
-                           ("N"*gap_size).join([seq[1] for seq in sequences])))
-            scaffolded = scaffolded.union(set([seq[0] for seq in sequences]))
-            pathfile.write("%s\t%s\n" % ("mx" + str(ct), " ".join(["".join(tup) for tup in path])))
+                           ("N"*gap_size).join([seq for seq in sequences])))
+            incorporated_segments.extend(path_segments)
+            pathfile.write("%s\t%s\n" % ("mx" + str(ct),
+                                         " ".join(["%s%s:%d-%d" %
+                                                   (tup.contig, tup.ori, tup.start, tup.end)
+                                                   for tup in path])))
             ct += 1
+
         # Also print out the sequences that were NOT scaffolded
-        for ctg in all_scaffolds:
-            if ctg not in scaffolded:
-                outfile.write(">%s\n%s\n" % (ctg, all_scaffolds[ctg]))
+        incorporated_segments_str = "\n".join(["%s\t%s\t%s" % (chr, s, e)
+                                               for chr, s, e in incorporated_segments])
+        incorporated_segments_bed = pybedtools.BedTool(incorporated_segments_str,
+                                                       from_string=True).sort()
+        genome_bed, genome_dict = format_bedtools_genome(all_scaffolds)
+
+        missing_bed = genome_bed.complement(i=incorporated_segments_bed, g=genome_dict)
+        missing_bed.saveas(prefix + ".unassigned.bed")
+
+        cmd = "bedtools getfasta -fi %s -bed %s" % (assembly_fa, prefix + ".unassigned.bed")
+        cmd_shlex = shlex.split(cmd)
+
+        out_fasta = subprocess.Popen(cmd_shlex, stdout=subprocess.PIPE, universal_newlines=True)
+        for line in iter(out_fasta.stdout.readline, ''):
+            outfile.write(line)
 
         outfile.close()
     pathfile.close()
+
+
+def find_mx_min_max(list_mx_info, graph):
+    "Given a dictionary in the form assembly->mx->(ctg, pos), find the min/max mx position per ctg"
+    mx_extremes = {} # assembly -> ctg -> (min_pos, max_pos)
+    for assembly in list_mx_info:
+        mx_extremes[assembly] = {}
+        for mx in list_mx_info[assembly]:
+            if mx not in graph:
+                continue
+            ctg, pos = list_mx_info[assembly][mx]
+            if ctg in mx_extremes[assembly]:
+                mx_extremes[assembly][ctg] = (min(mx_extremes[assembly][ctg][0], pos),
+                                              max(mx_extremes[assembly][ctg][1], pos))
+            else:
+                mx_extremes[assembly][ctg] = (pos, pos)
+    return mx_extremes
 
 
 def main():
@@ -277,31 +359,56 @@ def main():
     parser.add_argument("-p", help="Output prefix [out]", default="out",
                         type=str, required=False)
     parser.add_argument("-g", help="Gap size [50]", default=50, type=int)
-    parser.add_argument("-w", help="Minimum number of assemblies supporting an edge [2]", default=2, type=int)
+    parser.add_argument("-n", help="Minimum edge weight [2]", default=2, type=int)
+    parser.add_argument("-l", help="List of assembly weights", required=True, type=str)
+    parser.add_argument("-k", help="k value used for minimizering", required=True, type=int)
     args = parser.parse_args()
+
+    # Parse the weights
+    input_weights = re.split(r'\s+', args.l)
+    if len(input_weights) != len(args.FILES):
+        print("ERROR: The length of supplied weights and number of assembly files must be equal.")
+        print("Supplied lengths:", len(input_weights), len(args.FILES), sep=" ")
+        sys.exit(1)
 
     # Read in the minimizers
     list_mx_info = {}  # Dictionary of dictionaries of form mx -> (ctg, pos)
     list_mxs = {}  # Dictionary of Lists of minimizers (1 list per assembly file)
+    weights = {}  # Dictionary of form file -> weight
     for assembly in args.FILES:
-        #list_files.append(assembly)
         mxs_info, mxs = read_minimizers(assembly)
         list_mx_info[assembly] = mxs_info
         list_mxs[assembly] = mxs
+        weights[assembly] = float(input_weights.pop(0))
 
+    # Filter minimizers - Keep only if unique in an assembly and found in all assemblies
     list_mxs = filter_minimizers(list_mxs)
 
-    graph = build_graph(list_mxs)
+    # Build a graph: Nodes = mx; Edges between adjacent mx in the assemblies
+    graph = build_graph(list_mxs, weights)
 
+    # Print the DOT graph
     print_graph(graph, args.p + "-before", list_mx_info)
 
-    graph = filter_graph(graph, args.w)
+    # Filter the graph edges + nodes
+    graph = filter_graph(graph, args.n)
 
+    # Print the DOT graph
     print_graph(graph, args.p, list_mx_info)
 
-    paths = find_paths(graph, list_mx_info)
+    # Find the min and max pos of minimizers per assembly, per ctg
+    mx_extremes = find_mx_min_max(list_mx_info, graph)
 
-    print_scaffolds(paths, args.p, args.g)
+    # Load scaffolds into memory
+    scaffolds = {}
+    for assembly in args.FILES:
+        min_match = re.search(r'^(\S+).k\d+.w\d+\.tsv', assembly) # TODO: Make this more general
+        assembly_fa = min_match.group(1)
+        scaffolds[assembly] = read_fasta_file(assembly_fa)
+
+    paths = find_paths(graph, list_mx_info, mx_extremes, scaffolds)
+
+    print_scaffolds(paths, args.p, args.g, args.k)
 
 
 if __name__ == "__main__":
