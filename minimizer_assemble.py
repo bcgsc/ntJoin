@@ -286,7 +286,7 @@ def print_scaffolds(paths, prefix, gap_size, k, min_weight):
     for assembly in paths:
         min_match = re.search(r'^(\S+)(.k\d+.w\d+)\.tsv', assembly)
         assembly_fa = min_match.group(1)
-        outfile = open(assembly_fa + min_match.group(2) + "." + str(min_weight) + ".scaffolds.fa", 'w')
+        outfile = open(assembly_fa + min_match.group(2) + ".n" + str(min_weight) + ".scaffolds.fa", 'w')
         all_scaffolds = read_fasta_file(assembly_fa)
         incorporated_segments = []  # List of Bed entries
 

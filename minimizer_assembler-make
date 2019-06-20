@@ -57,7 +57,9 @@ assemble: $(min_targets) \
 	$(fai_targets) \
 	$(prefix).mx.dot
 
-analysis: $(bam_targets)
+analysis: $(addsuffix .bam.bai, $(list_files)) \
+	$(bam_targets) \
+	quast_$(prefix)/report.tsv
 
 all: check_params assemble analysis
 
@@ -106,3 +108,9 @@ $(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files)): $(prefix).mx.dot
 
 %.bam.bai: %.bam
 	samtools index $<
+
+# Run QUAST
+quast_$(prefix)/report.tsv: $(list_files) $(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files))
+	quast -t $(t) -o quast_$(prefix) -r $(ref) --fast --scaffold-gap-max-size 100000 --split-scaffolds \
+	$(list_files) $(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files))
+	
