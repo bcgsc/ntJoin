@@ -5,6 +5,7 @@ Written by Lauren Coombe
 """
 
 import argparse
+import datetime
 import re
 from collections import defaultdict
 from collections import namedtuple
@@ -23,6 +24,7 @@ Bed = namedtuple("Bed", ["contig", "start", "end"])
 
 def read_minimizers(tsv_filename):
     "Read all the minimizers from a file into a dictionary, removing duplicate minimizers"
+    print("Reading minimizers:", tsv_filename, datetime.datetime.today(), sep="", file=sys.stdout)
     mx_info = {}  # mx -> (contig, position)
     mxs = []  # List of lists of minimizers, which have ordering information
     dup_mxs = set()  # Set of minimizers seen to be duplicates
@@ -48,6 +50,7 @@ def read_minimizers(tsv_filename):
 
 def filter_minimizers(list_mxs):
     "Filters out minimizers from each dictionary of lists that are not found in all other sets"
+    print("Filtering minimizers", datetime.datetime.today(), sep=" ", file=sys.stdout)
     list_sets = [{mx for mx_list in list_mxs[assembly] for mx in mx_list}
                  for assembly in list_mxs]
 
@@ -69,6 +72,7 @@ def calc_total_weight(list_files, weights):
 
 def build_graph(list_mxs, weights):
     "Builds an undirected graph: minimizers=nodes; edges=between adjacent minimizers"
+    print("Building graph", datetime.datetime.today(), sep=" ", file=sys.stdout)
     graph = nx.Graph()
 
     edges = defaultdict(dict)  # source -> target -> [list assembly support]
@@ -99,6 +103,7 @@ def print_graph(graph, prefix, list_mxs_info):
     "Prints a graph in dot format"
     out_graph = prefix + ".mx.dot"
     outfile = open(out_graph, 'w')
+    print("Printing graph", out_graph, datetime.datetime.today(), sep=" ", file=sys.stdout)
 
     outfile.write("graph G {\n")
 
@@ -197,6 +202,7 @@ def read_dot(dotfile_name):
 
 def filter_graph(graph, min_weight):
     "Filter the graph by edge weights"
+    print("Filtering the graph", datetime.datetime.today(), sep=" ", file=sys.stdout)
     to_remove_edges = [(u, v) for u, v, e_prop in graph.edges.data()
                        if e_prop['weight'] < min_weight]
     new_graph = graph.copy()
@@ -208,6 +214,7 @@ def filter_graph(graph, min_weight):
 
 def find_paths(graph, list_mx_info, mx_extremes, scaffolds):
     "Finds paths per input assembly file"
+    print("Finding paths", datetime.datetime.today(), sep=" ", file=sys.stdout)
     paths = {}
     skipped, total = 0, 0
     for assembly in list_mx_info:
@@ -243,6 +250,7 @@ def find_paths(graph, list_mx_info, mx_extremes, scaffolds):
 
 def read_fasta_file(filename):
     "Read a fasta file into memory"
+    print("Reading fasta file", filename, datetime.datetime.today(), sep=" ", file=sys.stdout)
     scaffolds = {}
     with open(filename, 'r') as fasta:
         for header, seq, _, _ in read_fasta(fasta):
@@ -281,6 +289,7 @@ def format_bedtools_genome(scaffolds):
 
 def print_scaffolds(paths, prefix, gap_size, k, min_weight):
     "Given the paths, print out the scaffolds fasta"
+    print("Printing output scaffolds", datetime.datetime.today(), sep=" ", file=sys.stdout)
     pathfile = open(prefix + ".path", 'w')
 
     for assembly in paths:
