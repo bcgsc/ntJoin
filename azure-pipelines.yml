@@ -30,3 +30,4 @@ jobs:
       pip install pytest
       cd tests
       pytest minscaff_test.py
+    displayName: Testing minimizer graph code

@@ -4,7 +4,7 @@ LDLIBS=-lz
 all: physlr-indexlr
 
 clean:
-	rm -f physlr-indexlr physlr-filter-barcodes physlr-filter-bxmx physlr-overlap
+	rm -f physlr-indexlr
 
 # Check the C++ source code for errors.
 lint: clang-format clang-tidy
