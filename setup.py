@@ -15,8 +15,7 @@ setuptools.setup(
     license="GPLv3",
     python_requires=">=3",
     install_requires=["networkx", "pybedtools"],
-    packages = ["minimizer-assembly-scaffolder"],
-    scripts = ["minimizerize.py", "minimizer_assemble.py", "hash.py", "read_fasta.py"],
+    scripts = ["minimerize.py", "minimizer_assemble.py", "hash.py", "read_fasta.py"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
