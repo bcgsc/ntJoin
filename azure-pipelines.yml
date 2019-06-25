@@ -9,7 +9,20 @@ jobs:
     inputs:
       versionSpec: "3.7"
       architecture: x64
+  - script: |
+      curl https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+      sudo apt-add-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-7 main"
+      sudo apt-get update
+      sudo apt-get install -y --no-install-recommends clang-format-7 clang-tidy-7
+      sudo ln -s clang-format-7 /usr/bin/clang-format
+      sudo ln -s clang-tidy-7 /usr/bin/clang-tidy
   - script: pip3 install pylint .
     displayName: Install Python packages
   - script: pylint minimizer_assemble.py
     displayName: Run pylint
+  - script: make -C src all
+    displayName: Compile C++ executables
+  - script: make -C src lint
+    displayName: Run clang-format and clang-tidy
+  - script: make -C src check
+    displayName: Test C++ executables
