@@ -1,8 +1,11 @@
 [basic]
 good-names = ct, i, mx, k
-max-locals=50
+max-locals = 50
 
 [MISCELLANEOUS]
 
 # List of note tags to take in consideration, separated by a comma.
-notes=FIXME,XXX,TODO
+notes=FIXME,XXX
+
+# Ignore unexpected keyword arg for pybedtools
+disable = unexpected-keyword-arg
