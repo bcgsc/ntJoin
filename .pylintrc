@@ -1,0 +1,8 @@
+[basic]
+good-names = ct, i, mx, k
+max-locals=50
+
+[MISCELLANEOUS]
+
+# List of note tags to take in consideration, separated by a comma.
+notes=FIXME,XXX,TODO
