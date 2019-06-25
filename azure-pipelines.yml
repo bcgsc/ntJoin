@@ -1,0 +1,15 @@
+# See https://docs.microsoft.com/azure/devops/pipelines/languages/python
+
+jobs:
+- job: Test
+  pool:
+    vmImage: Ubuntu 16.04
+  steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: "3.7"
+      architecture: x64
+  - script: pip3 install pylint .
+    displayName: Install Python packages
+  - script: pylint minimizer_assemble.py
+    displayName: Run pylint
