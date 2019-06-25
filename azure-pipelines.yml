@@ -26,3 +26,7 @@ jobs:
     displayName: Run clang-format and clang-tidy
   - script: make -C src check
     displayName: Test C++ executables
+  - script: |
+      pip install pytest
+      cd tests
+      pytest minscaff_test.py
