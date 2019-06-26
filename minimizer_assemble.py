@@ -18,7 +18,7 @@ from read_fasta import read_fasta
 
 
 # Defining namedtuples
-PathNode = namedtuple("PathNode", ["contig", "ori", "start", "end"])
+PathNode = namedtuple("PathNode", ["contig", "ori", "start", "end", "gap_size"])
 Bed = namedtuple("Bed", ["contig", "start", "end"])
 
 
@@ -161,29 +161,42 @@ def calc_max_coord(positions, ctg_max_mx, ctg_len):
     return max(positions)
 
 
-def format_path(tuple_paths, mx_extremes, scaffolds):
-    "Given a list of tuples (ctg, position), print the order/orientation/regions of the contigs"
+def calculate_gap_size(mx1, mx2, graph, list_mx_info):
+    "Given u, v in the graph, calculate the mean distance between the assemblies with that edge"
+    distances = [abs(list_mx_info[assembly][mx2][1] - list_mx_info[assembly][mx1][1])
+                 for assembly in graph[mx1][mx2]['support']]
+    mean_dist = int(sum(distances)/len(distances))
+    return mean_dist
+
+
+def format_path(path, assembly, list_mx_info, mx_extremes, scaffolds, component_graph):
+    "Given a path (sequence of mx), print the order/orientation/regions of contigs for an assembly"
     out_path = []  # List of PathNode
-    curr_ctg = None
+    curr_ctg, prev_mx = None, None
     positions = []
-    for tup in tuple_paths:
-        if tup[0] is curr_ctg:
-            positions.append(tup[1])
+    for mx in path:
+        ctg, pos = list_mx_info[assembly][mx]
+        if ctg is curr_ctg:
+            positions.append(pos)
         else:
-            # This is either the first tuple, or we are past a stretch of repeating contigs
+            # This is either the first mx, or we are past a stretch of repeating contigs
             if curr_ctg is not None:
                 ori = determine_orientation(positions)
                 out_path.append(PathNode(contig=curr_ctg, ori=ori,
                                          start=calc_min_coord(positions, mx_extremes[curr_ctg][0]),
                                          end=calc_max_coord(positions, mx_extremes[curr_ctg][1],
-                                                            len(scaffolds[curr_ctg]))))
-            curr_ctg = tup[0]
-            positions = [tup[1]]
+                                                            len(scaffolds[curr_ctg])),
+                                         gap_size=calculate_gap_size(prev_mx, mx,
+                                                                component_graph, list_mx_info)))
+            curr_ctg = ctg
+            positions = [pos]
+        prev_mx = mx
     ori = determine_orientation(positions)
     out_path.append(PathNode(contig=curr_ctg, ori=ori,
                              start=calc_min_coord(positions, mx_extremes[curr_ctg][0]),
                              end=calc_max_coord(positions, mx_extremes[curr_ctg][1],
-                                                len(scaffolds[curr_ctg]))))
+                                                len(scaffolds[curr_ctg])),
+                             gap_size=0))
     return out_path
 
 
@@ -229,10 +242,9 @@ def find_paths(graph, list_mx_info, mx_extremes, scaffolds):
                     num_edges == len(component_graph.edges()) and len(path) == len(set(path)):
                 # All the nodes/edges from the graph are in the simple path, no repeated nodes
                 for assembly in list_mx_info:
-                    file_name, list_mx = assembly, list_mx_info[assembly]
-                    tuple_paths = [list_mx[mx] for mx in path]
-                    ctg_path = format_path(tuple_paths, mx_extremes[assembly], scaffolds[assembly])
-                    paths[file_name].append(ctg_path)
+                    ctg_path = format_path(path, assembly, list_mx_info, mx_extremes[assembly], scaffolds[assembly],
+                                           component_graph)
+                    paths[assembly].append(ctg_path)
                 total += 1
             else:
                 print("WARNING: Component with node", list(component.nodes)[0],
@@ -269,11 +281,12 @@ def reverse_complement(sequence):
         new_sequence += mappings[char.upper()]
     return new_sequence
 
+
 def get_fasta_segment(path_node, sequence, k):
     "Given a PathNode and the contig sequence, return the corresponding sequence"
     if path_node.ori == "-":
         return reverse_complement(sequence[path_node.start:path_node.end+k+1])
-    return sequence[path_node.start:path_node.end+k+1]
+    return sequence[path_node.start:path_node.end+k+1] + "N"*path_node.gap_size
 
 
 def format_bedtools_genome(scaffolds):
@@ -287,7 +300,7 @@ def format_bedtools_genome(scaffolds):
     return bed, genome_dict
 
 
-def print_scaffolds(paths, prefix, gap_size, k, min_weight):
+def print_scaffolds(paths, prefix, k, min_weight):
     "Given the paths, print out the scaffolds fasta"
     print("Printing output scaffolds", datetime.datetime.today(), sep=" ", file=sys.stdout)
     pathfile = open(prefix + ".path", 'w')
@@ -315,12 +328,13 @@ def print_scaffolds(paths, prefix, gap_size, k, min_weight):
                 continue
             outfile.write(">%s\n%s\n" %
                           ("mx" + str(ct),
-                           ("N"*gap_size).join([seq for seq in sequences])))
+                           "".join([seq for seq in sequences])))
             incorporated_segments.extend(path_segments)
-            pathfile.write("%s\t%s\n" % ("mx" + str(ct),
-                                         " ".join(["%s%s:%d-%d" %
-                                                   (tup.contig, tup.ori, tup.start, tup.end)
-                                                   for tup in path])))
+            path_str = " ".join(["%s%s:%d-%d %dN" %
+                                 (tup.contig, tup.ori, tup.start, tup.end, tup.gap_size)
+                                 for tup in path])
+            path_str = re.sub(r'\s+0N$', r'', path_str)
+            pathfile.write("%s\t%s\n" % ("mx" + str(ct), path_str))
             ct += 1
 
         # Also print out the sequences that were NOT scaffolded
@@ -368,7 +382,6 @@ def main():
     parser.add_argument("FILES", nargs="+", help="Minimizer TSV files")
     parser.add_argument("-p", help="Output prefix [out]", default="out",
                         type=str, required=False)
-    parser.add_argument("-g", help="Gap size [50]", default=50, type=int)
     parser.add_argument("-n", help="Minimum edge weight [2]", default=2, type=int)
     parser.add_argument("-l", help="List of assembly weights", required=True, type=str)
     parser.add_argument("-k", help="k value used for minimizering", required=True, type=int)
@@ -418,7 +431,7 @@ def main():
 
     paths = find_paths(graph, list_mx_info, mx_extremes, scaffolds)
 
-    print_scaffolds(paths, args.p, args.g, args.k, args.n)
+    print_scaffolds(paths, args.p, args.k, args.n)
 
 
 if __name__ == "__main__":

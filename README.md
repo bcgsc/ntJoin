@@ -12,7 +12,6 @@ t	Number of threads [4]
 k	K-mer size for minimizers [64]
 w	Window size for minimizers [1000]
 n	Min. edge weight [2]
-g	Gap size (bp) between joined scaffolds [50]
 ```
 
 #### Requirements:

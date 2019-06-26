@@ -3,7 +3,7 @@ import subprocess
 import re
 
 def test_mx():
-    cmd = "../minimizer_assembler-make assemble list_files=\'ref.fa scaf.fa\' " \
+    cmd = "../minimizer_assembler-make assemble -B list_files=\'ref.fa scaf.fa\' " \
           "list_weights=\'2 1\' k=32 w=1000 n=2 prefix=out_scaf.k32.w1000.n2"
     cmd_shlex = shlex.split(cmd)
     subprocess.call(cmd_shlex)
@@ -15,7 +15,7 @@ def test_mx():
 
 
 def test_mx_rc():
-    cmd = "../minimizer_assembler-make assemble list_files=\'ref.fa scaf.rc.fa\' " \
+    cmd = "../minimizer_assembler-make assemble -B list_files=\'ref.fa scaf.rc.fa\' " \
           "list_weights=\'2 1\' k=32 w=1000 n=2 prefix=out_scaf.rc.k32.w1000.n2"
     cmd_shlex = shlex.split(cmd)
     subprocess.call(cmd_shlex)
