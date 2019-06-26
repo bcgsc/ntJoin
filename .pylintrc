@@ -1,6 +1,7 @@
 [basic]
 good-names = ct, i, mx, k
 max-locals = 50
+max-args = 6
 
 [MISCELLANEOUS]
 

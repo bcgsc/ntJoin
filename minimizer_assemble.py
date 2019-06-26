@@ -187,7 +187,8 @@ def format_path(path, assembly, list_mx_info, mx_extremes, scaffolds, component_
                                          end=calc_max_coord(positions, mx_extremes[curr_ctg][1],
                                                             len(scaffolds[curr_ctg])),
                                          gap_size=calculate_gap_size(prev_mx, mx,
-                                                                component_graph, list_mx_info)))
+                                                                     component_graph,
+                                                                     list_mx_info)))
             curr_ctg = ctg
             positions = [pos]
         prev_mx = mx
@@ -242,8 +243,8 @@ def find_paths(graph, list_mx_info, mx_extremes, scaffolds):
                     num_edges == len(component_graph.edges()) and len(path) == len(set(path)):
                 # All the nodes/edges from the graph are in the simple path, no repeated nodes
                 for assembly in list_mx_info:
-                    ctg_path = format_path(path, assembly, list_mx_info, mx_extremes[assembly], scaffolds[assembly],
-                                           component_graph)
+                    ctg_path = format_path(path, assembly, list_mx_info, mx_extremes[assembly],
+                                           scaffolds[assembly], component_graph)
                     paths[assembly].append(ctg_path)
                 total += 1
             else:
