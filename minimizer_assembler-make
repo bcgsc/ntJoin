@@ -14,11 +14,8 @@ list_weights=None
 # Prefix for output files
 prefix=out.k$(k).w$(w).n$(n)
 
-# Path to physlr installation
-physlr_path=/projects/btl/lcoombe/git/physlr/src
-
 # Path to minimizer assemble code
-assemble_path=/projects/btl_scratch/lcoombe/assembly_merger/minimizer_assembler
+assemble_path=$(shell dirname $(realpath $(MAKEFILE_LIST)))
 
 # Reference
 
@@ -38,7 +35,7 @@ n=2
 gap=50
 
 # Reference genome (for analysis)
-ref=/projects/btl/lcoombe/reference-genomes/celegans/celegansN2_referencegenome.fna
+ref=None
 
 SHELL=bash -e -o pipefail
 ifeq ($(shell zsh -e -o pipefail -c 'true' 2>/dev/null; echo $$?), 0)
@@ -60,7 +57,8 @@ assemble: $(min_targets) \
 	$(fai_targets) \
 	$(prefix).mx.dot
 
-analysis: $(addsuffix .bam.bai, $(list_files)) \
+analysis: check_params_analysis \
+	$(addsuffix .bam.bai, $(list_files)) \
 	$(bam_targets) \
 	quast_$(prefix)/report.tsv
 
@@ -74,6 +72,10 @@ ifeq ($(list_files), None)
 	$(error must set list_files)
 endif
 
+check_params_analysis:
+ifeq ($(ref), None)
+	$(error must set ref)
+endif
 
 help:
 	@echo "Assembly merging with minimizers"
