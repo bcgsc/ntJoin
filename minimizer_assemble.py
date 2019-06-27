@@ -286,7 +286,8 @@ def reverse_complement(sequence):
 def get_fasta_segment(path_node, sequence, k):
     "Given a PathNode and the contig sequence, return the corresponding sequence"
     if path_node.ori == "-":
-        return reverse_complement(sequence[path_node.start:path_node.end+k+1]) + "N"*path_node.gap_size
+        return reverse_complement(sequence[path_node.start:path_node.end+k+1]) + \
+               "N"*path_node.gap_size
     return sequence[path_node.start:path_node.end+k+1] + "N"*path_node.gap_size
 
 
