@@ -34,6 +34,9 @@ n=2
 # Reference genome (for analysis)
 ref=None
 
+# Run Quast in large mode (1) or not (0)
+large=0
+
 SHELL=bash -e -o pipefail
 ifeq ($(shell zsh -e -o pipefail -c 'true' 2>/dev/null; echo $$?), 0)
 # Set pipefail to ensure that all commands of a pipe succeed.
@@ -113,5 +116,10 @@ $(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files)): $(prefix).mx.dot
 
 # Run QUAST
 quast_$(prefix)/report.tsv: $(list_files) $(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files))
+ifeq ($(large), 1)
+	quast -t $(t) -o quast_$(prefix) -r $(ref) --fast --scaffold-gap-max-size 100000 --split-scaffolds \
+	--large $(list_files) $(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files))
+else
 	quast -t $(t) -o quast_$(prefix) -r $(ref) --fast --scaffold-gap-max-size 100000 --split-scaffolds \
 	$(list_files) $(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files))
+endif
