@@ -1,4 +1,4 @@
-## minimizer-assembly-scaffolder
+## ntJoin
 
 Scaffolding multiple assemblies using minimizer graphs
 
