@@ -1,6 +1,6 @@
 ## ntJoin
 
-Scaffolding multiple assemblies using minimizer graphs
+Scaffold multiple assemblies using minimizer graphs
 
 #### Usage: 
 ```
