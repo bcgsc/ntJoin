@@ -36,9 +36,11 @@ class PathNode:
         self.gap_size = gap_size
 
     def set_gap_size(self, gap_size):
+        "Set the gap size of the path node"
         self.gap_size = gap_size
 
     def get_aligned_length(self):
+        "Get the aligned length based on start/end coordinates"
         return self.end - self.start
 
 
