@@ -23,6 +23,7 @@ Scaffold = namedtuple("Scaffold", ["id", "length", "sequence"])
 
 # Defining helper classes
 class PathNode:
+    "Defines a node in a path"
     def __init__(self, contig, ori, start, end, contig_size,
                  first_mx, terminal_mx, gap_size=50):
         self.contig = contig
@@ -33,6 +34,12 @@ class PathNode:
         self.first_mx = first_mx
         self.terminal_mx = terminal_mx
         self.gap_size = gap_size
+
+    def set_gap_size(self, gap_size):
+        self.gap_size = gap_size
+
+    def get_aligned_length(self):
+        return self.end - self.start
 
 
 def read_minimizers(tsv_filename):
