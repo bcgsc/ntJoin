@@ -27,8 +27,8 @@ jobs:
   - script: make -C src check
     displayName: Test C++ executables
   - script: |
-      pip install pytest
-      sudo apt-get install -y --no-install-recommends samtools bedtools
+      pip3 install pytest
+      sudo apt-get install -y --no-install-recommends samtools bedtools=2.28.0
       cd tests
       pytest -vs minscaff_test.py
     displayName: Testing minimizer graph code
