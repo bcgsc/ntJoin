@@ -21,6 +21,7 @@ def test_mx_rc():
     subprocess.call(cmd_shlex)
     with open("out_scaf.rc.k32.w1000.n2.path", 'r') as paths:
         for line in paths:
+            print(line)
             path_match = re.search(r'^mx', line)
             if path_match:
                 assert line.strip() == "mx0\t1+:0-1981 2-:0-2329"
