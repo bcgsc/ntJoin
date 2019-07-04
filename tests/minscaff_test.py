@@ -24,4 +24,4 @@ def test_mx_rc():
             print(line)
             path_match = re.search(r'^mx', line)
             if path_match:
-                assert line.strip() == "mx0\t1+:0-1981 2-:0-2329"
+                assert line.strip() == "mx0\t5+:0-1981 2-:0-2329"
