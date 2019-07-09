@@ -396,7 +396,7 @@ def print_scaffolds(paths, scaffolds, prefix, k, min_weight):
                 continue
             outfile.write(">%s\n%s\n" %
                           ("mx" + str(ct),
-                           "".join([seq for seq in sequences])))
+                           "".join([seq for seq in sequences]).strip("Nn")))
             incorporated_segments.extend(path_segments)
             path_str = " ".join(["%s%s:%d-%d %dN" %
                                  (tup.contig, tup.ori, tup.start, tup.end, tup.gap_size)

@@ -29,5 +29,6 @@ jobs:
   - script: |
       pip3 install pytest
       sudo apt-get install -y --no-install-recommends samtools bedtools
+      cd tests
       pytest -vs minscaff_test.py
     displayName: Testing minimizer graph code
