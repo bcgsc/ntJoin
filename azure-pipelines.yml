@@ -28,7 +28,12 @@ jobs:
     displayName: Test C++ executables
   - script: |
       pip3 install pytest
-      sudo apt-get install -y --no-install-recommends samtools bedtools==2.28.0
-      cd tests
+      sudo apt-get install -y --no-install-recommends samtools
+      wget https://github.com/arq5x/bedtools2/releases/download/v2.28.0/bedtools-2.28.0.tar.gz
+      tar -zxvf bedtools-2.28.0.tar.gz
+      cd bedtools2
+      make
+      export PATH=$(pwd):$PATH
+      cd ../tests
       pytest -vs minscaff_test.py
     displayName: Testing minimizer graph code
