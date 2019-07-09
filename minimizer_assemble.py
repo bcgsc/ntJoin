@@ -415,7 +415,7 @@ def print_scaffolds(paths, scaffolds, prefix, k, min_weight):
         missing_bed = genome_bed.complement(i=incorporated_segments_bed, g=genome_dict)
         missing_bed.saveas(prefix + ".unassigned.bed")
 
-        cmd = "bedtools getfasta -fi %s -bed %s" % (assembly_fa, prefix + ".unassigned.bed")
+        cmd = "bedtools getfasta -fi %s -bed %s -fo -" % (assembly_fa, prefix + ".unassigned.bed")
         cmd_shlex = shlex.split(cmd)
 
         out_fasta = subprocess.Popen(cmd_shlex, stdout=subprocess.PIPE, universal_newlines=True)

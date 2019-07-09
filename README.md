@@ -16,5 +16,5 @@ n	Min. edge weight [2]
 
 #### Requirements:
 * python3 ([pybedtools](https://daler.github.io/pybedtools/), [networkx](https://networkx.github.io/))
-* [bedtools](https://bedtools.readthedocs.io/en/latest/)
+* [bedtools v2.21.0+](https://bedtools.readthedocs.io/en/latest/)
 * [samtools](https://github.com/samtools/samtools)
