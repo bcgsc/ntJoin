@@ -201,23 +201,23 @@ def calc_max_coord(positions, ctg_max_mx, ctg_len):
 #
 #     return mean_dist - a - b
 
-def calculate_gap_size(u, v, graph, list_mx_info, cur_assembly):
+def calculate_gap_size(u, v, graph, list_mx_info, cur_assembly, k):
     "Calculates the mean distance between assemblies with that edge"
     u_mx = u.terminal_mx
     v_mx = v.first_mx
 
     distances = [abs(list_mx_info[assembly][v_mx][1] - list_mx_info[assembly][u_mx][1])
                  for assembly in graph[u_mx][v_mx]['support']]
-    mean_dist = int(sum(distances)/len(distances))
+    mean_dist = int(sum(distances)/len(distances)) - k
     # Correct for the overhanging sequence before/after minimizer
     if u.ori == "+":
-        a = u.end - list_mx_info[cur_assembly][u_mx][1]
+        a = u.end - list_mx_info[cur_assembly][u_mx][1] - k
     else:
         a = list_mx_info[cur_assembly][u_mx][1] - u.start
     if v.ori == "+":
         b = list_mx_info[cur_assembly][v_mx][1] - v.start
     else:
-        b = v.end - list_mx_info[cur_assembly][v_mx][1]
+        b = v.end - list_mx_info[cur_assembly][v_mx][1] - k
 
     assert a >= 0
     assert b >= 0
@@ -228,7 +228,7 @@ def calculate_gap_size(u, v, graph, list_mx_info, cur_assembly):
 
 
 
-def format_path(path, assembly, list_mx_info, mx_extremes, scaffolds, component_graph):
+def format_path(path, assembly, list_mx_info, mx_extremes, scaffolds, component_graph, k):
     "Given a path (sequence of mx), print the order/orientation/regions of contigs for an assembly"
     out_path = []  # List of PathNode
     curr_ctg, prev_mx, first_mx = None, None, None
@@ -261,7 +261,7 @@ def format_path(path, assembly, list_mx_info, mx_extremes, scaffolds, component_
                              first_mx=first_mx,
                              terminal_mx=prev_mx))
     for u, v in zip(out_path, out_path[1:]):
-        gap_size = calculate_gap_size(u, v, component_graph, list_mx_info, assembly)
+        gap_size = calculate_gap_size(u, v, component_graph, list_mx_info, assembly, k)
         u.gap_size = gap_size
 
     return out_path
@@ -292,7 +292,7 @@ def filter_graph(graph, min_weight):
     return new_graph
 
 
-def find_paths(graph, list_mx_info, mx_extremes, scaffolds):
+def find_paths(graph, list_mx_info, mx_extremes, scaffolds, k):
     "Finds paths per input assembly file"
     print("Finding paths", datetime.datetime.today(), sep=" ", file=sys.stdout)
     paths = {}
@@ -310,7 +310,7 @@ def find_paths(graph, list_mx_info, mx_extremes, scaffolds):
                 # All the nodes/edges from the graph are in the simple path, no repeated nodes
                 for assembly in list_mx_info:
                     ctg_path = format_path(path, assembly, list_mx_info, mx_extremes[assembly],
-                                           scaffolds[assembly], component_graph)
+                                           scaffolds[assembly], component_graph, k)
                     paths[assembly].append(ctg_path)
                 total += 1
             else:
@@ -401,7 +401,7 @@ def print_scaffolds(paths, scaffolds, prefix, k, min_weight):
             path_str = " ".join(["%s%s:%d-%d %dN" %
                                  (tup.contig, tup.ori, tup.start, tup.end, tup.gap_size)
                                  for tup in path])
-            path_str = re.sub(r'\s+0N$', r'', path_str)
+            path_str = re.sub(r'\s+\d+N$', r'', path_str)
             pathfile.write("%s\t%s\n" % ("mx" + str(ct), path_str))
             ct += 1
 
@@ -497,7 +497,7 @@ def main():
         assembly_fa = min_match.group(1)
         scaffolds[assembly] = read_fasta_file(assembly_fa)
 
-    paths = find_paths(graph, list_mx_info, mx_extremes, scaffolds)
+    paths = find_paths(graph, list_mx_info, mx_extremes, scaffolds, args.k)
 
     print_scaffolds(paths, scaffolds, args.p, args.k, args.n)
 

@@ -35,5 +35,7 @@ jobs:
       make
       export PATH=$(pwd):$PATH
       cd ../tests
+      which bedtools
+      bedtools --version
       pytest -vs minscaff_test.py
     displayName: Testing minimizer graph code

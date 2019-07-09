@@ -4,30 +4,34 @@ import re
 import sys
 import os
 
-def test_mx():
-    cmd = "../minimizer_assembler-make assemble -B list_files=\'ref.fa scaf.fa\' " \
-          "list_weights=\'2 1\' k=32 w=1000 n=2 prefix=out_scaf.k32.w1000.n2"
+def run_ntJoin(file1, file2, prefix):
+    cmd = "../minimizer_assembler-make assemble -B list_files=\'" + file1 + " " + file2 + "\' " \
+          "list_weights=\'2 1\' k=32 w=1000 n=2 prefix=" + prefix
     cmd_shlex = shlex.split(cmd)
     return_code = subprocess.call(cmd_shlex)
     assert return_code == 0
-    with open("out_scaf.k32.w1000.n2.path", 'r') as paths:
+    with open(prefix + ".path", 'r') as paths:
         for line in paths:
             path_match = re.search(r'^mx', line)
             if path_match:
-                assert line.strip() == "mx0\t1+:0-1981 2+:0-2329"
-    os.remove("out_scaf.k32.w1000.n2.path")
+                return_line = line.strip()
+    return return_line
+
+def test_mx_f_f():
+    path = run_ntJoin("ref.fa", "scaf.f-f.fa", "f-f_test")
+    assert path == "mx0\t1_f+:0-1981 20N 2_f+:0-2329"
 
 
-def test_mx_rc():
-    cmd = "../minimizer_assembler-make assemble -B list_files=\'ref.fa scaf.rc.fa\' " \
-          "list_weights=\'2 1\' k=32 w=1000 n=2 prefix=out_scaf.rc.k32.w1000.n2"
-    cmd_shlex = shlex.split(cmd)
-    return_code = subprocess.call(cmd_shlex)
-    assert return_code == 0
-    with open("out_scaf.rc.k32.w1000.n2.path", 'r') as paths:
-        for line in paths:
-            print(line)
-            path_match = re.search(r'^mx', line)
-            if path_match:
-                assert line.strip() == "mx0\t5+:0-1981 2-:0-2329"
-    os.remove("out_scaf.rc.k32.w1000.n2.path")
+def test_mx_f_r():
+    path = run_ntJoin("ref.fa", "scaf.f-r.fa", "f-r_test")
+    assert path == "mx0\t1_f+:0-1981 20N 2_r-:0-2329"
+
+
+def test_mx_r_f():
+    path = run_ntJoin("ref.fa", "scaf.r-f.fa", "r-f_test")
+    assert path == "mx0\t1_r-:0-1981 20N 2_f+:0-2329"
+
+
+def test_mx_r_r():
+    path = run_ntJoin("ref.fa", "scaf.r-r.fa", "r-f_test")
+    assert path == "mx0\t1_r-:0-1981 20N 2_r-:0-2329"
