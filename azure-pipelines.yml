@@ -33,7 +33,7 @@ jobs:
     displayName: Test C++ executables
   - script: |
       sudo /home/linuxbrew/.linuxbrew/bin/pip3 install pytest
-      sudo /home/linuxbrew/.linuxbrew/bin/brew install samtools bedtools
+      sudo /home/linuxbrew/.linuxbrew/bin/brew install samtools bedtools gnu-time
       export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH
       echo $PATH
       cd tests
