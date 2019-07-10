@@ -33,5 +33,5 @@ def test_mx_r_f():
 
 
 def test_mx_r_r():
-    path = run_ntJoin("ref.fa", "scaf.r-r.fa", "r-f_test")
+    path = run_ntJoin("ref.fa", "scaf.r-r.fa", "r-r_test")
     assert path == "mx0\t1_r-:0-1981 20N 2_r-:0-2329"

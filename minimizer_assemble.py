@@ -413,12 +413,16 @@ def print_scaffolds(paths, scaffolds, prefix, k, min_weight):
         genome_bed, genome_dict = format_bedtools_genome(all_scaffolds)
 
         missing_bed = genome_bed.complement(i=incorporated_segments_bed, g=genome_dict)
-        missing_bed.saveas(prefix + ".unassigned.bed")
+        missing_bed.saveas(prefix + assembly + ".unassigned.bed")
 
-        cmd = "bedtools getfasta -fi %s -bed %s -fo -" % (assembly_fa, prefix + ".unassigned.bed")
+        cmd = "bedtools getfasta -fi %s -bed %s -fo -" % (assembly_fa, prefix + assembly + ".unassigned.bed")
         cmd_shlex = shlex.split(cmd)
 
         out_fasta = subprocess.Popen(cmd_shlex, stdout=subprocess.PIPE, universal_newlines=True)
+        out_fasta.wait()
+        if out_fasta.returncode != 0:
+            print("bedtools getfasta failed -- is bedtools on your PATH?")
+            raise subprocess.CalledProcessError
         for line in iter(out_fasta.stdout.readline, ''):
             outfile.write(line)
 
