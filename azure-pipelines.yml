@@ -19,7 +19,7 @@ jobs:
   - script: |
       id
       sudo /home/linuxbrew/.linuxbrew/bin/brew install python
-      sudo pip3 install --upgrade setuptools \
+      sudo /home/linuxbrew/.linuxbrew/bin/pip3 install --upgrade setuptools \
       -U pip --no-cache-dir \
       pylint
     displayName: Install Python packages
