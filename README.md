@@ -11,7 +11,8 @@ Commands:
 t	Number of threads [4]
 k	K-mer size for minimizers [64]
 w	Window size for minimizers [1000]
-n	Min. edge weight [2]
+n	Minimum edge weight [2]
+g	Minimum gap size [1]
 ```
 
 #### Requirements:

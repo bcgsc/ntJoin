@@ -31,6 +31,9 @@ t=4
 # Minimum edge weight
 n=2
 
+# Minimum gap size between scaffolds
+g=1
+
 # Reference genome (for analysis)
 ref=None
 
@@ -100,6 +103,7 @@ help:
 	@echo "k	K-mer size for minimizers [64]"
 	@echo "w	Window size for minimizers [1000]"
 	@echo "n	Min. edge weight [2]"
+	@echo "g	Minimum gap size [1]"
 
 
 .PHONY: all analysis assemble help check_params jupiter
@@ -113,7 +117,7 @@ help:
 	samtools faidx $<
 
 $(prefix).mx.dot: $(addsuffix .k$(k).w$(w).tsv, $(list_files))
-	$(time) $(assemble_path)/minimizer_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) $^
+	$(time) $(assemble_path)/minimizer_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) -g $(g) $^
 
 $(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files)): $(prefix).mx.dot
 	touch $@
