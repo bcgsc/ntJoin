@@ -17,7 +17,7 @@ jobs:
       sudo ln -s clang-format-7 /usr/bin/clang-format
       sudo ln -s clang-tidy-7 /usr/bin/clang-tidy
   - script: pip3 install --upgrade setuptools \
-      -U pip \
+      -U pip --no-cache-dir\
       pylint
     displayName: Install Python packages
   - script: pylint minimizer_assemble.py
