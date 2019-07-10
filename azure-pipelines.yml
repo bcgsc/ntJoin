@@ -18,7 +18,7 @@ jobs:
       sudo ln -s clang-tidy-7 /usr/bin/clang-tidy
   - script: |
       id
-      sudo brew install python
+      sudo -i brew install python
       pip3 install --upgrade setuptools \
       -U pip --no-cache-dir \
       pylint
