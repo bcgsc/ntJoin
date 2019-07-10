@@ -1,9 +1,9 @@
 # See https://docs.microsoft.com/azure/devops/pipelines/languages/python
 
 jobs:
-- job: Test
-  pool:
-    vmImage: Ubuntu 16.04
+- job: RunsInContainer
+  container: # inline container specification
+    image: "linuxbrew/brew"
   steps:
   - task: UsePythonVersion@0
     inputs:
@@ -28,8 +28,7 @@ jobs:
     displayName: Test C++ executables
   - script: |
       pip3 install pytest
-      sudo apt-cache policy bedtools
-      sudo apt-get install -y --no-install-recommends samtools bedtools=2.24.0
+      brew install samtools bedtools
       cd tests
       pytest -vs minscaff_test.py
     displayName: Testing minimizer graph code
