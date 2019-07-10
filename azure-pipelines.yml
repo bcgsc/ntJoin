@@ -28,6 +28,7 @@ jobs:
     displayName: Test C++ executables
   - script: |
       pip3 install pytest
+      sudo apt-cache policy bedtools
       sudo apt-get install -y --no-install-recommends samtools bedtools=2.24.0
       cd tests
       pytest -vs minscaff_test.py
