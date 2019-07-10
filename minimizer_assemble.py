@@ -413,7 +413,6 @@ def print_scaffolds(paths, scaffolds, prefix, k, min_weight):
         genome_bed, genome_dict = format_bedtools_genome(all_scaffolds)
 
         missing_bed = genome_bed.complement(i=incorporated_segments_bed, g=genome_dict)
-        print(missing_bed)
         missing_bed.saveas(prefix + assembly + ".unassigned.bed")
 
         cmd = "bedtools getfasta -fi %s -bed %s -fo -" % \
