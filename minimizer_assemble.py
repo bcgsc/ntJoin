@@ -423,7 +423,8 @@ def print_scaffolds(paths, scaffolds, prefix, k, min_weight):
         out_fasta.wait()
         if out_fasta.returncode != 0:
             print("bedtools getfasta failed -- is bedtools on your PATH?")
-            raise subprocess.CalledProcessError
+            print(out_fasta.stderr)
+            raise subprocess.CalledProcessError(out_fasta.returncode, cmd_shlex)
         for line in iter(out_fasta.stdout.readline, ''):
             outfile.write(line)
 
