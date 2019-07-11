@@ -43,6 +43,11 @@ class PathNode:
         "Get the aligned length based on start/end coordinates"
         return self.end - self.start
 
+    def __str__(self):
+        return "Contig:%s\tOrientation:%s\tStart-End:%d-%d\tLength:%s\tFirstmx:%s\tLastmx:%s" \
+               % (self.contig, self.ori, self.start, self.end, self.contig_size,
+                  self.first_mx, self.terminal_mx)
+
 
 def read_minimizers(tsv_filename):
     "Read all the minimizers from a file into a dictionary, removing duplicate minimizers"
@@ -219,9 +224,18 @@ def calculate_gap_size(u, v, graph, list_mx_info, cur_assembly, k, min_gap):
     else:
         b = v.end - list_mx_info[cur_assembly][v_mx][1] - k
 
-    assert a >= 0
-    assert b >= 0
-    assert mean_dist >= 0
+    try:
+        assert a >= 0
+        assert b >= 0
+        assert mean_dist >= 0
+    except:
+        print("ERROR: Gap distance estimation less than 0")
+        print("Vertex 1:")
+        print(u)
+        print("Vertex 2:")
+        print(v)
+        print("Estimated distance: ", mean_dist)
+        raise AssertionError
 
     gap_size = max(mean_dist - a - b, min_gap)
     return gap_size
