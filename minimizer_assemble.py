@@ -213,7 +213,6 @@ def calculate_gap_size(u, v, graph, list_mx_info, cur_assembly, k, min_gap):
     try:
         assert a >= 0
         assert b >= 0
-        assert mean_dist >= 0
     except:
         print("ERROR: Gap distance estimation less than 0")
         print("Vertex 1:")
