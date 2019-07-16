@@ -346,7 +346,7 @@ def reverse_complement(sequence):
     return new_sequence
 
 
-def get_fasta_segment(path_node, sequence, k):
+def get_fasta_segment(path_node, sequence):
     "Given a PathNode and the contig sequence, return the corresponding sequence"
     if path_node.ori == "-":
         return reverse_complement(sequence[path_node.start:path_node.end+1]) + \
@@ -365,7 +365,7 @@ def format_bedtools_genome(scaffolds):
     return bed, genome_dict
 
 
-def print_scaffolds(paths, scaffolds, prefix, k, min_weight):
+def print_scaffolds(paths, scaffolds, prefix, min_weight):
     "Given the paths, print out the scaffolds fasta"
     print("Printing output scaffolds", datetime.datetime.today(), sep=" ", file=sys.stdout)
     pathfile = open(prefix + ".path", 'w')
@@ -386,7 +386,7 @@ def print_scaffolds(paths, scaffolds, prefix, k, min_weight):
             for node in path:
                 if node.ori == "?":
                     continue
-                sequences.append(get_fasta_segment(node, all_scaffolds[node.contig].sequence, k))
+                sequences.append(get_fasta_segment(node, all_scaffolds[node.contig].sequence))
                 path_segments.append(Bed(contig=node.contig, start=node.start,
                                          end=node.end))
             if len(sequences) < 2:
@@ -503,7 +503,7 @@ def main():
 
     paths = find_paths(graph, list_mx_info, mx_extremes, scaffolds, args.k, args.g)
 
-    print_scaffolds(paths, scaffolds, args.p, args.k, args.n)
+    print_scaffolds(paths, scaffolds, args.p, args.n)
 
 
 if __name__ == "__main__":
