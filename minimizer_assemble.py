@@ -193,6 +193,10 @@ def calculate_gap_size(u, v, graph, list_mx_info, cur_assembly, k, min_gap):
     u_mx = u.terminal_mx
     v_mx = v.first_mx
 
+    # Don't attempt gap estimation when don't know orientation
+    if u.ori == "?" or v.ori == "?":
+        return 0
+
     distances = [abs(list_mx_info[assembly][v_mx][1] - list_mx_info[assembly][u_mx][1])
                  for assembly in graph[u_mx][v_mx]['support']]
     mean_dist = int(sum(distances)/len(distances)) - k
@@ -410,7 +414,7 @@ def print_scaffolds(paths, scaffolds, prefix, min_weight):
         genome_bed, genome_dict = format_bedtools_genome(all_scaffolds)
 
         missing_bed = genome_bed.complement(i=incorporated_segments_bed, g=genome_dict)
-        missing_bed.saveas(prefix + assembly + ".unassigned.bed")
+        missing_bed.saveas(prefix + "." + assembly + ".unassigned.bed")
 
         cmd = "bedtools getfasta -fi %s -bed %s -fo -" % \
               (assembly_fa, prefix + assembly + ".unassigned.bed")
