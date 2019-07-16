@@ -181,30 +181,12 @@ def calc_min_coord(positions, ctg_min_mx):
     return min(positions)
 
 
-def calc_max_coord(positions, ctg_max_mx, ctg_len):
+def calc_max_coord(positions, ctg_max_mx, ctg_len, k):
     "Calculates the maximum coordinate for a contig region in a path"
     if max(positions) == ctg_max_mx:
         return ctg_len
-    return max(positions)
+    return max(positions) + k
 
-
-# def calculate_gap_size(mx1, mx2, graph, list_mx_info, assembly, node):
-#     "Given u, v in the graph, calculate the mean distance between the assemblies with that edge"
-#     distances = [abs(list_mx_info[assembly][mx2][1] - list_mx_info[assembly][mx1][1])
-#                  for assembly in graph[mx1][mx2]['support']]
-#     mean_dist = int(sum(distances)/len(distances))
-#     # Correct for the overhanging sequence before/after minimizer
-#     if node.ori == "+":
-#         a = node.end - list_mx_info[assembly][mx1][1]
-#         b = list_mx_info[assembly][mx2][1] - node.start
-#     else:
-#         a = list_mx_info[assembly][mx1][1] - node.start
-#         b = node.end - list_mx_info[assembly][mx2][1]
-#
-#     assert a > 0
-#     assert b > 0
-#
-#     return mean_dist - a - b
 
 def calculate_gap_size(u, v, graph, list_mx_info, cur_assembly, k, min_gap):
     "Calculates the mean distance between assemblies with that edge"
@@ -234,12 +216,13 @@ def calculate_gap_size(u, v, graph, list_mx_info, cur_assembly, k, min_gap):
         print(u)
         print("Vertex 2:")
         print(v)
+        print("Minimizer positions:", list_mx_info[cur_assembly][u_mx][1],
+              list_mx_info[cur_assembly][v_mx][1])
         print("Estimated distance: ", mean_dist)
         raise AssertionError
 
     gap_size = max(mean_dist - a - b, min_gap)
     return gap_size
-
 
 
 def format_path(path, assembly, list_mx_info, mx_extremes, scaffolds, component_graph, k, min_gap):
@@ -258,7 +241,7 @@ def format_path(path, assembly, list_mx_info, mx_extremes, scaffolds, component_
                 out_path.append(PathNode(contig=curr_ctg, ori=ori,
                                          start=calc_min_coord(positions, mx_extremes[curr_ctg][0]),
                                          end=calc_max_coord(positions, mx_extremes[curr_ctg][1],
-                                                            scaffolds[curr_ctg].length),
+                                                            scaffolds[curr_ctg].length, k),
                                          contig_size=scaffolds[curr_ctg].length,
                                          first_mx=first_mx,
                                          terminal_mx=prev_mx))
@@ -270,7 +253,7 @@ def format_path(path, assembly, list_mx_info, mx_extremes, scaffolds, component_
     out_path.append(PathNode(contig=curr_ctg, ori=ori,
                              start=calc_min_coord(positions, mx_extremes[curr_ctg][0]),
                              end=calc_max_coord(positions, mx_extremes[curr_ctg][1],
-                                                scaffolds[curr_ctg].length),
+                                                scaffolds[curr_ctg].length, k),
                              contig_size=scaffolds[curr_ctg].length,
                              first_mx=first_mx,
                              terminal_mx=prev_mx))
@@ -317,7 +300,7 @@ def find_paths(graph, list_mx_info, mx_extremes, scaffolds, k, min_gap):
         component_graph = nx.subgraph(graph, component)
         source_nodes = [node for node in component_graph.nodes if component_graph.degree(node) == 1]
         if len(source_nodes) == 2:
-            path = nx.shortest_path(component_graph, source_nodes[0], source_nodes[1])
+            path = nx.shortest_path(component_graph, min(source_nodes), max(source_nodes))
             num_edges = len(path) - 1
             if len(path) == len(component_graph.nodes()) and \
                     num_edges == len(component_graph.edges()) and len(path) == len(set(path)):
@@ -366,9 +349,9 @@ def reverse_complement(sequence):
 def get_fasta_segment(path_node, sequence, k):
     "Given a PathNode and the contig sequence, return the corresponding sequence"
     if path_node.ori == "-":
-        return reverse_complement(sequence[path_node.start:path_node.end+k+1]) + \
+        return reverse_complement(sequence[path_node.start:path_node.end+1]) + \
                "N"*path_node.gap_size
-    return sequence[path_node.start:path_node.end+k+1] + "N"*path_node.gap_size
+    return sequence[path_node.start:path_node.end+1] + "N"*path_node.gap_size
 
 
 def format_bedtools_genome(scaffolds):
@@ -434,13 +417,13 @@ def print_scaffolds(paths, scaffolds, prefix, k, min_weight):
         cmd_shlex = shlex.split(cmd)
 
         out_fasta = subprocess.Popen(cmd_shlex, stdout=subprocess.PIPE, universal_newlines=True)
+        for line in iter(out_fasta.stdout.readline, ''):
+            outfile.write(line)
         out_fasta.wait()
         if out_fasta.returncode != 0:
             print("bedtools getfasta failed -- is bedtools on your PATH?")
             print(out_fasta.stderr)
             raise subprocess.CalledProcessError(out_fasta.returncode, cmd_shlex)
-        for line in iter(out_fasta.stdout.readline, ''):
-            outfile.write(line)
 
         outfile.close()
     pathfile.close()
