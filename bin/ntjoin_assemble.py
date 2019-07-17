@@ -200,7 +200,8 @@ def calculate_gap_size(u, v, graph, list_mx_info, cur_assembly, k, min_gap):
     # Find the assemblies that have a path between these mx
     # Are situations where there is not a direct edge if an unoriented contig was in-between
     path = nx.shortest_path(graph, u_mx, v_mx)
-    supporting_assemblies = set.intersection(*map(set, [graph[s][t]['support'] for s, t in zip(path, path[1:])]))
+    supporting_assemblies = set.intersection(*map(set, [graph[s][t]['support']
+                                                        for s, t in zip(path, path[1:])]))
     if not supporting_assemblies:
         return min_gap
 
@@ -221,7 +222,8 @@ def calculate_gap_size(u, v, graph, list_mx_info, cur_assembly, k, min_gap):
         assert a >= 0
         assert b >= 0
     except:
-        print("ERROR: Gap distance estimation less than 0", "Vertex 1:", u, "Vertex 2:", v, sep="\n")
+        print("ERROR: Gap distance estimation less than 0", "Vertex 1:", u, "Vertex 2:", v,
+              sep="\n")
         print("Minimizer positions:", list_mx_info[cur_assembly][u_mx][1],
               list_mx_info[cur_assembly][v_mx][1])
         print("Estimated distance: ", mean_dist)
@@ -244,10 +246,12 @@ def format_path(path, assembly, list_mx_info, mx_extremes, scaffolds, component_
             # This is either the first mx, or we are past a stretch of repeating contigs
             if curr_ctg is not None:
                 ori = determine_orientation(positions)
-                if ori is not "?":  # Don't add to path if orientation couldn't be determined
+                if ori != "?":  # Don't add to path if orientation couldn't be determined
                     out_path.append(PathNode(contig=curr_ctg, ori=ori,
-                                             start=calc_min_coord(positions, mx_extremes[curr_ctg][0]),
-                                             end=calc_max_coord(positions, mx_extremes[curr_ctg][1],
+                                             start=calc_min_coord(positions,
+                                                                  mx_extremes[curr_ctg][0]),
+                                             end=calc_max_coord(positions,
+                                                                mx_extremes[curr_ctg][1],
                                                                 scaffolds[curr_ctg].length, k),
                                              contig_size=scaffolds[curr_ctg].length,
                                              first_mx=first_mx,

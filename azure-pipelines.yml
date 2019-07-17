@@ -23,7 +23,9 @@ jobs:
       -U pip --no-cache-dir \
       pylint .
     displayName: Install Python packages
-  - script: pylint minimizer_assemble.py
+  - script: |
+      cd bin
+      pylint ntjoin_assemble.py
     displayName: Run pylint
   - script: make -C src all
     displayName: Compile C++ executables
