@@ -416,7 +416,7 @@ def print_scaffolds(paths, scaffolds, prefix, min_weight):
         missing_bed.saveas(prefix + "." + assembly + ".unassigned.bed")
 
         cmd = "bedtools getfasta -fi %s -bed %s -fo -" % \
-              (assembly_fa, prefix + assembly + ".unassigned.bed")
+              (assembly_fa, prefix + "." + assembly + ".unassigned.bed")
         cmd_shlex = shlex.split(cmd)
 
         out_fasta = subprocess.Popen(cmd_shlex, stdout=subprocess.PIPE, universal_newlines=True)
