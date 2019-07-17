@@ -4,15 +4,15 @@ Scaffold multiple assemblies using minimizer graphs
 
 #### Usage: 
 ```
-Usage: minimizer_assembler-make assemble prefix=<prefix> list_files='List of fasta files' list_weights='List of weights (ints) per assembly'
+Usage: ntJoin assemble prefix=<prefix> list_files='List of fasta files' list_weights='List of weights (ints) per assembly'
 
-Note: ensure the lists of assemblies and weights are in the same order, and that both are space-separated
-Commands:
+Note: ensure the lists of assemblies and weights are in the same order, and the files in the lists are separated by a space
+Options:
 t	Number of threads [4]
-k	K-mer size for minimizers [64]
+k	K-mer size for minimizers [32]
 w	Window size for minimizers [1000]
 n	Minimum edge weight [2]
-g	Minimum gap size [1]
+g	Minimum gap size [20]
 ```
 
 #### Requirements:

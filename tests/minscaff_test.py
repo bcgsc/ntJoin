@@ -1,11 +1,9 @@
 import shlex
 import subprocess
 import re
-import sys
-import os
 
 def run_ntJoin(file1, file2, prefix, window=1000):
-    cmd = "../minimizer_assembler-make assemble -B list_files=\'" + file1 + " " + file2 + "\' " \
+    cmd = "../ntJoin assemble -B list_files=\'" + file1 + " " + file2 + "\' " \
           "list_weights=\'2 1\' k=32 w=" + str(window) + " n=2 prefix=" + prefix
     cmd_shlex = shlex.split(cmd)
     return_code = subprocess.call(cmd_shlex)
@@ -65,7 +63,7 @@ Testing orientations of joins: +/+ -/- +/- -/+
 def test_regions_ff_rr():
     paths = run_ntJoin("ref.multiple.fa", "scaf.misassembled.f-f.r-r.fa", "regions-ff-rr_test", 500)
     assert len(paths) == 2
-    assert paths.pop() == "mx1\t2_1n-1_2p-:0-2176 10N 1_1p-2_2n-:2010-4489"
+    assert paths.pop() == "mx1\t2_1n-1_2p-:0-2176 20N 1_1p-2_2n-:2010-4489"
     assert paths.pop() == "mx0\t1_1p-2_2n+:0-1541 468N 2_1n-1_2p+:2676-4379"
 
 
