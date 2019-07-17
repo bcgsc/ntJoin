@@ -1,9 +1,9 @@
 # See https://docs.microsoft.com/azure/devops/pipelines/languages/python
 
 jobs:
-- job: Test
-  pool:
-    vmImage: Ubuntu 16.04
+- job: RunsInContainer
+  container: # inline container specification
+    image: "linuxbrew/brew"
   steps:
   - task: UsePythonVersion@0
     inputs:
@@ -16,9 +16,16 @@ jobs:
       sudo apt-get install -y --no-install-recommends clang-format-7 clang-tidy-7
       sudo ln -s clang-format-7 /usr/bin/clang-format
       sudo ln -s clang-tidy-7 /usr/bin/clang-tidy
-  - script: pip3 install pylint .
+  - script: |
+      id
+      sudo /home/linuxbrew/.linuxbrew/bin/brew install python
+      sudo /home/linuxbrew/.linuxbrew/bin/pip3 install --upgrade setuptools \
+      -U pip --no-cache-dir \
+      pylint .
     displayName: Install Python packages
-  - script: pylint minimizer_assemble.py
+  - script: |
+      cd bin
+      pylint ntjoin_assemble.py
     displayName: Run pylint
   - script: make -C src all
     displayName: Compile C++ executables
@@ -27,8 +34,10 @@ jobs:
   - script: make -C src check
     displayName: Test C++ executables
   - script: |
-      pip install pytest
-      sudo apt-get install -y --no-install-recommends samtools
+      sudo /home/linuxbrew/.linuxbrew/bin/pip3 install pytest
+      sudo /home/linuxbrew/.linuxbrew/bin/brew install samtools bedtools gnu-time
+      export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH
+      echo $PATH
       cd tests
-      pytest minscaff_test.py
+      pytest -vs minscaff_test.py
     displayName: Testing minimizer graph code

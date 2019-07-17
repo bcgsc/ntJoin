@@ -23,7 +23,7 @@ assemble_path=$(shell dirname $(realpath $(MAKEFILE_LIST)))
 w=1000
 
 # Kmer size
-k=64
+k=32
 
 # Number of threads
 t=4
@@ -31,11 +31,18 @@ t=4
 # Minimum edge weight
 n=2
 
-# Gap size for scaffold joins
-gap=50
+# Minimum gap size between scaffolds
+g=20
 
 # Reference genome (for analysis)
 ref=None
+
+# Run Quast in large mode (1) or not (0)
+large=0
+
+# Jupiter plot parameters
+jupiter_scaffold=None
+ng=90
 
 SHELL=bash -e -o pipefail
 ifeq ($(shell zsh -e -o pipefail -c 'true' 2>/dev/null; echo $$?), 0)
@@ -64,6 +71,10 @@ analysis: check_params_analysis \
 
 all: check_params assemble analysis
 
+jupiter: check_jupiter_params \
+	check_params_analysis \
+	$(prefix)-jupiter.png
+
 check_params:
 ifeq ($(list_weights), None)
 	$(error must set list_weights)
@@ -77,6 +88,11 @@ ifeq ($(ref), None)
 	$(error must set ref)
 endif
 
+check_jupiter_params:
+ifeq ($(jupiter_scaffold), None)
+	$(error must set jupiter_scaffold)
+endif
+
 help:
 	@echo "Assembly merging with minimizers"
 	@echo "Usage: minimizer_assembler-make assemble prefix=<prefix> list_files='List of fasta files' list_weights='List of weights (ints) per assembly'"
@@ -87,10 +103,10 @@ help:
 	@echo "k	K-mer size for minimizers [64]"
 	@echo "w	Window size for minimizers [1000]"
 	@echo "n	Min. edge weight [2]"
-	@echo "g	Gap size (bp) between joined scaffolds [50]"
+	@echo "g	Minimum gap size [1]"
 
 
-.PHONY: all analysis assemble help check_params
+.PHONY: all analysis assemble help check_params jupiter
 .DELETE_ON_ERROR: $(prefix).n$(n).mx.dot
 .SECONDARY:
 
@@ -101,7 +117,7 @@ help:
 	samtools faidx $<
 
 $(prefix).mx.dot: $(addsuffix .k$(k).w$(w).tsv, $(list_files))
-	$(time) $(assemble_path)/minimizer_assemble.py -p $(prefix) -n $(n) -g $(gap) -l "$(list_weights)" -k $(k) $^
+	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) -g $(g) $^
 
 $(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files)): $(prefix).mx.dot
 	touch $@
@@ -117,5 +133,14 @@ $(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files)): $(prefix).mx.dot
 
 # Run QUAST
 quast_$(prefix)/report.tsv: $(list_files) $(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files))
+ifeq ($(large), 1)
+	quast -t $(t) -o quast_$(prefix) -r $(ref) --fast --scaffold-gap-max-size 100000 --split-scaffolds \
+	--large $(list_files) $(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files))
+else
 	quast -t $(t) -o quast_$(prefix) -r $(ref) --fast --scaffold-gap-max-size 100000 --split-scaffolds \
 	$(list_files) $(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files))
+endif
+
+# Generate a Jupiter plot
+$(prefix)-jupiter.png: $(jupiter_scaffold) $(ref)
+	jupiter ng=$(ng) t=$(t) name=$(prefix)-jupiter ref=$(ref) fa=$(jupiter_scaffold)

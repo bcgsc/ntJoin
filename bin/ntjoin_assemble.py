@@ -18,8 +18,35 @@ from read_fasta import read_fasta
 
 
 # Defining namedtuples
-PathNode = namedtuple("PathNode", ["contig", "ori", "start", "end"])
 Bed = namedtuple("Bed", ["contig", "start", "end"])
+Scaffold = namedtuple("Scaffold", ["id", "length", "sequence"])
+
+# Defining helper classes
+class PathNode:
+    "Defines a node in a path"
+    def __init__(self, contig, ori, start, end, contig_size,
+                 first_mx, terminal_mx, gap_size=50):
+        self.contig = contig
+        self.ori = ori
+        self.start = start
+        self.end = end
+        self.contig_size = contig_size
+        self.first_mx = first_mx
+        self.terminal_mx = terminal_mx
+        self.gap_size = gap_size
+
+    def set_gap_size(self, gap_size):
+        "Set the gap size of the path node"
+        self.gap_size = gap_size
+
+    def get_aligned_length(self):
+        "Get the aligned length based on start/end coordinates"
+        return self.end - self.start
+
+    def __str__(self):
+        return "Contig:%s\tOrientation:%s\tStart-End:%d-%d\tLength:%s\tFirstmx:%s\tLastmx:%s" \
+               % (self.contig, self.ori, self.start, self.end, self.contig_size,
+                  self.first_mx, self.terminal_mx)
 
 
 def read_minimizers(tsv_filename):
@@ -154,36 +181,97 @@ def calc_min_coord(positions, ctg_min_mx):
     return min(positions)
 
 
-def calc_max_coord(positions, ctg_max_mx, ctg_len):
+def calc_max_coord(positions, ctg_max_mx, ctg_len, k):
     "Calculates the maximum coordinate for a contig region in a path"
     if max(positions) == ctg_max_mx:
         return ctg_len
-    return max(positions)
+    return max(positions) + k
 
 
-def format_path(tuple_paths, mx_extremes, scaffolds):
-    "Given a list of tuples (ctg, position), print the order/orientation/regions of the contigs"
+def calculate_gap_size(u, v, graph, list_mx_info, cur_assembly, k, min_gap):
+    "Calculates the mean distance between assemblies with that edge"
+    u_mx = u.terminal_mx
+    v_mx = v.first_mx
+
+    # Don't attempt gap estimation when don't know orientation
+    if u.ori == "?" or v.ori == "?":
+        return 0
+
+    # Find the assemblies that have a path between these mx
+    # Are situations where there is not a direct edge if an unoriented contig was in-between
+    path = nx.shortest_path(graph, u_mx, v_mx)
+    supporting_assemblies = set.intersection(*map(set, [graph[s][t]['support']
+                                                        for s, t in zip(path, path[1:])]))
+    if not supporting_assemblies:
+        return min_gap
+
+    distances = [abs(list_mx_info[assembly][v_mx][1] - list_mx_info[assembly][u_mx][1])
+                 for assembly in supporting_assemblies]
+    mean_dist = int(sum(distances)/len(distances)) - k
+    # Correct for the overhanging sequence before/after minimizer
+    if u.ori == "+":
+        a = u.end - list_mx_info[cur_assembly][u_mx][1] - k
+    else:
+        a = list_mx_info[cur_assembly][u_mx][1] - u.start
+    if v.ori == "+":
+        b = list_mx_info[cur_assembly][v_mx][1] - v.start
+    else:
+        b = v.end - list_mx_info[cur_assembly][v_mx][1] - k
+
+    try:
+        assert a >= 0
+        assert b >= 0
+    except:
+        print("ERROR: Gap distance estimation less than 0", "Vertex 1:", u, "Vertex 2:", v,
+              sep="\n")
+        print("Minimizer positions:", list_mx_info[cur_assembly][u_mx][1],
+              list_mx_info[cur_assembly][v_mx][1])
+        print("Estimated distance: ", mean_dist)
+        raise AssertionError
+
+    gap_size = max(mean_dist - a - b, min_gap)
+    return gap_size
+
+
+def format_path(path, assembly, list_mx_info, mx_extremes, scaffolds, component_graph, k, min_gap):
+    "Given a path (sequence of mx), print the order/orientation/regions of contigs for an assembly"
     out_path = []  # List of PathNode
-    curr_ctg = None
+    curr_ctg, prev_mx, first_mx = None, None, None
     positions = []
-    for tup in tuple_paths:
-        if tup[0] is curr_ctg:
-            positions.append(tup[1])
+    for mx in path:
+        ctg, pos = list_mx_info[assembly][mx]
+        if ctg is curr_ctg:
+            positions.append(pos)
         else:
-            # This is either the first tuple, or we are past a stretch of repeating contigs
+            # This is either the first mx, or we are past a stretch of repeating contigs
             if curr_ctg is not None:
                 ori = determine_orientation(positions)
-                out_path.append(PathNode(contig=curr_ctg, ori=ori,
-                                         start=calc_min_coord(positions, mx_extremes[curr_ctg][0]),
-                                         end=calc_max_coord(positions, mx_extremes[curr_ctg][1],
-                                                            len(scaffolds[curr_ctg]))))
-            curr_ctg = tup[0]
-            positions = [tup[1]]
+                if ori != "?":  # Don't add to path if orientation couldn't be determined
+                    out_path.append(PathNode(contig=curr_ctg, ori=ori,
+                                             start=calc_min_coord(positions,
+                                                                  mx_extremes[curr_ctg][0]),
+                                             end=calc_max_coord(positions,
+                                                                mx_extremes[curr_ctg][1],
+                                                                scaffolds[curr_ctg].length, k),
+                                             contig_size=scaffolds[curr_ctg].length,
+                                             first_mx=first_mx,
+                                             terminal_mx=prev_mx))
+            curr_ctg = ctg
+            positions = [pos]
+            first_mx = mx
+        prev_mx = mx
     ori = determine_orientation(positions)
     out_path.append(PathNode(contig=curr_ctg, ori=ori,
                              start=calc_min_coord(positions, mx_extremes[curr_ctg][0]),
                              end=calc_max_coord(positions, mx_extremes[curr_ctg][1],
-                                                len(scaffolds[curr_ctg]))))
+                                                scaffolds[curr_ctg].length, k),
+                             contig_size=scaffolds[curr_ctg].length,
+                             first_mx=first_mx,
+                             terminal_mx=prev_mx))
+    for u, v in zip(out_path, out_path[1:]):
+        gap_size = calculate_gap_size(u, v, component_graph, list_mx_info, assembly, k, min_gap)
+        u.gap_size = gap_size
+
     return out_path
 
 
@@ -212,7 +300,7 @@ def filter_graph(graph, min_weight):
     return new_graph
 
 
-def find_paths(graph, list_mx_info, mx_extremes, scaffolds):
+def find_paths(graph, list_mx_info, mx_extremes, scaffolds, k, min_gap):
     "Finds paths per input assembly file"
     print("Finding paths", datetime.datetime.today(), sep=" ", file=sys.stdout)
     paths = {}
@@ -223,16 +311,15 @@ def find_paths(graph, list_mx_info, mx_extremes, scaffolds):
         component_graph = nx.subgraph(graph, component)
         source_nodes = [node for node in component_graph.nodes if component_graph.degree(node) == 1]
         if len(source_nodes) == 2:
-            path = nx.shortest_path(component_graph, source_nodes[0], source_nodes[1])
+            path = nx.shortest_path(component_graph, min(source_nodes), max(source_nodes))
             num_edges = len(path) - 1
             if len(path) == len(component_graph.nodes()) and \
                     num_edges == len(component_graph.edges()) and len(path) == len(set(path)):
                 # All the nodes/edges from the graph are in the simple path, no repeated nodes
                 for assembly in list_mx_info:
-                    file_name, list_mx = assembly, list_mx_info[assembly]
-                    tuple_paths = [list_mx[mx] for mx in path]
-                    ctg_path = format_path(tuple_paths, mx_extremes[assembly], scaffolds[assembly])
-                    paths[file_name].append(ctg_path)
+                    ctg_path = format_path(path, assembly, list_mx_info, mx_extremes[assembly],
+                                           scaffolds[assembly], component_graph, k, min_gap)
+                    paths[assembly].append(ctg_path)
                 total += 1
             else:
                 print("WARNING: Component with node", list(component.nodes)[0],
@@ -249,12 +336,12 @@ def find_paths(graph, list_mx_info, mx_extremes, scaffolds):
 
 
 def read_fasta_file(filename):
-    "Read a fasta file into memory"
+    "Read a fasta file into memory. Returns dictionary of scafID -> Scaffold"
     print("Reading fasta file", filename, datetime.datetime.today(), sep=" ", file=sys.stdout)
     scaffolds = {}
     with open(filename, 'r') as fasta:
         for header, seq, _, _ in read_fasta(fasta):
-            scaffolds[header] = seq
+            scaffolds[header] = Scaffold(id=header, length=len(seq), sequence=seq)
     return scaffolds
 
 
@@ -269,25 +356,27 @@ def reverse_complement(sequence):
         new_sequence += mappings[char.upper()]
     return new_sequence
 
-def get_fasta_segment(path_node, sequence, k):
+
+def get_fasta_segment(path_node, sequence):
     "Given a PathNode and the contig sequence, return the corresponding sequence"
     if path_node.ori == "-":
-        return reverse_complement(sequence[path_node.start:path_node.end+k+1])
-    return sequence[path_node.start:path_node.end+k+1]
+        return reverse_complement(sequence[path_node.start:path_node.end+1]) + \
+               "N"*path_node.gap_size
+    return sequence[path_node.start:path_node.end+1] + "N"*path_node.gap_size
 
 
 def format_bedtools_genome(scaffolds):
     "Format a BED file and genome dictionary for bedtools"
-    bed_str = "\n".join(["%s\t%d\t%d" % (scaffold, 0, len(scaffolds[scaffold]))
+    bed_str = "\n".join(["%s\t%d\t%d" % (scaffold, 0, scaffolds[scaffold].length)
                          for scaffold in scaffolds])
     bed = pybedtools.BedTool(bed_str, from_string=True)
 
-    genome_dict = {scaffold: (0, len(scaffolds[scaffold])) for scaffold in scaffolds}
+    genome_dict = {scaffold: (0, scaffolds[scaffold].length) for scaffold in scaffolds}
 
     return bed, genome_dict
 
 
-def print_scaffolds(paths, prefix, gap_size, k, min_weight):
+def print_scaffolds(paths, scaffolds, prefix, min_weight):
     "Given the paths, print out the scaffolds fasta"
     print("Printing output scaffolds", datetime.datetime.today(), sep=" ", file=sys.stdout)
     pathfile = open(prefix + ".path", 'w')
@@ -297,7 +386,7 @@ def print_scaffolds(paths, prefix, gap_size, k, min_weight):
         assembly_fa = min_match.group(1)
         outfile = open(assembly_fa + min_match.group(2) + ".n" +
                        str(min_weight) + ".scaffolds.fa", 'w')
-        all_scaffolds = read_fasta_file(assembly_fa)
+        all_scaffolds = scaffolds[assembly]
         incorporated_segments = []  # List of Bed entries
 
         ct = 0
@@ -308,19 +397,20 @@ def print_scaffolds(paths, prefix, gap_size, k, min_weight):
             for node in path:
                 if node.ori == "?":
                     continue
-                sequences.append(get_fasta_segment(node, all_scaffolds[node.contig], k))
+                sequences.append(get_fasta_segment(node, all_scaffolds[node.contig].sequence))
                 path_segments.append(Bed(contig=node.contig, start=node.start,
                                          end=node.end))
             if len(sequences) < 2:
                 continue
             outfile.write(">%s\n%s\n" %
                           ("mx" + str(ct),
-                           ("N"*gap_size).join([seq for seq in sequences])))
+                           "".join([seq for seq in sequences]).strip("Nn")))
             incorporated_segments.extend(path_segments)
-            pathfile.write("%s\t%s\n" % ("mx" + str(ct),
-                                         " ".join(["%s%s:%d-%d" %
-                                                   (tup.contig, tup.ori, tup.start, tup.end)
-                                                   for tup in path])))
+            path_str = " ".join(["%s%s:%d-%d %dN" %
+                                 (tup.contig, tup.ori, tup.start, tup.end, tup.gap_size)
+                                 for tup in path])
+            path_str = re.sub(r'\s+\d+N$', r'', path_str)
+            pathfile.write("%s\t%s\n" % ("mx" + str(ct), path_str))
             ct += 1
 
         # Also print out the sequences that were NOT scaffolded
@@ -331,14 +421,20 @@ def print_scaffolds(paths, prefix, gap_size, k, min_weight):
         genome_bed, genome_dict = format_bedtools_genome(all_scaffolds)
 
         missing_bed = genome_bed.complement(i=incorporated_segments_bed, g=genome_dict)
-        missing_bed.saveas(prefix + ".unassigned.bed")
+        missing_bed.saveas(prefix + "." + assembly + ".unassigned.bed")
 
-        cmd = "bedtools getfasta -fi %s -bed %s" % (assembly_fa, prefix + ".unassigned.bed")
+        cmd = "bedtools getfasta -fi %s -bed %s -fo -" % \
+              (assembly_fa, prefix + "." + assembly + ".unassigned.bed")
         cmd_shlex = shlex.split(cmd)
 
         out_fasta = subprocess.Popen(cmd_shlex, stdout=subprocess.PIPE, universal_newlines=True)
         for line in iter(out_fasta.stdout.readline, ''):
             outfile.write(line)
+        out_fasta.wait()
+        if out_fasta.returncode != 0:
+            print("bedtools getfasta failed -- is bedtools on your PATH?")
+            print(out_fasta.stderr)
+            raise subprocess.CalledProcessError(out_fasta.returncode, cmd_shlex)
 
         outfile.close()
     pathfile.close()
@@ -368,10 +464,10 @@ def main():
     parser.add_argument("FILES", nargs="+", help="Minimizer TSV files")
     parser.add_argument("-p", help="Output prefix [out]", default="out",
                         type=str, required=False)
-    parser.add_argument("-g", help="Gap size [50]", default=50, type=int)
     parser.add_argument("-n", help="Minimum edge weight [2]", default=2, type=int)
     parser.add_argument("-l", help="List of assembly weights", required=True, type=str)
     parser.add_argument("-k", help="k value used for minimizering", required=True, type=int)
+    parser.add_argument("-g", help="Minimum gap size", required=False, default=1, type=int)
     args = parser.parse_args()
 
     # Parse the weights
@@ -382,7 +478,7 @@ def main():
         sys.exit(1)
 
     # Read in the minimizers
-    list_mx_info = {}  # Dictionary of dictionaries of form mx -> (ctg, pos)
+    list_mx_info = {}  # Dictionary of dictionaries of form assembly -> mx -> (ctg, pos)
     list_mxs = {}  # Dictionary of Lists of minimizers (1 list per assembly file)
     weights = {}  # Dictionary of form file -> weight
     for assembly in args.FILES:
@@ -410,15 +506,15 @@ def main():
     mx_extremes = find_mx_min_max(list_mx_info, graph)
 
     # Load scaffolds into memory
-    scaffolds = {}
+    scaffolds = {} # assembly -> scaffold_id -> Scaffold
     for assembly in args.FILES:
         min_match = re.search(r'^(\S+).k\d+.w\d+\.tsv', assembly) # TODO: Make this more general
         assembly_fa = min_match.group(1)
         scaffolds[assembly] = read_fasta_file(assembly_fa)
 
-    paths = find_paths(graph, list_mx_info, mx_extremes, scaffolds)
+    paths = find_paths(graph, list_mx_info, mx_extremes, scaffolds, args.k, args.g)
 
-    print_scaffolds(paths, args.p, args.g, args.k, args.n)
+    print_scaffolds(paths, scaffolds, args.p, args.n)
 
 
 if __name__ == "__main__":

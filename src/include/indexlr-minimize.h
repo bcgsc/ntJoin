@@ -42,10 +42,8 @@ hashKmers(const std::string& readstr, const size_t k)
 		return hashes;
 	}
 	hashes.reserve(readstr.size() - k + 1);
-	size_t pos = 0;
 	for (ntHashIterator iter(readstr, 1, k); iter != ntHashIterator::end(); ++iter) {
-		hashes.push_back(HashAndPos((*iter)[0], pos));
-		++pos;
+		hashes.push_back(HashAndPos((*iter)[0], iter.pos()));
 	}
 	return hashes;
 }

@@ -4,18 +4,18 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="minimizer_assemble",
+    name="ntJoin",
     version="0.1dev",
     author="Lauren Coombe",
     author_email="lcoombe@bcgsc.ca",
     description="Assembly using minimizers",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/bcgsc/minimizer-assembly-scaffolder",
+    url="https://github.com/bcgsc/ntJoin",
     license="GPLv3",
     python_requires=">=3",
     install_requires=["networkx", "pybedtools"],
-    scripts = ["minimerize.py", "minimizer_assemble.py", "hash.py", "read_fasta.py"],
+    scripts = ["bin/minimerize.py", "bin/ntjoin_assemble.py", "bin/hash.py", "bin/read_fasta.py"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
