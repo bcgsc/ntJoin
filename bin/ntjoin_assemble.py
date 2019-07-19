@@ -12,7 +12,7 @@ from collections import namedtuple
 import shlex
 import subprocess
 import sys
-import networkx as nx
+import igraph as ig
 import pybedtools
 from read_fasta import read_fasta
 
@@ -48,6 +48,28 @@ class PathNode:
                % (self.contig, self.ori, self.start, self.end, self.contig_size,
                   self.first_mx, self.terminal_mx)
 
+# Helper functions for interfacing with python-igraph
+def vertex_index(graph, name):
+    "Returns vertex index based on vertex name"
+    return graph.vs.find(name).index
+
+def vertex_name(graph, index):
+    "Returns vertex name based on vertex id"
+    return graph.vs().find(index)['name']
+
+def edge_index(graph, source_name, target_name):
+    "Returns edge index based on source/target names"
+    return graph.es().find(_between=((vertex_index(graph, source_name),),
+                                     (vertex_index(graph, target_name),))).index
+
+def set_edge_attributes(graph, edge_attributes):
+    "Sets the edge attributes for a python-igraph graph"
+    for edge in edge_attributes:
+        graph.es().find(edge_index(graph, edge[0], edge[1])).update_attributes(edge_attributes[edge])
+
+def convert_path_index_to_name(graph, path):
+    "Convert path of vertex indices to path of vertex names"
+    return [vertex_name(graph, vs) for vs in path]
 
 def read_minimizers(tsv_filename):
     "Read all the minimizers from a file into a dictionary, removing duplicate minimizers"
@@ -85,7 +107,7 @@ def filter_minimizers(list_mxs):
 
     return_mxs = {}
     for assembly in list_mxs:
-        assembly_mxs_filtered = [[mx for mx in mx_list if mx in mx_intersection] \
+        assembly_mxs_filtered = [[mx for mx in mx_list if mx in mx_intersection]
                                  for mx_list in list_mxs[assembly]]
         return_mxs[assembly] = assembly_mxs_filtered
 
@@ -100,8 +122,9 @@ def calc_total_weight(list_files, weights):
 def build_graph(list_mxs, weights):
     "Builds an undirected graph: minimizers=nodes; edges=between adjacent minimizers"
     print("Building graph", datetime.datetime.today(), sep=" ", file=sys.stdout)
-    graph = nx.Graph()
+    graph = ig.Graph()
 
+    vertices = set()
     edges = defaultdict(dict)  # source -> target -> [list assembly support]
 
     for assembly in list_mxs:
@@ -115,14 +138,17 @@ def build_graph(list_mxs, weights):
                     edges[assembly_mx_list[i+1]][assembly_mx_list[i]].append(assembly)
                 else:
                     edges[assembly_mx_list[i]][assembly_mx_list[i+1]] = [assembly]
+                vertices.add(assembly_mx_list[i])
+            vertices.add(assembly_mx_list[len(assembly_mx_list)-1])
 
     formatted_edges = [(s, t) for s in edges for t in edges[s]]
     edge_attributes = {(s, t): {"support": edges[s][t],
                                 "weight": calc_total_weight(edges[s][t], weights)}
                        for s in edges for t in edges[s]}
 
-    graph.add_edges_from(formatted_edges)
-    nx.set_edge_attributes(graph, edge_attributes)
+    graph.add_vertices(list(vertices))
+    graph.add_edges(formatted_edges)
+    set_edge_attributes(graph, edge_attributes)
     return graph
 
 
@@ -138,16 +164,18 @@ def print_graph(graph, prefix, list_mxs_info):
     colours = ["red", "green", "blue", "purple", "orange", "turquoise", "pink"]
     list_files = list(list_mxs_info.keys())
 
-    for node in graph.nodes:
-        files_labels = "\n".join([str(list_mxs_info[assembly][node]) for assembly in list_mxs_info])
-        node_label = "\"%s\" [label=\"%s\n%s\"]" % (node, node, files_labels)
+    for node in graph.vs():
+        files_labels = "\n".join([str(list_mxs_info[assembly][node['name']])
+                                  for assembly in list_mxs_info])
+        node_label = "\"%s\" [label=\"%s\n%s\"]" % (node['name'], node['name'], files_labels)
         outfile.write("%s\n" % node_label)
 
-    for edge in graph.edges.data():
+    for edge in graph.es():
         outfile.write("\"%s\" -- \"%s\"" %
-                      (edge[0], edge[1]))
+                      (vertex_name(graph, edge.source),
+                       vertex_name(graph, edge.target)))
         # For debugging only
-        weight = edge[2]['support']
+        weight = edge['support']
         if len(weight) == 1:
             colour = colours[list_files.index(weight[0])]
         elif len(weight) == 2:
@@ -199,9 +227,10 @@ def calculate_gap_size(u, v, graph, list_mx_info, cur_assembly, k, min_gap):
 
     # Find the assemblies that have a path between these mx
     # Are situations where there is not a direct edge if an unoriented contig was in-between
-    path = nx.shortest_path(graph, u_mx, v_mx)
-    supporting_assemblies = set.intersection(*map(set, [graph[s][t]['support']
-                                                        for s, t in zip(path, path[1:])]))
+    path = graph.get_shortest_paths(u_mx, v_mx, output="vpath")[0]
+    supporting_assemblies = set.intersection(
+        *map(set, [graph.es().find(edge_index(graph, s, t))['support']
+                   for s, t in zip(path, path[1:])]))
     if not supporting_assemblies:
         return min_gap
 
@@ -275,58 +304,64 @@ def format_path(path, assembly, list_mx_info, mx_extremes, scaffolds, component_
     return out_path
 
 
-def read_dot(dotfile_name):
-    "Given a dot file, reads into a graph data structure"
-    graph = nx.Graph(nx.drawing.nx_pydot.read_dot(dotfile_name))
-    for _, _, eprop in graph.edges.data():
-        if eprop['color'] == "black":
-            eprop['weight'] = [1, 2, 3]
-        elif eprop['color'] == 'lightgrey':
-            eprop['weight'] = [1, 2]
-        else:
-            eprop['weight'] = [1]
-    return graph
-
-
 def filter_graph(graph, min_weight):
     "Filter the graph by edge weights"
     print("Filtering the graph", datetime.datetime.today(), sep=" ", file=sys.stdout)
-    to_remove_edges = [(u, v) for u, v, e_prop in graph.edges.data()
-                       if e_prop['weight'] < min_weight]
+    to_remove_edges = [edge.index for edge in graph.es()
+                       if edge['weight'] < min_weight]
     new_graph = graph.copy()
-    new_graph.remove_edges_from(to_remove_edges)
-    to_remove_nodes = [u for u in new_graph.nodes if new_graph.degree(u) > 2]
-    new_graph.remove_nodes_from(to_remove_nodes)
+    new_graph.delete_edges(to_remove_edges)
+    to_remove_nodes = [u.index for u in new_graph.vs() if u.degree() > 2]
+    new_graph.delete_vertices(to_remove_nodes)
     return new_graph
 
 
-def find_paths(graph, list_mx_info, mx_extremes, scaffolds, k, min_gap):
+def determine_source_vertex(sources, weights, list_mx_info, graph):
+    '''Given the possible sources of the graph, determine which is the source and the target
+        Based on the assembly with the largest weight - orient others based on this assembly
+    '''
+    max_wt_asm = [assembly for assembly in weights
+                  if weights[assembly] == max(weights.values())].pop()
+    list_mx_info_maxwt = list_mx_info[max_wt_asm]
+    min_pos = min([list_mx_info_maxwt[vertex_name(graph, s)][1] for s in sources])
+    max_pos = max([list_mx_info_maxwt[vertex_name(graph, s)][1] for s in sources])
+    source = [s for s in sources
+              if list_mx_info_maxwt[vertex_name(graph, s)][1] == min_pos].pop()
+    target = [s for s in sources
+              if list_mx_info_maxwt[vertex_name(graph, s)][1] == max_pos].pop()
+    return source, target
+
+def find_paths(graph, list_mx_info, mx_extremes, scaffolds, k, min_gap, weights):
     "Finds paths per input assembly file"
     print("Finding paths", datetime.datetime.today(), sep=" ", file=sys.stdout)
     paths = {}
     skipped, total = 0, 0
     for assembly in list_mx_info:
         paths[assembly] = []
-    for component in nx.connected_components(graph):
-        component_graph = nx.subgraph(graph, component)
-        source_nodes = [node for node in component_graph.nodes if component_graph.degree(node) == 1]
+
+    for component in graph.components():
+        component_graph = graph.subgraph(component)
+        source_nodes = [node.index for node in component_graph.vs() if node.degree() == 1]
         if len(source_nodes) == 2:
-            path = nx.shortest_path(component_graph, min(source_nodes), max(source_nodes))
+            source, target = determine_source_vertex(source_nodes, weights, list_mx_info, component_graph)
+            print(vertex_name(component_graph, source), vertex_name(component_graph, target))
+            path = component_graph.get_shortest_paths(source, target)[0]
             num_edges = len(path) - 1
-            if len(path) == len(component_graph.nodes()) and \
-                    num_edges == len(component_graph.edges()) and len(path) == len(set(path)):
+            if len(path) == len(component_graph.vs()) and \
+                    num_edges == len(component_graph.es()) and len(path) == len(set(path)):
                 # All the nodes/edges from the graph are in the simple path, no repeated nodes
+                path = convert_path_index_to_name(component_graph, path)
                 for assembly in list_mx_info:
                     ctg_path = format_path(path, assembly, list_mx_info, mx_extremes[assembly],
                                            scaffolds[assembly], component_graph, k, min_gap)
                     paths[assembly].append(ctg_path)
                 total += 1
             else:
-                print("WARNING: Component with node", list(component.nodes)[0],
+                print("WARNING: Component with node", list(v['name'] for v in component_graph.vs())[0],
                       "was skipped.", sep=" ")
                 skipped += 1
         else:
-            print("WARNING: Component with node", list(component_graph.nodes)[0],
+            print("WARNING: Component with node", list(v['name'] for v in component_graph.vs())[0],
                   "was skipped.", sep=" ")
             skipped += 1
 
@@ -446,7 +481,9 @@ def find_mx_min_max(list_mx_info, graph):
     for assembly in list_mx_info:
         mx_extremes[assembly] = {}
         for mx in list_mx_info[assembly]:
-            if mx not in graph:
+            try:
+                graph.vs().find(mx)
+            except ValueError:
                 continue
             ctg, pos = list_mx_info[assembly][mx]
             if ctg in mx_extremes[assembly]:
@@ -512,7 +549,7 @@ def main():
         assembly_fa = min_match.group(1)
         scaffolds[assembly] = read_fasta_file(assembly_fa)
 
-    paths = find_paths(graph, list_mx_info, mx_extremes, scaffolds, args.k, args.g)
+    paths = find_paths(graph, list_mx_info, mx_extremes, scaffolds, args.k, args.g, weights)
 
     print_scaffolds(paths, scaffolds, args.p, args.n)
 
