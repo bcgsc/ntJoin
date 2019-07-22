@@ -1,8 +1,5 @@
 # See https://docs.microsoft.com/azure/devops/pipelines/languages/python
 
-variables:
-  HOMEBREW_NO_AUTO_UPDATE: 1
-  HOMEBREW_NO_INSTALL_CLEANUP: 1
 
 jobs:
 - job: RunsInContainer
@@ -21,11 +18,16 @@ jobs:
       sudo ln -s clang-format-7 /usr/bin/clang-format
       sudo ln -s clang-tidy-7 /usr/bin/clang-tidy
   - script: |
-      sudo /home/linuxbrew/.linuxbrew/bin/brew install python
+      echo $HOMEBREW_NO_AUTO_UPDATE
+      export HOMEBREW_NO_AUTO_UPDATE=1
+      echo $HOMEBREW_NO_AUTO_UPDATE
+      sudo HOMEBREW_NO_AUTO_UPDATE=1 /home/linuxbrew/.linuxbrew/bin/brew install python
       sudo /home/linuxbrew/.linuxbrew/bin/pip3 install --upgrade setuptools \
       -U pip --no-cache-dir \
       pylint .
     displayName: Install Python packages
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: 1
   - script: |
       cd bin
       pylint ntjoin_assemble.py
@@ -43,4 +45,6 @@ jobs:
       echo $PATH
       cd tests
       pytest -vs minscaff_test.py
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: 1
     displayName: Testing minimizer graph code
