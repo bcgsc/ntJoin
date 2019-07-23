@@ -59,13 +59,12 @@ def vertex_name(graph, index):
 
 def edge_index(graph, source_name, target_name):
     "Returns edge index based on source/target names"
-    return graph.es().find(_between=((vertex_index(graph, source_name),),
-                                     (vertex_index(graph, target_name),))).index
+    return graph.get_eid(source_name, target_name)
 
 def set_edge_attributes(graph, edge_attributes):
     "Sets the edge attributes for a python-igraph graph"
-    for edge in edge_attributes:
-        graph.es().find(edge_index(graph, edge[0], edge[1])).update_attributes(edge_attributes[edge])
+    graph.es()["support"] = [edge_attributes[e]['support'] for e in sorted(edge_attributes.keys())]
+    graph.es()["weight"] = [edge_attributes[e]['weight'] for e in sorted(edge_attributes.keys())]
 
 def convert_path_index_to_name(graph, path):
     "Convert path of vertex indices to path of vertex names"
@@ -139,16 +138,23 @@ def build_graph(list_mxs, weights):
                 else:
                     edges[assembly_mx_list[i]][assembly_mx_list[i+1]] = [assembly]
                 vertices.add(assembly_mx_list[i])
-            vertices.add(assembly_mx_list[len(assembly_mx_list)-1])
+            if len(assembly_mx_list) > 0:
+                vertices.add(assembly_mx_list[len(assembly_mx_list)-1])
 
     formatted_edges = [(s, t) for s in edges for t in edges[s]]
-    edge_attributes = {(s, t): {"support": edges[s][t],
-                                "weight": calc_total_weight(edges[s][t], weights)}
-                       for s in edges for t in edges[s]}
 
+    print("Adding vertices", datetime.datetime.today(), sep=" ", file=sys.stdout)
     graph.add_vertices(list(vertices))
+
+    print("Adding edges", datetime.datetime.today(), sep=" ", file=sys.stdout)
     graph.add_edges(formatted_edges)
+
+    print("Adding attributes", datetime.datetime.today(), sep=" ", file=sys.stdout)
+    edge_attributes = {edge_index(graph, s, t): {"support": edges[s][t],
+                                                 "weight": calc_total_weight(edges[s][t], weights)}
+                       for s in edges for t in edges[s]}
     set_edge_attributes(graph, edge_attributes)
+
     return graph
 
 
@@ -344,7 +350,6 @@ def find_paths(graph, list_mx_info, mx_extremes, scaffolds, k, min_gap, weights)
         source_nodes = [node.index for node in component_graph.vs() if node.degree() == 1]
         if len(source_nodes) == 2:
             source, target = determine_source_vertex(source_nodes, weights, list_mx_info, component_graph)
-            print(vertex_name(component_graph, source), vertex_name(component_graph, target))
             path = component_graph.get_shortest_paths(source, target)[0]
             num_edges = len(path) - 1
             if len(path) == len(component_graph.vs()) and \
