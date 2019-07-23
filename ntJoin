@@ -5,7 +5,7 @@
 
 list_files=None
 min_targets=$(addsuffix .k$(k).w$(w).tsv, $(list_files))
-bam_targets=$(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa.bam.bai, $(list_files))
+bam_targets=$(addsuffix .k$(k).w$(w).n$(n).assigned.scaffolds.fa.bam.bai, $(list_files))
 fai_targets=$(addsuffix .fai, $(list_files))
 
 # List of edge weights
@@ -62,7 +62,8 @@ endif
 
 assemble: $(min_targets) \
 	$(fai_targets) \
-	$(prefix).mx.dot
+	$(prefix).mx.dot \
+	$(addsuffix .k$(k).w$(w).n$(n).all.scaffolds.fa, $(list_files))
 
 analysis: check_params_analysis \
 	$(addsuffix .bam.bai, $(list_files)) \
@@ -119,8 +120,14 @@ help:
 $(prefix).mx.dot: $(addsuffix .k$(k).w$(w).tsv, $(list_files))
 	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) -g $(g) $^
 
-$(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files)): $(prefix).mx.dot
+$(addsuffix .k$(k).w$(w).n$(n).assigned.scaffolds.fa, $(list_files)): $(prefix).mx.dot
 	touch $@
+
+$(addsuffix .k$(k).w$(w).n$(n).unassigned.scaffolds.fa, $(list_files)): $(prefix).mx.dot
+	touch $@
+
+%.all.scaffolds.fa: %.assigned.scaffolds.fa %.unassigned.scaffolds.fa
+	cat $^ > $@
 
 %.dot.png: %.dot
 	dot -Tpng -o $@ $<
@@ -132,13 +139,13 @@ $(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files)): $(prefix).mx.dot
 	samtools index $<
 
 # Run QUAST
-quast_$(prefix)/report.tsv: $(list_files) $(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files))
+quast_$(prefix)/report.tsv: $(list_files) $(addsuffix .k$(k).w$(w).n$(n).assigned.scaffolds.fa, $(list_files))
 ifeq ($(large), 1)
 	quast -t $(t) -o quast_$(prefix) -r $(ref) --fast --scaffold-gap-max-size 100000 --split-scaffolds \
-	--large $(list_files) $(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files))
+	--large $^
 else
 	quast -t $(t) -o quast_$(prefix) -r $(ref) --fast --scaffold-gap-max-size 100000 --split-scaffolds \
-	$(list_files) $(addsuffix .k$(k).w$(w).n$(n).scaffolds.fa, $(list_files))
+	$^
 endif
 
 # Generate a Jupiter plot

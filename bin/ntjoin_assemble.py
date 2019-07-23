@@ -72,7 +72,7 @@ def convert_path_index_to_name(graph, path):
 
 def read_minimizers(tsv_filename):
     "Read all the minimizers from a file into a dictionary, removing duplicate minimizers"
-    print("Reading minimizers:", tsv_filename, datetime.datetime.today(), sep="", file=sys.stdout)
+    print("Reading minimizers:", tsv_filename, datetime.datetime.today(), file=sys.stdout)
     mx_info = {}  # mx -> (contig, position)
     mxs = []  # List of lists of minimizers, which have ordering information
     dup_mxs = set()  # Set of minimizers seen to be duplicates
@@ -370,7 +370,8 @@ def find_paths(graph, list_mx_info, mx_extremes, scaffolds, k, min_gap, weights)
                   "was skipped.", sep=" ")
             skipped += 1
 
-    print("Warning: ", skipped, " paths of", total, "were skipped", sep=" ")
+    if skipped > 0:
+        print("Warning: ", skipped, " paths of", total, "were skipped", sep=" ")
 
     return paths
 
@@ -425,7 +426,7 @@ def print_scaffolds(paths, scaffolds, prefix, min_weight):
         min_match = re.search(r'^(\S+)(.k\d+.w\d+)\.tsv', assembly)
         assembly_fa = min_match.group(1)
         outfile = open(assembly_fa + min_match.group(2) + ".n" +
-                       str(min_weight) + ".scaffolds.fa", 'w')
+                       str(min_weight) + ".assigned.scaffolds.fa", 'w')
         all_scaffolds = scaffolds[assembly]
         incorporated_segments = []  # List of Bed entries
 
@@ -452,6 +453,7 @@ def print_scaffolds(paths, scaffolds, prefix, min_weight):
             path_str = re.sub(r'\s+\d+N$', r'', path_str)
             pathfile.write("%s\t%s\n" % ("mx" + str(ct), path_str))
             ct += 1
+        outfile.close()
 
         # Also print out the sequences that were NOT scaffolded
         incorporated_segments_str = "\n".join(["%s\t%s\t%s" % (chr, s, e)
@@ -462,6 +464,9 @@ def print_scaffolds(paths, scaffolds, prefix, min_weight):
 
         missing_bed = genome_bed.complement(i=incorporated_segments_bed, g=genome_dict)
         missing_bed.saveas(prefix + "." + assembly + ".unassigned.bed")
+
+        outfile = open(assembly_fa + min_match.group(2) + ".n" +
+                       str(min_weight) + ".unassigned.scaffolds.fa", 'w')
 
         cmd = "bedtools getfasta -fi %s -bed %s -fo -" % \
               (assembly_fa, prefix + "." + assembly + ".unassigned.bed")
