@@ -138,7 +138,7 @@ def build_graph(list_mxs, weights):
                 else:
                     edges[assembly_mx_list[i]][assembly_mx_list[i+1]] = [assembly]
                 vertices.add(assembly_mx_list[i])
-            if len(assembly_mx_list) > 0:
+            if assembly_mx_list:
                 vertices.add(assembly_mx_list[len(assembly_mx_list)-1])
 
     formatted_edges = [(s, t) for s in edges for t in edges[s]]
