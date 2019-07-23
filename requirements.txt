@@ -1,2 +1,2 @@
-networkx
+python-igraph
 pybedtools

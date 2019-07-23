@@ -3,6 +3,7 @@ good-names = ct, i, mx, k, a, b, u, v
 max-locals = 50
 max-args = 10
 max-attributes = 10
+max-line-length = 110
 
 [MISCELLANEOUS]
 

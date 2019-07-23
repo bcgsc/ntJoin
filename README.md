@@ -16,6 +16,6 @@ g	Minimum gap size [20]
 ```
 
 #### Requirements:
-* python3 ([pybedtools](https://daler.github.io/pybedtools/), [networkx](https://networkx.github.io/))
+* python3 ([pybedtools](https://daler.github.io/pybedtools/), [python-igraph](https://igraph.org/python/))
 * [bedtools v2.21.0+](https://bedtools.readthedocs.io/en/latest/)
 * [samtools](https://github.com/samtools/samtools)
