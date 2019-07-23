@@ -139,7 +139,7 @@ $(addsuffix .k$(k).w$(w).n$(n).unassigned.scaffolds.fa, $(list_files)): $(prefix
 	samtools index $<
 
 # Run QUAST
-quast_$(prefix)/report.tsv: $(list_files) $(addsuffix .k$(k).w$(w).n$(n).assigned.scaffolds.fa, $(list_files))
+quast_$(prefix)/report.tsv: $(list_files) $(addsuffix .k$(k).w$(w).n$(n).assigned.scaffolds.fa, $(list_files)) $(addsuffix .k$(k).w$(w).n$(n).all.scaffolds.fa, $(list_files))
 ifeq ($(large), 1)
 	quast -t $(t) -o quast_$(prefix) -r $(ref) --fast --scaffold-gap-max-size 100000 --split-scaffolds \
 	--large $^
