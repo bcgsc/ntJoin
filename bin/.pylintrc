@@ -1,9 +1,10 @@
 [basic]
-good-names = ct, i, mx, k, a, b, u, v
+good-names = ct, i, mx, k, a, b, u, v, bx, xs
 max-locals = 50
 max-args = 10
 max-attributes = 10
 max-line-length = 110
+max-branches = 15
 
 [MISCELLANEOUS]
 

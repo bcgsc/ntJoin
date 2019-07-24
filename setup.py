@@ -15,7 +15,7 @@ setuptools.setup(
     license="GPLv3",
     python_requires=">=3",
     install_requires=["python-igraph", "pybedtools"],
-    scripts = ["bin/minimerize.py", "bin/ntjoin_assemble.py", "bin/hash.py", "bin/read_fasta.py"],
+    scripts = ["bin/ntjoin_assemble.py", "bin/read_fasta.py"],
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
