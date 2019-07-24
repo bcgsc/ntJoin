@@ -9,6 +9,7 @@ Usage: ntJoin assemble prefix=<prefix> list_files='List of fasta files' list_wei
 Note: ensure the lists of assemblies and weights are in the same order, and the files in the lists are separated by a space
 
 Options:
+prefix	Prefix of intermediate output files [out]
 t	Number of threads [4]
 k	K-mer size for minimizers [32]
 w	Window size for minimizers [1000]
