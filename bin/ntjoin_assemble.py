@@ -55,7 +55,7 @@ def vertex_index(graph, name):
 
 def vertex_name(graph, index):
     "Returns vertex name based on vertex id"
-    return graph.vs().find(index)['name']
+    return graph.vs[index]['name']
 
 def edge_index(graph, source_name, target_name):
     "Returns edge index based on source/target names"
@@ -388,14 +388,10 @@ def read_fasta_file(filename):
 
 def reverse_complement(sequence):
     "Reverse complements a given sequence"
-    mappings = {"A": "T", "C": "G", "G": "C", "T": "A",
-                "M": "K", "R": "Y", "W": "W", "S": "S",
-                "Y": "R", "K": "M", "V": "B", "H": "D",
-                "D": "H", "B": "V", "N": "N"}
-    new_sequence = ""
-    for char in reversed(sequence):
-        new_sequence += mappings[char.upper()]
-    return new_sequence
+    translation_table = str.maketrans(
+        "ACGTUNMRWSYKVHDBacgtunmrwsykvhdb",
+        "TGCAANKYWSRMBDHVtgcaankywsrmbdhv")
+    return sequence[::-1].translate(translation_table)
 
 
 def get_fasta_segment(path_node, sequence):
