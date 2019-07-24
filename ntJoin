@@ -60,6 +60,18 @@ else
 time=command time -v -o $@.time
 endif
 
+help:
+	@echo "Assembly merging with minimizers"
+	@echo "Usage: minimizer_assembler-make assemble prefix=<prefix> list_files='List of fasta files' list_weights='List of weights (ints) per assembly'"
+	@echo ""
+	@echo "Note: ensure the lists of assemblies and weights are in the same order, and that both are space-separated"
+	@echo "Commands:"
+	@echo "t	Number of threads [4]"
+	@echo "k	K-mer size for minimizers [64]"
+	@echo "w	Window size for minimizers [1000]"
+	@echo "n	Min. edge weight [2]"
+	@echo "g	Minimum gap size [1]"
+
 assemble: $(min_targets) \
 	$(fai_targets) \
 	$(prefix).mx.dot \
@@ -94,20 +106,11 @@ ifeq ($(jupiter_scaffold), None)
 	$(error must set jupiter_scaffold)
 endif
 
-help:
-	@echo "Assembly merging with minimizers"
-	@echo "Usage: minimizer_assembler-make assemble prefix=<prefix> list_files='List of fasta files' list_weights='List of weights (ints) per assembly'"
-	@echo ""
-	@echo "Note: ensure the lists of assemblies and weights are in the same order, and that both are space-separated"
-	@echo "Commands:"
-	@echo "t	Number of threads [4]"
-	@echo "k	K-mer size for minimizers [64]"
-	@echo "w	Window size for minimizers [1000]"
-	@echo "n	Min. edge weight [2]"
-	@echo "g	Minimum gap size [1]"
+version:
+	@echo "ntJoin v0.0.1"
+	@echo "Written by Lauren Coombe (lcoombe@bcgsc.ca)"
 
-
-.PHONY: all analysis assemble help check_params jupiter
+.PHONY: all version analysis assemble help check_params jupiter
 .DELETE_ON_ERROR: $(prefix).n$(n).mx.dot
 .SECONDARY:
 

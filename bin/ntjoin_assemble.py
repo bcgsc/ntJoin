@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Scaffold multiple genome assemblies using minimizers
-Written by Lauren Coombe
+ntJoin: Scaffold multiple genome assemblies using minimizers
+Written by Lauren Coombe (@lcoombe)
 """
 
 import argparse
@@ -511,6 +511,7 @@ def main():
     parser.add_argument("-l", help="List of assembly weights", required=True, type=str)
     parser.add_argument("-k", help="k value used for minimizering", required=True, type=int)
     parser.add_argument("-g", help="Minimum gap size", required=False, default=1, type=int)
+    parser.add_argument("-v", "--version", action='version', version='ntJoin v0.0.1')
     args = parser.parse_args()
 
     # Parse the weights
