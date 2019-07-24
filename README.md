@@ -17,7 +17,8 @@ g	Minimum gap size [20]
 ```
 --------
 ## Installation
-####Installing ntJoin from the source code
+
+#### Installing ntJoin from the source code
 ```sh
 git clone https://github.com/bcgsc/ntJoin.git
 cd src
