@@ -1,5 +1,5 @@
 [basic]
-good-names = ct, i, mx, k, a, b, u, v, bx, xs
+good-names = ct, i, mx, k, a, b, u, v, bx, xs, j
 max-locals = 50
 max-args = 10
 max-attributes = 10
