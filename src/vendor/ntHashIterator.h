@@ -91,7 +91,7 @@ public:
 
     char strand() const
     {
-        return (m_fhVal < m_rhVal) ? '+' : '-';
+        return (m_fhVal <= m_rhVal) ? '+' : '-';
     }
 
     /** get pointer to hash values for current k-mer */
