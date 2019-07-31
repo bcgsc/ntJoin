@@ -80,12 +80,14 @@ class MinimizeWorker
 	    size_t k,
 	    size_t w,
 	    bool withPositions,
+	    bool withStrands,
 	    bool verbose,
 	    InputWorker& inputWorker,
 	    OutputWorker& outputWorker)
 	  : k(k)
 	  , w(w)
 	  , withPositions(withPositions)
+	  , withStrands(withStrands)
 	  , verbose(verbose)
 	  , inputWorker(inputWorker)
 	  , outputWorker(outputWorker)
@@ -95,6 +97,7 @@ class MinimizeWorker
 	  : k(worker.k)
 	  , w(worker.w)
 	  , withPositions(worker.withPositions)
+	  , withStrands(worker.withStrands)
 	  , verbose(worker.verbose)
 	  , inputWorker(worker.inputWorker)
 	  , outputWorker(worker.outputWorker)
@@ -104,6 +107,7 @@ class MinimizeWorker
 	  : k(worker.k)
 	  , w(worker.w)
 	  , withPositions(worker.withPositions)
+	  , withStrands(worker.withStrands)
 	  , verbose(worker.verbose)
 	  , inputWorker(worker.inputWorker)
 	  , outputWorker(worker.outputWorker)
@@ -122,6 +126,7 @@ class MinimizeWorker
 	size_t k = 0;
 	size_t w = 0;
 	bool withPositions = false;
+	bool withStrands = false;
 	bool verbose = false;
 	InputWorker& inputWorker;
 	OutputWorker& outputWorker;
@@ -208,14 +213,15 @@ InputWorker::work()
 				reads.num = inputNum - 1;
 			}
 
-			buffer.releaseWriteAccess(currentNum);
-
 			if (done) {
 				allRead = true;
+				buffer.releaseWriteAccess(currentNum);
 				if (buffer.elements() == 0) {
 					buffer.close();
 				}
 				break;
+			} else {
+				buffer.releaseWriteAccess(currentNum);
 			}
 		}
 
@@ -288,6 +294,9 @@ MinimizeWorker::work()
 				ss << sep << m.hash;
 				if (withPositions) {
 					ss << ':' << m.pos;
+				}
+				if (withStrands) {
+					ss << ':' << m.strand;
 				}
 				sep = ' ';
 			}

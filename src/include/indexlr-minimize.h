@@ -21,17 +21,19 @@ startsWith(const std::string& s, const char (&prefix)[N])
 	return s.size() > n && equal(s.begin(), s.begin() + n, prefix);
 }
 
-struct HashAndPos
+struct HashData
 {
-	HashAndPos(uint64_t hash, size_t pos)
+	HashData(uint64_t hash, size_t pos, char strand)
 	  : hash(hash)
 	  , pos(pos)
+	  , strand(strand)
 	{}
 	uint64_t hash;
 	size_t pos;
+	char strand;
 };
 
-using HashValues = std::vector<HashAndPos>;
+using HashValues = std::vector<HashData>;
 
 // Hash the k-mers of a read using ntHash.
 static inline HashValues
@@ -43,7 +45,7 @@ hashKmers(const std::string& readstr, const size_t k)
 	}
 	hashes.reserve(readstr.size() - k + 1);
 	for (ntHashIterator iter(readstr, 1, k); iter != ntHashIterator::end(); ++iter) {
-		hashes.push_back(HashAndPos((*iter)[0], iter.pos()));
+		hashes.push_back(HashData((*iter)[0], iter.pos(), iter.strand()));
 	}
 	return hashes;
 }
@@ -95,7 +97,7 @@ getMinimizers(const HashValues& hashes, const unsigned w)
 		auto rightIt = leftIt + w;
 		if (i < leftIt - firstIt) {
 			// Use of operator '<=' returns the minimum that is furthest from left.
-			minIt = std::min_element(leftIt, rightIt, [](const HashAndPos& a, const HashAndPos& b) {
+			minIt = std::min_element(leftIt, rightIt, [](const HashData& a, const HashData& b) {
 				return a.hash <= b.hash;
 			});
 		} else if (rightIt[-1].hash <= minIt->hash) {

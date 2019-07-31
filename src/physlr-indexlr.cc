@@ -27,6 +27,7 @@ minimizeReads(
     const size_t w,
     const size_t t,
     const bool withPositions,
+    const bool withStrands,
     const bool verbose)
 {
 	InputWorker inputWorker(ipath);
@@ -36,7 +37,7 @@ minimizeReads(
 	outputWorker.start();
 
 	auto minimizeWorkers = std::vector<MinimizeWorker>(
-	    t, MinimizeWorker(k, w, withPositions, verbose, inputWorker, outputWorker));
+	    t, MinimizeWorker(k, w, withPositions, withStrands, verbose, inputWorker, outputWorker));
 	for (auto& worker : minimizeWorkers) {
 		worker.start();
 	}
@@ -62,6 +63,7 @@ printUsage(const std::string& progname)
 	             "  -k K       use K as k-mer size\n"
 	             "  -w W       use W as sliding-window size\n"
 	             "  --pos      include minimizer positions in the output\n"
+	             "  --strand   include minimizer strand in the output\n"
 	             "  -v         enable verbose output\n"
 	             "  -o FILE    write output to FILE, default is stdout\n"
 	             "  -t N       use N number of threads (default 1, max 5)\n"
@@ -84,9 +86,11 @@ main(int argc, char* argv[])
 	bool w_set = false;
 	bool k_set = false;
 	static int withPositions = 0;
+	static int withStrands = 0;
 	char* end = nullptr;
 	std::string outfile("/dev/stdout");
 	static const struct option longopts[] = { { "pos", no_argument, &withPositions, 1 },
+		                                      { "strand", no_argument, &withStrands, 1 },
 		                                      { "help", no_argument, &help, 1 },
 		                                      { nullptr, 0, nullptr, 0 } };
 	while ((c = getopt_long(argc, argv, "k:w:o:vt:", longopts, &optindex)) != -1) {
@@ -149,7 +153,14 @@ main(int argc, char* argv[])
 
 	for (auto& infile : infiles) {
 		minimizeReads(
-		    infile == "-" ? "/dev/stdin" : infile, outfile, k, w, t, withPositions, verbose);
+		    infile == "-" ? "/dev/stdin" : infile,
+		    outfile,
+		    k,
+		    w,
+		    t,
+		    withPositions,
+		    withStrands,
+		    verbose);
 	}
 
 	return 0;
