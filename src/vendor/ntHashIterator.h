@@ -89,6 +89,11 @@ public:
     	return m_pos;
     }
 
+    char strand() const
+    {
+        return (m_fhVal < m_rhVal) ? '+' : '-';
+    }
+
     /** get pointer to hash values for current k-mer */
     const uint64_t* operator*() const
     {
