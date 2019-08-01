@@ -14,6 +14,7 @@ import subprocess
 import sys
 import igraph as ig
 import pybedtools
+import pymannkendall as mk
 from read_fasta import read_fasta
 
 
@@ -211,6 +212,9 @@ def determine_orientation(positions):
         return "+"
     if all(x > y for x, y in zip(positions, positions[1:])):
         return "-"
+    mkt_result = mk.original_test(positions)
+    if mkt_result.h and mkt_result.p <= 0.05:
+        return "+" if mkt_result.trend == "increasing" else "-"
     return "?"
 
 

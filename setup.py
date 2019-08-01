@@ -14,7 +14,7 @@ setuptools.setup(
     url="https://github.com/bcgsc/ntJoin",
     license="GPLv3",
     python_requires=">=3",
-    install_requires=["python-igraph", "pysam==0.15.2", "pybedtools"],
+    install_requires=["python-igraph", "pysam==0.15.2", "pybedtools", "pymannkendall"],
     scripts = ["bin/ntjoin_assemble.py", "bin/read_fasta.py"],
     classifiers=[
         "Programming Language :: Python :: 3",
