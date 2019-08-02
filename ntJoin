@@ -34,6 +34,12 @@ n=2
 # Minimum gap size between scaffolds
 g=20
 
+# Whether mkt will be run or not
+mkt=False
+
+# The proportion of increasing/decreasing minimizer positions needed to orient a contig
+m=90
+
 # Reference genome (for analysis)
 ref=None
 
@@ -72,6 +78,8 @@ help:
 	@echo "w		Window size for minimizers [1000]"
 	@echo "n		Minimum edge weight [2]"
 	@echo "g		Minimum gap size [1]"
+	@echo "m		Minimum percentage of increasing/decreasing minimizer positions to orient contig [90]"
+	@echo "mkt		If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive)"
 
 assemble: $(min_targets) \
 	$(fai_targets) \
@@ -122,7 +130,11 @@ version:
 	samtools faidx $<
 
 $(prefix).mx.dot: $(addsuffix .k$(k).w$(w).tsv, $(list_files))
-	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) -g $(g) $^
+ifeq ($(mkt), True)
+	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) -g $(g) --mkt $^
+else
+	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) -g $(g) -m $(m) $^
+endif
 
 $(addsuffix .k$(k).w$(w).n$(n).assigned.scaffolds.fa, $(list_files)): $(prefix).mx.dot
 	touch $@
