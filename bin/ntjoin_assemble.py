@@ -16,8 +16,6 @@ import sys
 import igraph as ig
 import pybedtools
 import pymannkendall as mk
-import numpy
-import mkt
 from read_fasta import read_fasta
 
 
@@ -208,24 +206,23 @@ def print_graph(graph, prefix, list_mxs_info):
 
 def determine_orientation(positions, mkt_b, m):
     "Given a list of minimizer positions, determine the orientation of the contig"
-    if len(positions) == 1:
-        return "?"
-    if all(x < y for x, y in zip(positions, positions[1:])):
-        return "+"
-    if all(x > y for x, y in zip(positions, positions[1:])):
-        return "-"
-    if mkt_b:
-        mkt_result = mk.original_test(positions)
-        if mkt_result.h and mkt_result.p <= 0.05:
-            return "+" if mkt_result.trend == "increasing" else "-"
-    else:
-        tally = Counter([x < y for x, y in zip(positions, positions[1:])])
-        positive_perc = tally[True]/float(len(positions)-1)*100
-        negative_perc = 100 - positive_perc
-        if positive_perc >= m:
+    if len(positions) > 1:
+        if all(x < y for x, y in zip(positions, positions[1:])):
             return "+"
-        elif negative_perc >= m:
+        if all(x > y for x, y in zip(positions, positions[1:])):
             return "-"
+        if mkt_b:
+            mkt_result = mk.original_test(positions)
+            if mkt_result.h and mkt_result.p <= 0.05:
+                return "+" if mkt_result.trend == "increasing" else "-"
+        else:
+            tally = Counter([x < y for x, y in zip(positions, positions[1:])])
+            positive_perc = tally[True]/float(len(positions)-1)*100
+            negative_perc = 100 - positive_perc
+            if positive_perc >= m:
+                return "+"
+            if negative_perc >= m:
+                return "-"
 
     return "?"
 
