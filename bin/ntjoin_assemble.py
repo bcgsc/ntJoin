@@ -7,6 +7,7 @@ Written by Lauren Coombe (@lcoombe)
 import argparse
 import datetime
 import re
+from collections import Counter
 from collections import defaultdict
 from collections import namedtuple
 import shlex
@@ -14,6 +15,7 @@ import subprocess
 import sys
 import igraph as ig
 import pybedtools
+import pymannkendall as mk
 from read_fasta import read_fasta
 
 
@@ -202,15 +204,26 @@ def print_graph(graph, prefix, list_mxs_info):
     for i, filename in enumerate(list_files):
         print(filename, i, colours[i], sep="\t")
 
-
-def determine_orientation(positions):
+def determine_orientation(positions, mkt_b, m):
     "Given a list of minimizer positions, determine the orientation of the contig"
-    if len(positions) == 1:
-        return "?"
-    if all(x < y for x, y in zip(positions, positions[1:])):
-        return "+"
-    if all(x > y for x, y in zip(positions, positions[1:])):
-        return "-"
+    if len(positions) > 1:
+        if all(x < y for x, y in zip(positions, positions[1:])):
+            return "+"
+        if all(x > y for x, y in zip(positions, positions[1:])):
+            return "-"
+        if mkt_b:
+            mkt_result = mk.original_test(positions)
+            if mkt_result.h and mkt_result.p <= 0.05:
+                return "+" if mkt_result.trend == "increasing" else "-"
+        else:
+            tally = Counter([x < y for x, y in zip(positions, positions[1:])])
+            positive_perc = tally[True]/float(len(positions)-1)*100
+            negative_perc = 100 - positive_perc
+            if positive_perc >= m:
+                return "+"
+            if negative_perc >= m:
+                return "-"
+
     return "?"
 
 
@@ -274,7 +287,7 @@ def calculate_gap_size(u, v, graph, list_mx_info, cur_assembly, k, min_gap):
     return gap_size
 
 
-def format_path(path, assembly, list_mx_info, mx_extremes, scaffolds, component_graph, k, min_gap):
+def format_path(path, assembly, list_mx_info, mx_extremes, scaffolds, component_graph, args):
     "Given a path (sequence of mx), print the order/orientation/regions of contigs for an assembly"
     out_path = []  # List of PathNode
     curr_ctg, prev_mx, first_mx = None, None, None
@@ -286,14 +299,14 @@ def format_path(path, assembly, list_mx_info, mx_extremes, scaffolds, component_
         else:
             # This is either the first mx, or we are past a stretch of repeating contigs
             if curr_ctg is not None:
-                ori = determine_orientation(positions)
+                ori = determine_orientation(positions, args.mkt, args.m)
                 if ori != "?":  # Don't add to path if orientation couldn't be determined
                     out_path.append(PathNode(contig=curr_ctg, ori=ori,
                                              start=calc_start_coord(positions,
                                                                     mx_extremes[curr_ctg][0]),
                                              end=calc_end_coord(positions,
                                                                 mx_extremes[curr_ctg][1],
-                                                                scaffolds[curr_ctg].length, k),
+                                                                scaffolds[curr_ctg].length, args.k),
                                              contig_size=scaffolds[curr_ctg].length,
                                              first_mx=first_mx,
                                              terminal_mx=prev_mx))
@@ -301,16 +314,16 @@ def format_path(path, assembly, list_mx_info, mx_extremes, scaffolds, component_
             positions = [pos]
             first_mx = mx
         prev_mx = mx
-    ori = determine_orientation(positions)
+    ori = determine_orientation(positions, args.mkt, args.m)
     out_path.append(PathNode(contig=curr_ctg, ori=ori,
                              start=calc_start_coord(positions, mx_extremes[curr_ctg][0]),
                              end=calc_end_coord(positions, mx_extremes[curr_ctg][1],
-                                                scaffolds[curr_ctg].length, k),
+                                                scaffolds[curr_ctg].length, args.k),
                              contig_size=scaffolds[curr_ctg].length,
                              first_mx=first_mx,
                              terminal_mx=prev_mx))
     for u, v in zip(out_path, out_path[1:]):
-        gap_size = calculate_gap_size(u, v, component_graph, list_mx_info, assembly, k, min_gap)
+        gap_size = calculate_gap_size(u, v, component_graph, list_mx_info, assembly, args.k, args.g)
         u.gap_size = gap_size
 
     return out_path
@@ -343,7 +356,7 @@ def determine_source_vertex(sources, weights, list_mx_info, graph):
               if list_mx_info_maxwt[vertex_name(graph, s)][1] == max_pos].pop()
     return source, target
 
-def find_paths(graph, list_mx_info, mx_extremes, scaffolds, k, min_gap, weights):
+def find_paths(graph, list_mx_info, mx_extremes, scaffolds, args, weights):
     "Finds paths per input assembly file"
     print("Finding paths", datetime.datetime.today(), file=sys.stdout)
     paths = {}
@@ -364,7 +377,7 @@ def find_paths(graph, list_mx_info, mx_extremes, scaffolds, k, min_gap, weights)
                 path = convert_path_index_to_name(component_graph, path)
                 for assembly in list_mx_info:
                     ctg_path = format_path(path, assembly, list_mx_info, mx_extremes[assembly],
-                                           scaffolds[assembly], component_graph, k, min_gap)
+                                           scaffolds[assembly], component_graph, args)
                     paths[assembly].append(ctg_path)
                 total += 1
             else:
@@ -530,8 +543,20 @@ def main():
                         required=True, type=str)
     parser.add_argument("-k", help="k value used for minimizer step", required=True, type=int)
     parser.add_argument("-g", help="Minimum gap size", required=False, default=1, type=int)
+    parser.add_argument("--mkt", help="Use Mann-Kendall Test to orient contigs (slower)",
+                        action='store_true')
+    parser.add_argument('-m', help="Require at least m % of minimizer positions to be "
+                                   "increasing/decreasing to assign contig orientation [90]\n "
+                                   "Note: Only used with --mkt is NOT specified", default=90, type=int)
     parser.add_argument("-v", "--version", action='version', version='ntJoin v0.0.1')
     args = parser.parse_args()
+
+    # Sanity checking of user's specified arguments
+    print("Running ntJoin...")
+    if args.mkt:
+        print("Orienting contigs with Mann-Kendall Test (more computationally intensive)")
+    else:
+        print("Orienting contigs using increasing/decreasing minimizer positions")
 
     # Parse the weights of each input assembly
     input_weights = re.split(r'\s+', args.l)
@@ -580,7 +605,7 @@ def main():
         assembly_fa = min_match.group(1)
         scaffolds[assembly] = read_fasta_file(assembly_fa)
 
-    paths = find_paths(graph, list_mx_info, mx_extremes, scaffolds, args.k, args.g, weights)
+    paths = find_paths(graph, list_mx_info, mx_extremes, scaffolds, args, weights)
 
     print_scaffolds(paths, scaffolds, args.p, args.n)
 
