@@ -15,6 +15,8 @@ k	K-mer size for minimizers [32]
 w	Window size for minimizers [1000]
 n	Minimum edge weight [2]
 g	Minimum gap size [20]
+m	Minimum percentage of increasing/decreasing minimizer positions to orient contig [90]"
+mkt	If True, use Mann-Kendall Test to predict contig orientation (more computationally-intensive) [False]"
 ```
 --------
 ## Installation
@@ -27,7 +29,7 @@ make
 ```
 
 ## Dependencies
-* python3 ([pybedtools](https://daler.github.io/pybedtools/), [python-igraph](https://igraph.org/python/))
+* python3 ([pybedtools](https://daler.github.io/pybedtools/), [python-igraph](https://igraph.org/python/), [pymannkendall](https://pypi.org/project/pymannkendall/))
 * [bedtools v2.21.0+](https://bedtools.readthedocs.io/en/latest/)
 * [samtools](https://github.com/samtools/samtools)
 
