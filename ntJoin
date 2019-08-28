@@ -2,6 +2,7 @@
 
 # Use minimizers to scaffold assemblies
 # Written by Lauren Coombe @lcoombe
+# ntJoin 0.0.1
 
 list_files=None
 min_targets=$(addsuffix .k$(k).w$(w).tsv, $(list_files))
@@ -66,6 +67,13 @@ else
 time=command time -v -o $@.time
 endif
 
+# Compress in parallel.
+ifneq ($(shell command -v pigz),)
+gzip=pigz -p$t
+else
+gzip=gzip
+endif
+
 help:
 	@echo "Assembly merging with minimizers"
 	@echo "Usage: minimizer_assembler-make assemble prefix=<prefix> list_files='List of fasta files' list_weights='List of weights (ints) per assembly'"
@@ -84,7 +92,8 @@ help:
 assemble: $(min_targets) \
 	$(fai_targets) \
 	$(prefix).mx.dot \
-	$(addsuffix .k$(k).w$(w).n$(n).all.scaffolds.fa, $(list_files))
+	$(addsuffix .k$(k).w$(w).n$(n).assigned.scaffolds.fa.gz, $(list_files)) \
+	$(addsuffix .k$(k).w$(w).n$(n).unassigned.scaffolds.fa.gz, $(list_files))
 
 analysis: check_params_analysis \
 	$(addsuffix .bam.bai, $(list_files)) \
@@ -129,6 +138,9 @@ version:
 %.fa.fai: %.fa
 	samtools faidx $<
 
+%.fa.gz: %.fa
+	$(gzip) $<
+	
 $(prefix).mx.dot: $(addsuffix .k$(k).w$(w).tsv, $(list_files))
 ifeq ($(mkt), True)
 	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) -g $(g) --mkt $^
