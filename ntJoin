@@ -93,7 +93,8 @@ assemble: $(min_targets) \
 	$(fai_targets) \
 	$(prefix).mx.dot \
 	$(addsuffix .k$(k).w$(w).n$(n).assigned.scaffolds.fa.gz, $(list_files)) \
-	$(addsuffix .k$(k).w$(w).n$(n).unassigned.scaffolds.fa.gz, $(list_files))
+	$(addsuffix .k$(k).w$(w).n$(n).unassigned.scaffolds.fa.gz, $(list_files)) \
+	$(addsuffix .k$(k).w$(w).n$(n).all.scaffolds.fa.gz, $(list_files))
 
 analysis: check_params_analysis \
 	$(addsuffix .bam.bai, $(list_files)) \
@@ -154,7 +155,7 @@ $(addsuffix .k$(k).w$(w).n$(n).assigned.scaffolds.fa, $(list_files)): $(prefix).
 $(addsuffix .k$(k).w$(w).n$(n).unassigned.scaffolds.fa, $(list_files)): $(prefix).mx.dot
 	touch $@
 
-%.all.scaffolds.fa: %.assigned.scaffolds.fa %.unassigned.scaffolds.fa
+%.all.scaffolds.fa.gz: %.assigned.scaffolds.fa.gz %.unassigned.scaffolds.fa.gz
 	cat $^ > $@
 
 %.dot.png: %.dot
