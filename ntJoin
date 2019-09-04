@@ -98,8 +98,7 @@ assemble: $(min_targets) \
 
 analysis: check_params_analysis \
 	$(addsuffix .bam.bai, $(list_files)) \
-	$(bam_targets) \
-	quast_$(prefix)/report.tsv
+	$(bam_targets)
 
 all: check_params assemble analysis
 
@@ -161,14 +160,14 @@ $(addsuffix .k$(k).w$(w).n$(n).unassigned.scaffolds.fa, $(list_files)): $(prefix
 %.dot.png: %.dot
 	dot -Tpng -o $@ $<
 
-%.fa.bam: %.fa
+%.fa.bam: %.fa.gz
 	minimap2 -a -x asm5 -r100000 -t $(t) $(ref) $< |samtools view -b |samtools sort -o $@
 
 %.bam.bai: %.bam
 	samtools index $<
 
 # Run QUAST
-quast_$(prefix)/report.tsv: $(list_files) $(addsuffix .k$(k).w$(w).n$(n).assigned.scaffolds.fa, $(list_files)) $(addsuffix .k$(k).w$(w).n$(n).all.scaffolds.fa, $(list_files))
+quast_$(prefix)/report.tsv: $(list_files) $(addsuffix .k$(k).w$(w).n$(n).assigned.scaffolds.fa.gz, $(list_files)) $(addsuffix .k$(k).w$(w).n$(n).all.scaffolds.fa.gz, $(list_files))
 ifeq ($(large), 1)
 	quast -t $(t) -o quast_$(prefix) -r $(ref) --fast --scaffold-gap-max-size 100000 --split-scaffolds \
 	--large $^
