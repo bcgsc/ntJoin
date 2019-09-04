@@ -136,10 +136,10 @@ version:
 	$(time) $(assemble_path)/src/physlr-indexlr --pos -k $(k) -w $(w) -t $(t) $< > $@
 
 %.fa.fai: %.fa
-	samtools faidx $<
+	$(time) samtools faidx $<
 
 %.fa.gz: %.fa
-	$(gzip) $<
+	$(time) $(gzip) $<
 	
 $(prefix).mx.dot: $(addsuffix .k$(k).w$(w).tsv, $(list_files))
 ifeq ($(mkt), True)
@@ -155,7 +155,7 @@ $(addsuffix .k$(k).w$(w).n$(n).unassigned.scaffolds.fa, $(list_files)): $(prefix
 	touch $@
 
 %.all.scaffolds.fa.gz: %.assigned.scaffolds.fa.gz %.unassigned.scaffolds.fa.gz
-	cat $^ > $@
+	$(time) cat $^ > $@
 
 %.dot.png: %.dot
 	dot -Tpng -o $@ $<
