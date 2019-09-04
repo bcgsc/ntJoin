@@ -69,9 +69,9 @@ endif
 
 # Compress in parallel.
 ifneq ($(shell command -v pigz),)
-gzip=pigz -p$t
+gzip=pigz -p$t -f
 else
-gzip=gzip
+gzip=gzip -f
 endif
 
 help:

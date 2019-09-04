@@ -42,7 +42,7 @@ jobs:
       export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH
       echo $PATH
       cd tests
-      pytest -vs minscaff_test.py
+      pytest -vs ntJoin_test.py
     env:
       HOMEBREW_NO_AUTO_UPDATE: 1
     displayName: Testing minimizer graph code
