@@ -19,7 +19,7 @@ m	Minimum percentage of increasing/decreasing minimizer positions to orient cont
 mkt	If True, use Mann-Kendall Test to predict contig orientation (more computationally-intensive) [False]"
 ```
 --------
-## Installation
+## Installation Instructions
 
 #### Installing ntJoin from the source code
 ```sh
