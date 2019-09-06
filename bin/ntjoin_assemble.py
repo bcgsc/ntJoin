@@ -196,7 +196,7 @@ def print_graph(graph, prefix, list_mxs_info):
             colour = "lightgrey"
         else:
             colour = "black"
-        outfile.write(" [weight=%s colour=%s]\n" % (weight, colour))
+        outfile.write(" [weight=%s color=%s]\n" % (weight, colour))
 
     outfile.write("}\n")
 
@@ -330,14 +330,21 @@ def format_path(path, assembly, list_mx_info, mx_extremes, scaffolds, component_
 
 
 def filter_graph(graph, min_weight):
-    "Filter the graph by edge weights and vertices with degree > 2"
+    "Filter the graph by edge weights on edges incident to branch nodes"
+    branch_nodes = [node.index for node in graph.vs() if node.degree() > 2]
+    to_remove_edges = [edge for node in branch_nodes for edge in graph.incident(node)
+                       if graph.es()[edge]['weight'] < min_weight]
+    new_graph = graph.copy()
+    new_graph.delete_edges(to_remove_edges)
+    return new_graph
+
+def filter_graph_global(graph, min_weight):
+    "Filter the graph globally based on min edge weight"
     print("Filtering the graph", datetime.datetime.today(), file=sys.stdout)
     to_remove_edges = [edge.index for edge in graph.es()
                        if edge['weight'] < min_weight]
     new_graph = graph.copy()
     new_graph.delete_edges(to_remove_edges)
-    to_remove_nodes = [u.index for u in new_graph.vs() if u.degree() > 2]
-    new_graph.delete_vertices(to_remove_nodes)
     return new_graph
 
 
@@ -356,38 +363,55 @@ def determine_source_vertex(sources, weights, list_mx_info, graph):
               if list_mx_info_maxwt[vertex_name(graph, s)][1] == max_pos].pop()
     return source, target
 
+def is_graph_linear(graph):
+    "Given a graph, return True if all the components are linear"
+    for component in graph.components():
+        component_graph = graph.subgraph(component)
+        if not all(u.degree() < 2 for u in component_graph.vs()):
+            return False
+    return True
+
 def find_paths(graph, list_mx_info, mx_extremes, scaffolds, args, weights):
     "Finds paths per input assembly file"
     print("Finding paths", datetime.datetime.today(), file=sys.stdout)
     paths = {}
-    skipped, total = 0, 0
+    skipped, total, min_edge_weight = 0, 0, 2
+    max_edge_weight = sum(weights.values())
     for assembly in list_mx_info:
         paths[assembly] = []
 
     for component in graph.components():
         component_graph = graph.subgraph(component)
-        source_nodes = [node.index for node in component_graph.vs() if node.degree() == 1]
-        if len(source_nodes) == 2:
-            source, target = determine_source_vertex(source_nodes, weights, list_mx_info, component_graph)
-            path = component_graph.get_shortest_paths(source, target)[0]
-            num_edges = len(path) - 1
-            if len(path) == len(component_graph.vs()) and \
-                    num_edges == len(component_graph.es()) and len(path) == len(set(path)):
-                # All the nodes/edges from the graph are in the simple path, no repeated nodes
-                path = convert_path_index_to_name(component_graph, path)
-                for assembly in list_mx_info:
-                    ctg_path = format_path(path, assembly, list_mx_info, mx_extremes[assembly],
-                                           scaffolds[assembly], component_graph, args)
-                    paths[assembly].append(ctg_path)
-                total += 1
+        while not is_graph_linear(component_graph) and \
+                min_edge_weight <= max_edge_weight:
+            component_graph = filter_graph(component_graph, min_edge_weight)
+            min_edge_weight += 1
+
+        for subcomponent in component_graph.components():
+            subcomponent_graph = component_graph.subgraph(subcomponent)
+            source_nodes = [node.index for node in subcomponent_graph.vs() if node.degree() == 1]
+            if len(source_nodes) == 2:
+                source, target = determine_source_vertex(source_nodes, weights,
+                                                         list_mx_info, subcomponent_graph)
+                path = subcomponent_graph.get_shortest_paths(source, target)[0]
+                num_edges = len(path) - 1
+                if len(path) == len(subcomponent_graph.vs()) and \
+                        num_edges == len(subcomponent_graph.es()) and len(path) == len(set(path)):
+                    # All the nodes/edges from the graph are in the simple path, no repeated nodes
+                    path = convert_path_index_to_name(subcomponent_graph, path)
+                    for assembly in list_mx_info:
+                        ctg_path = format_path(path, assembly, list_mx_info, mx_extremes[assembly],
+                                               scaffolds[assembly], subcomponent_graph, args)
+                        paths[assembly].append(ctg_path)
+                    total += 1
+                else:
+                    print("WARNING: Component with node", list(v['name'] for v in subcomponent_graph.vs())[0],
+                          "was skipped.", sep=" ")
+                    skipped += 1
             else:
-                print("WARNING: Component with node", list(v['name'] for v in component_graph.vs())[0],
+                print("WARNING: Component with node", list(v['name'] for v in subcomponent_graph.vs())[0],
                       "was skipped.", sep=" ")
                 skipped += 1
-        else:
-            print("WARNING: Component with node", list(v['name'] for v in component_graph.vs())[0],
-                  "was skipped.", sep=" ")
-            skipped += 1
 
     if skipped > 0:
         print("Warning: ", skipped, " paths of", total, "were skipped")
@@ -583,13 +607,10 @@ def main():
     graph = build_graph(list_mxs, weights)
 
     # Print the DOT graph
-    print_graph(graph, args.p + "-before", list_mx_info)
-
-    # Filter the graph edges + nodes
-    graph = filter_graph(graph, args.n)
-
-    # Print the DOT graph
     print_graph(graph, args.p, list_mx_info)
+
+    # Filter the graph edges by minimum weight
+    graph = filter_graph_global(graph, args.n)
 
     # Find the min and max pos of minimizers per assembly, per ctg
     mx_extremes = find_mx_min_max(list_mx_info, graph)
