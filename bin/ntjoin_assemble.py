@@ -50,6 +50,8 @@ class PathNode:
                % (self.contig, self.ori, self.start, self.end, self.contig_size,
                   self.first_mx, self.terminal_mx)
 class Ntjoin:
+    "ntJoin: Scaffolding assemblies with minimizers"
+
     # Helper functions for interfacing with python-igraph
     @staticmethod
     def vertex_index(graph, name):
@@ -77,7 +79,8 @@ class Ntjoin:
         "Convert path of vertex indices to path of vertex names"
         return [Ntjoin.vertex_name(graph, vs) for vs in path]
 
-    def read_minimizers(self, tsv_filename):
+    @staticmethod
+    def read_minimizers(tsv_filename):
         "Read the minimizers from a file, removing duplicate minimizers"
         print("Reading minimizers:", tsv_filename, datetime.datetime.today(), file=sys.stdout)
         mx_info = {}  # mx -> (contig, position)
@@ -103,8 +106,8 @@ class Ntjoin:
             mxs_filt.append(mx_list_filt)
         return mx_info, mxs_filt
 
-
-    def filter_minimizers(self, list_mxs):
+    @staticmethod
+    def filter_minimizers(list_mxs):
         "Filters out minimizers that are not found in all assemblies"
         print("Filtering minimizers", datetime.datetime.today(), file=sys.stdout)
         list_mx_sets = [{mx for mx_list in list_mxs[assembly] for mx in mx_list}
@@ -160,7 +163,8 @@ class Ntjoin:
 
         print("Adding attributes", datetime.datetime.today(), file=sys.stdout)
         edge_attributes = {self.edge_index(graph, s, t): {"support": edges[s][t],
-                                                     "weight": self.calc_total_weight(edges[s][t], Ntjoin.weights)}
+                                                          "weight": self.calc_total_weight(edges[s][t],
+                                                                                           Ntjoin.weights)}
                            for s in edges for t in edges[s]}
         self.set_edge_attributes(graph, edge_attributes)
 
@@ -308,10 +312,10 @@ class Ntjoin:
                     if ori != "?":  # Don't add to path if orientation couldn't be determined
                         out_path.append(PathNode(contig=curr_ctg, ori=ori,
                                                  start=self.calc_start_coord(positions,
-                                                                        Ntjoin.mx_extremes[assembly][curr_ctg][0]),
+                                                                             Ntjoin.mx_extremes[assembly][curr_ctg][0]),
                                                  end=self.calc_end_coord(positions,
-                                                                    Ntjoin.mx_extremes[assembly][curr_ctg][1],
-                                                                    Ntjoin.scaffolds[assembly][curr_ctg].length),
+                                                                         Ntjoin.mx_extremes[assembly][curr_ctg][1],
+                                                                         Ntjoin.scaffolds[assembly][curr_ctg].length),
                                                  contig_size=Ntjoin.scaffolds[assembly][curr_ctg].length,
                                                  first_mx=first_mx,
                                                  terminal_mx=prev_mx))
@@ -335,8 +339,8 @@ class Ntjoin:
 
         return out_path
 
-
-    def filter_graph(self, graph, min_weight):
+    @staticmethod
+    def filter_graph(graph, min_weight):
         "Filter the graph by edge weights on edges incident to branch nodes"
         branch_nodes = [node.index for node in graph.vs() if node.degree() > 2]
         to_remove_edges = [edge for node in branch_nodes for edge in graph.incident(node)
@@ -410,7 +414,7 @@ class Ntjoin:
                         path = self.convert_path_index_to_name(subcomponent_graph, path)
                         for assembly in Ntjoin.list_mx_info:
                             ctg_path = self.format_path(path, assembly,
-                                                   subcomponent_graph)
+                                                        subcomponent_graph)
                             paths[assembly].append(ctg_path)
                         total += 1
                     else:
@@ -427,8 +431,8 @@ class Ntjoin:
 
         return paths
 
-
-    def read_fasta_file(self, filename):
+    @staticmethod
+    def read_fasta_file(filename):
         "Read a fasta file into memory. Returns dictionary of scafID -> Scaffold"
         print("Reading fasta file", filename, datetime.datetime.today(), file=sys.stdout)
         scaffolds = {}
@@ -539,8 +543,8 @@ class Ntjoin:
             outfile.close()
         pathfile.close()
 
-
-    def find_mx_min_max(self, graph):
+    @staticmethod
+    def find_mx_min_max(graph):
         "Given a dictionary in the form assembly->mx->(ctg, pos), find the min/max mx position per ctg"
         mx_extremes = {} # assembly -> ctg -> (min_pos, max_pos)
         for assembly in Ntjoin.list_mx_info:
@@ -599,7 +603,7 @@ class Ntjoin:
         if len(input_weights) != len(self.args.FILES):
             print("ERROR: The length of supplied weights and number of assembly minimizer must be equal.")
             print("Supplied lengths of arguments:")
-            print("Weights (-l):", len(input_weights), "Minimizer TSV files:", len(args.FILES), sep=" ")
+            print("Weights (-l):", len(input_weights), "Minimizer TSV files:", len(self.args.FILES), sep=" ")
             sys.exit(1)
 
         # Read in the minimizers for each assembly
