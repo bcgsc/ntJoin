@@ -353,6 +353,8 @@ class Ntjoin:
     def filter_graph_global(self, graph):
         "Filter the graph globally based on min edge weight"
         print("Filtering the graph", datetime.datetime.today(), file=sys.stdout)
+        if self.args.n <= min(Ntjoin.weights.values()):
+            return graph
         to_remove_edges = [edge.index for edge in graph.es()
                            if edge['weight'] < self.args.n]
         new_graph = graph.copy()
