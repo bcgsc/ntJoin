@@ -143,9 +143,9 @@ version:
 	
 $(prefix).mx.dot: $(addsuffix .k$(k).w$(w).tsv, $(list_files))
 ifeq ($(mkt), True)
-	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) -g $(g) --mkt $^
+	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) -g $(g) -t $(t) --mkt $^
 else
-	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) -g $(g) -m $(m) $^
+	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) -g $(g) -t $(t) -m $(m) $^
 endif
 
 $(addsuffix .k$(k).w$(w).n$(n).assigned.scaffolds.fa, $(list_files)): $(prefix).mx.dot

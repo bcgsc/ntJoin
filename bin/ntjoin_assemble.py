@@ -6,6 +6,7 @@ Written by Lauren Coombe (@lcoombe)
 
 import argparse
 import datetime
+import multiprocessing
 import re
 from collections import Counter
 from collections import defaultdict
@@ -382,52 +383,52 @@ class Ntjoin:
                 return False
         return True
 
+
+    def find_paths_process(self, component):
+        "Find paths given a component of the graph"
+        return_paths = []
+        min_edge_weight = self.args.n
+        max_edge_weight = sum(Ntjoin.weights.values())
+        component_graph = Ntjoin.gin.subgraph(component)
+        while not self.is_graph_linear(component_graph) and \
+                min_edge_weight <= max_edge_weight:
+            component_graph = self.filter_graph(component_graph, min_edge_weight)
+            min_edge_weight += 1
+
+        for subcomponent in component_graph.components():
+            subcomponent_graph = component_graph.subgraph(subcomponent)
+            source_nodes = [node.index for node in subcomponent_graph.vs() if node.degree() == 1]
+            if len(source_nodes) == 2:
+                source, target = self.determine_source_vertex(source_nodes, subcomponent_graph)
+                path = subcomponent_graph.get_shortest_paths(source, target)[0]
+                num_edges = len(path) - 1
+                if len(path) == len(subcomponent_graph.vs()) and \
+                        num_edges == len(subcomponent_graph.es()) and len(path) == len(set(path)):
+                    # All the nodes/edges from the graph are in the simple path, no repeated nodes
+                    path = self.convert_path_index_to_name(subcomponent_graph, path)
+                    for assembly in Ntjoin.list_mx_info:
+                        ctg_path = self.format_path(path, assembly,
+                                                    subcomponent_graph)
+                        return_paths.append((assembly, ctg_path))
+        return return_paths
+
+
     def find_paths(self, graph):
         "Finds paths per input assembly file"
         print("Finding paths", datetime.datetime.today(), file=sys.stdout)
         paths = {}
-        skipped, total, min_edge_weight = 0, 0, 2
-        max_edge_weight = sum(Ntjoin.weights.values())
         for assembly in Ntjoin.list_mx_info:
             paths[assembly] = []
-
+        Ntjoin.gin = graph
         components = graph.components()
         print("Total number of components in graph:", len(components), sep=" ", file=sys.stdout)
 
-        for component in components:
-            component_graph = graph.subgraph(component)
-            while not self.is_graph_linear(component_graph) and \
-                    min_edge_weight <= max_edge_weight:
-                component_graph = self.filter_graph(component_graph, min_edge_weight)
-                min_edge_weight += 1
+        with multiprocessing.Pool(self.args.t) as pool:
+            path_tuples = pool.map(self.find_paths_process, components)
 
-            for subcomponent in component_graph.components():
-                subcomponent_graph = component_graph.subgraph(subcomponent)
-                source_nodes = [node.index for node in subcomponent_graph.vs() if node.degree() == 1]
-                if len(source_nodes) == 2:
-                    source, target = self.determine_source_vertex(source_nodes, subcomponent_graph)
-                    path = subcomponent_graph.get_shortest_paths(source, target)[0]
-                    num_edges = len(path) - 1
-                    if len(path) == len(subcomponent_graph.vs()) and \
-                            num_edges == len(subcomponent_graph.es()) and len(path) == len(set(path)):
-                        # All the nodes/edges from the graph are in the simple path, no repeated nodes
-                        path = self.convert_path_index_to_name(subcomponent_graph, path)
-                        for assembly in Ntjoin.list_mx_info:
-                            ctg_path = self.format_path(path, assembly,
-                                                        subcomponent_graph)
-                            paths[assembly].append(ctg_path)
-                        total += 1
-                    else:
-                        print("WARNING: Component with node", list(v['name'] for v in subcomponent_graph.vs())[0],
-                              "was skipped.", sep=" ")
-                        skipped += 1
-                else:
-                    print("WARNING: Component with node", list(v['name'] for v in subcomponent_graph.vs())[0],
-                          "was skipped.", sep=" ")
-                    skipped += 1
-
-        if skipped > 0:
-            print("Warning: ", skipped, " paths of", total, "were skipped")
+        for my_list in path_tuples:
+            for assembly, path in my_list:
+                paths[assembly].append(path)
 
         return paths
 
@@ -586,6 +587,7 @@ class Ntjoin:
         parser.add_argument('-m', help="Require at least m % of minimizer positions to be "
                                        "increasing/decreasing to assign contig orientation [90]\n "
                                        "Note: Only used with --mkt is NOT specified", default=90, type=int)
+        parser.add_argument('-t', help="Number of threads [4]", default=4, type=int)
         parser.add_argument("-v", "--version", action='version', version='ntJoin v0.0.1')
         return parser.parse_args()
 
