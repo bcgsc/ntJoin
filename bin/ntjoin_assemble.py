@@ -299,6 +299,8 @@ class Ntjoin:
     @staticmethod
     def merge_relocations(path):
         "If a path has adjacent collinear intervals of the same contig, merge them"
+        if len(path) < 2:
+            return path
         return_path = [path[0]]
         for node_i, node_j in zip(path, path[1:]):
             if node_i.contig == node_j.contig:
