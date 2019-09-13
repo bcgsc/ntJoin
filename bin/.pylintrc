@@ -3,8 +3,9 @@ good-names = ct, i, mx, k, a, b, u, v, bx, xs, j, m
 max-locals = 50
 max-args = 10
 max-attributes = 10
-max-line-length = 110
+max-line-length = 120
 max-branches = 15
+max-public-methods=50
 
 [MISCELLANEOUS]
 

@@ -2,9 +2,9 @@ import shlex
 import subprocess
 import re
 
-def run_ntJoin(file1, file2, prefix, window=1000):
+def run_ntJoin(file1, file2, prefix, window=1000, n=2):
     cmd = "../ntJoin assemble -B list_files=\'" + file1 + " " + file2 + "\' " \
-          "list_weights=\'2 1\' k=32 w=" + str(window) + " n=2 prefix=" + prefix
+          "list_weights=\'2 1\' k=32 w=" + str(window) + " n=" + str(n) + " prefix=" + prefix
     cmd_shlex = shlex.split(cmd)
     return_code = subprocess.call(cmd_shlex)
     assert return_code == 0
@@ -49,7 +49,7 @@ Test checks for the expected gap length and sequence orientation for a
 test with 2 expected output paths
 '''
 def test_gap_dist_multiple():
-    paths = run_ntJoin("ref.multiple.fa", "scaf.multiple.fa", "gap-dist_test", 500)
+    paths = run_ntJoin("ref.multiple.fa", "scaf.multiple.fa", "gap-dist_test", window=500, n=1)
     assert len(paths) == 2
     assert paths[0] != paths[1]
     expected_paths = ["2_1_p+:0-2492 100N 2_2_n-:0-2574", "1_1_p+:0-1744 124N 1_2_p+:0-1844"]
@@ -63,7 +63,7 @@ Expected that 2 input scaffolds will be broken and joined based on the reference
 Testing orientations of joins: +/+ -/- +/- -/+
 '''
 def test_regions_ff_rr():
-    paths = run_ntJoin("ref.multiple.fa", "scaf.misassembled.f-f.r-r.fa", "regions-ff-rr_test", 500)
+    paths = run_ntJoin("ref.multiple.fa", "scaf.misassembled.f-f.r-r.fa", "regions-ff-rr_test", window=500, n=1)
     assert len(paths) == 2
     assert paths[0] != paths[1]
     expected_paths = ["2_1n-1_2p-:0-2176 20N 1_1p-2_2n-:2010-4489", "1_1p-2_2n+:0-1541 468N 2_1n-1_2p+:2676-4379"]
@@ -72,7 +72,7 @@ def test_regions_ff_rr():
 
 
 def test_regions_fr_rf():
-    paths = run_ntJoin("ref.multiple.fa", "scaf.misassembled.f-r.r-f.fa", "regions-fr-rf_test", 500)
+    paths = run_ntJoin("ref.multiple.fa", "scaf.misassembled.f-r.r-f.fa", "regions-fr-rf_test", 500, n=2)
     assert len(paths) == 2
     assert paths[0] != paths[1]
     expected_paths = ["2_1n-1_2n-:0-2176 212N 1_1p-2_2p+:2017-4489", "1_1p-2_2p+:0-1617 198N 2_1n-1_2n-:2675-4379"]
