@@ -296,6 +296,25 @@ class Ntjoin:
         gap_size = max(mean_dist - a - b, self.args.g)
         return gap_size
 
+    @staticmethod
+    def merge_relocations(path):
+        "If a path has adjacent collinear intervals of the same contig, merge them"
+        return_path = [path[0]]
+        for node_i, node_j in zip(path, path[1:]):
+            if node_i.contig == node_j.contig:
+                if node_i.ori == "+" and node_j.ori == "+" and node_i.end <= node_j.start:
+                    return_path[-1].end = node_j.end
+                    return_path[-1].terminal_mx = node_j.terminal_mx
+                elif node_i.ori == "-" and node_j.ori == "-" and node_i.start >= node_j.end:
+                    return_path[-1].start = node_j.start
+                    return_path[-1].first_mx = node_j.first_mx
+                else:
+                    return_path.append(node_j)
+            else:
+                return_path.append(node_j)
+
+        return return_path
+
 
     def format_path(self, path, assembly, component_graph):
         "Given a path (sequence of mx), print the order/orientation/regions of contigs for an assembly"
@@ -325,18 +344,21 @@ class Ntjoin:
                 first_mx = mx
             prev_mx = mx
         ori = self.determine_orientation(positions)
-        out_path.append(PathNode(contig=curr_ctg, ori=ori,
-                                 start=self.calc_start_coord(positions,
-                                                             Ntjoin.mx_extremes[assembly][curr_ctg][0]),
-                                 end=self.calc_end_coord(positions,
-                                                         Ntjoin.mx_extremes[assembly][curr_ctg][1],
-                                                         Ntjoin.scaffolds[assembly][curr_ctg].length),
-                                 contig_size=Ntjoin.scaffolds[assembly][curr_ctg].length,
-                                 first_mx=first_mx,
-                                 terminal_mx=prev_mx))
+        if ori != "?":
+            out_path.append(PathNode(contig=curr_ctg, ori=ori,
+                                     start=self.calc_start_coord(positions,
+                                                                 Ntjoin.mx_extremes[assembly][curr_ctg][0]),
+                                     end=self.calc_end_coord(positions,
+                                                             Ntjoin.mx_extremes[assembly][curr_ctg][1],
+                                                             Ntjoin.scaffolds[assembly][curr_ctg].length),
+                                     contig_size=Ntjoin.scaffolds[assembly][curr_ctg].length,
+                                     first_mx=first_mx,
+                                     terminal_mx=prev_mx))
         for u, v in zip(out_path, out_path[1:]):
             gap_size = self.calculate_gap_size(u, v, component_graph, assembly)
             u.gap_size = gap_size
+
+        out_path = self.merge_relocations(out_path)
 
         return out_path
 
