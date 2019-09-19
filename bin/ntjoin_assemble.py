@@ -334,11 +334,11 @@ class Ntjoin:
                     if ori != "?":  # Don't add to path if orientation couldn't be determined
                         out_path.append(PathNode(contig=curr_ctg, ori=ori,
                                                  start=self.calc_start_coord(positions,
-                                                                             Ntjoin.mx_extremes[assembly][curr_ctg][0]),
+                                                                             Ntjoin.mx_extremes[curr_ctg][0]),
                                                  end=self.calc_end_coord(positions,
-                                                                         Ntjoin.mx_extremes[assembly][curr_ctg][1],
-                                                                         Ntjoin.scaffolds[assembly][curr_ctg].length),
-                                                 contig_size=Ntjoin.scaffolds[assembly][curr_ctg].length,
+                                                                         Ntjoin.mx_extremes[curr_ctg][1],
+                                                                         Ntjoin.scaffolds[curr_ctg].length),
+                                                 contig_size=Ntjoin.scaffolds[curr_ctg].length,
                                                  first_mx=first_mx,
                                                  terminal_mx=prev_mx))
                 curr_ctg = ctg
@@ -349,11 +349,11 @@ class Ntjoin:
         if ori != "?":
             out_path.append(PathNode(contig=curr_ctg, ori=ori,
                                      start=self.calc_start_coord(positions,
-                                                                 Ntjoin.mx_extremes[assembly][curr_ctg][0]),
+                                                                 Ntjoin.mx_extremes[curr_ctg][0]),
                                      end=self.calc_end_coord(positions,
-                                                             Ntjoin.mx_extremes[assembly][curr_ctg][1],
-                                                             Ntjoin.scaffolds[assembly][curr_ctg].length),
-                                     contig_size=Ntjoin.scaffolds[assembly][curr_ctg].length,
+                                                             Ntjoin.mx_extremes[curr_ctg][1],
+                                                             Ntjoin.scaffolds[curr_ctg].length),
+                                     contig_size=Ntjoin.scaffolds[curr_ctg].length,
                                      first_mx=first_mx,
                                      terminal_mx=prev_mx))
         for u, v in zip(out_path, out_path[1:]):
@@ -432,31 +432,23 @@ class Ntjoin:
                         num_edges == len(subcomponent_graph.es()) and len(path) == len(set(path)):
                     # All the nodes/edges from the graph are in the simple path, no repeated nodes
                     path = self.convert_path_index_to_name(subcomponent_graph, path)
-                    for assembly in Ntjoin.list_mx_info:
-                        ctg_path = self.format_path(path, assembly,
-                                                    subcomponent_graph)
-                        return_paths.append((assembly, ctg_path))
+                    ctg_path = self.format_path(path, self.args.s,
+                                                subcomponent_graph)
+                    return_paths.append(ctg_path)
         return return_paths
 
 
     def find_paths(self, graph):
         "Finds paths per input assembly file"
         print("Finding paths", datetime.datetime.today(), file=sys.stdout)
-        paths = {}
-        for assembly in Ntjoin.list_mx_info:
-            paths[assembly] = []
         Ntjoin.gin = graph
         components = graph.components()
         print("Total number of components in graph:", len(components), sep=" ", file=sys.stdout)
 
         with multiprocessing.Pool(self.args.t) as pool:
-            path_tuples = pool.map(self.find_paths_process, components)
-
-        for my_list in path_tuples:
-            for assembly, path in my_list:
-                paths[assembly].append(path)
-
-        return paths
+            paths = pool.map(self.find_paths_process, components)
+        paths_return = [path for path_list in paths for path in path_list]
+        return paths_return
 
     @staticmethod
     def read_fasta_file(filename):
@@ -506,87 +498,84 @@ class Ntjoin:
     def print_scaffolds(self, paths):
         "Given the paths, print out the scaffolds fasta"
         print("Printing output scaffolds", datetime.datetime.today(), file=sys.stdout)
+        assembly = self.args.s
+
+        min_match = re.search(r'^(\S+)(.k\d+.w\d+)\.tsv', assembly)
+        assembly_fa, params = min_match.group(1), min_match.group(2)
+
+        outfile = open(assembly_fa + params + ".n" +
+                       str(self.args.n) + ".assigned.scaffolds.fa", 'w')
         pathfile = open(self.args.p + ".path", 'w')
+        incorporated_segments = []  # List of Bed entries
 
-        for assembly in paths:
-            min_match = re.search(r'^(\S+)(.k\d+.w\d+)\.tsv', assembly)
-            assembly_fa = min_match.group(1)
-            outfile = open(assembly_fa + min_match.group(2) + ".n" +
-                           str(self.args.n) + ".assigned.scaffolds.fa", 'w')
-            all_scaffolds = Ntjoin.scaffolds[assembly]
-            incorporated_segments = []  # List of Bed entries
-
-            ct = 0
-            pathfile.write(assembly + "\n")
-            for path in paths[assembly]:
-                sequences = []
-                path_segments = []
-                for node in path:
-                    if node.ori == "?":
-                        continue
-                    sequences.append(self.get_fasta_segment(node, all_scaffolds[node.contig].sequence))
-                    path_segments.append(Bed(contig=node.contig, start=node.start,
-                                             end=node.end))
-                if len(sequences) < 2:
+        ct = 0
+        pathfile.write(assembly_fa + "\n")
+        for path in paths:
+            sequences = []
+            path_segments = []
+            for node in path:
+                if node.ori == "?":
                     continue
-                outfile.write(">%s\n%s\n" %
-                              ("mx" + str(ct),
-                               "".join(sequences).strip("Nn")))
-                incorporated_segments.extend(path_segments)
-                path_str = " ".join(["%s%s:%d-%d %dN" %
-                                     (tup.contig, tup.ori, tup.start, tup.end, tup.gap_size)
-                                     for tup in path])
-                path_str = re.sub(r'\s+\d+N$', r'', path_str)
-                pathfile.write("%s\t%s\n" % ("mx" + str(ct), path_str))
-                ct += 1
-            outfile.close()
+                sequences.append(self.get_fasta_segment(node, Ntjoin.scaffolds[node.contig].sequence))
+                path_segments.append(Bed(contig=node.contig, start=node.start,
+                                         end=node.end))
+            if len(sequences) < 2:
+                continue
+            ctg_id = "ntJoin" + str(ct)
+            outfile.write(">%s\n%s\n" %
+                          (ctg_id, "".join(sequences).strip("Nn")))
+            incorporated_segments.extend(path_segments)
+            path_str = " ".join(["%s%s:%d-%d %dN" %
+                                 (node.contig, node.ori, node.start, node.end, node.gap_size) for node in path])
+            path_str = re.sub(r'\s+\d+N$', r'', path_str)
+            pathfile.write("%s\t%s\n" % (ctg_id, path_str))
+            ct += 1
+        outfile.close()
 
-            # Also print out the sequences that were NOT scaffolded
-            incorporated_segments_str = "\n".join(["%s\t%s\t%s" % (chrom, s, e)
-                                                   for chrom, s, e in incorporated_segments])
-            incorporated_segments_bed = pybedtools.BedTool(incorporated_segments_str,
-                                                           from_string=True).sort()
-            genome_bed, genome_dict = self.format_bedtools_genome(all_scaffolds)
+        # Also print out the sequences that were NOT scaffolded
+        incorporated_segments_str = "\n".join(["%s\t%s\t%s" % (chrom, s, e)
+                                               for chrom, s, e in incorporated_segments])
+        incorporated_segments_bed = pybedtools.BedTool(incorporated_segments_str,
+                                                       from_string=True).sort()
+        genome_bed, genome_dict = self.format_bedtools_genome(Ntjoin.scaffolds)
 
-            missing_bed = genome_bed.complement(i=incorporated_segments_bed, g=genome_dict)
-            missing_bed.saveas(self.args.p + "." + assembly + ".unassigned.bed")
+        missing_bed = genome_bed.complement(i=incorporated_segments_bed, g=genome_dict)
+        missing_bed.saveas(self.args.p + "." + assembly + ".unassigned.bed")
 
-            outfile = open(assembly_fa + min_match.group(2) + ".n" +
-                           str(self.args.n) + ".unassigned.scaffolds.fa", 'w')
+        outfile = open(assembly_fa + params + ".n" +
+                       str(self.args.n) + ".unassigned.scaffolds.fa", 'w')
 
-            cmd = "bedtools getfasta -fi %s -bed %s -fo -" % \
-                  (assembly_fa, self.args.p + "." + assembly + ".unassigned.bed")
-            cmd_shlex = shlex.split(cmd)
+        cmd = "bedtools getfasta -fi %s -bed %s -fo -" % \
+              (assembly_fa, self.args.p + "." + assembly + ".unassigned.bed")
+        cmd_shlex = shlex.split(cmd)
 
-            out_fasta = subprocess.Popen(cmd_shlex, stdout=subprocess.PIPE, universal_newlines=True)
-            for line in iter(out_fasta.stdout.readline, ''):
-                outfile.write(line)
-            out_fasta.wait()
-            if out_fasta.returncode != 0:
-                print("bedtools getfasta failed -- is bedtools on your PATH?")
-                print(out_fasta.stderr)
-                raise subprocess.CalledProcessError(out_fasta.returncode, cmd_shlex)
+        out_fasta = subprocess.Popen(cmd_shlex, stdout=subprocess.PIPE, universal_newlines=True)
+        for line in iter(out_fasta.stdout.readline, ''):
+            outfile.write(line)
+        out_fasta.wait()
+        if out_fasta.returncode != 0:
+            print("bedtools getfasta failed -- is bedtools on your PATH?")
+            print(out_fasta.stderr)
+            raise subprocess.CalledProcessError(out_fasta.returncode, cmd_shlex)
 
-            outfile.close()
+        outfile.close()
         pathfile.close()
 
     @staticmethod
-    def find_mx_min_max(graph):
-        "Given a dictionary in the form assembly->mx->(ctg, pos), find the min/max mx position per ctg"
-        mx_extremes = {} # assembly -> ctg -> (min_pos, max_pos)
-        for assembly in Ntjoin.list_mx_info:
-            mx_extremes[assembly] = {}
-            for mx in Ntjoin.list_mx_info[assembly]:
-                try:
-                    graph.vs().find(mx)
-                except ValueError:
-                    continue
-                ctg, pos = Ntjoin.list_mx_info[assembly][mx]
-                if ctg in mx_extremes[assembly]:
-                    mx_extremes[assembly][ctg] = (min(mx_extremes[assembly][ctg][0], pos),
-                                                  max(mx_extremes[assembly][ctg][1], pos))
-                else:
-                    mx_extremes[assembly][ctg] = (pos, pos)
+    def find_mx_min_max(graph, target):
+        "Given a dictionary in the form mx->(ctg, pos), find the min/max mx position per ctg"
+        mx_extremes = {} # ctg -> (min_pos, max_pos)
+        for mx in Ntjoin.list_mx_info[target]:
+            try:
+                graph.vs().find(mx)
+            except ValueError:
+                continue
+            ctg, pos = Ntjoin.list_mx_info[target][mx]
+            if ctg in mx_extremes:
+                mx_extremes[ctg] = (min(mx_extremes[ctg][0], pos),
+                                    max(mx_extremes[ctg][1], pos))
+            else:
+                mx_extremes[ctg] = (pos, pos)
         return mx_extremes
 
 
@@ -594,18 +583,21 @@ class Ntjoin:
     def parse_arguments():
         "Parse ntJoin arguments"
         parser = argparse.ArgumentParser(
-            description="ntJoin: Scaffold multiple genome assemblies using minimizers",
+            description="ntJoin: Scaffoldin genome assemblies using reference assemblies and minimizer graphs",
             epilog="Note: Script expects each minimizer TSV file has a matching fasta file.\n"
-                   "Ex: myscaffolds.fa.k32.w1000.tsv - myscaffolds.fa is matching fasta",
+                   "Example: myscaffolds.fa.k32.w1000.tsv - myscaffolds.fa is matching fasta",
             formatter_class=argparse.RawTextHelpFormatter)
-        parser.add_argument("FILES", nargs="+", help="Minimizer TSV files")
-        parser.add_argument("-p", help="Output prefix [out]", default="out",
-                            type=str, required=False)
-        parser.add_argument("-n", help="Minimum edge weight [2]", default=2, type=int)
-        parser.add_argument("-l",
-                            help="List of assembly weights (in quotes, separated by spaces, "
+        parser.add_argument("FILES", nargs="+", help="Minimizer TSV files of references")
+        parser.add_argument("-s", help="Target scaffolds minimizer TSV file", required=True)
+        parser.add_argument("-l", help="Weight of target genome assembly [1]",
+                            required=False, default=1, type=float)
+        parser.add_argument("-r",
+                            help="List of reference assembly weights (in quotes, separated by spaces, "
                                  "in same order as minimizer TSV files)",
                             required=True, type=str)
+        parser.add_argument("-p", help="Output prefix [out]", default="out",
+                            type=str, required=False)
+        parser.add_argument("-n", help="Minimum edge weight [1]", default=1, type=int)
         parser.add_argument("-k", help="k value used for minimizer step", required=True, type=int)
         parser.add_argument("-g", help="Minimum gap size", required=False, default=1, type=int)
         parser.add_argument("--mkt", help="Use Mann-Kendall Test to orient contigs (slower)",
@@ -619,19 +611,18 @@ class Ntjoin:
 
     def main(self):
         "Run ntJoin graph stage"
-        # Sanity checking of user's specified arguments
         print("Running ntJoin...")
         if self.args.mkt:
             print("Orienting contigs with Mann-Kendall Test (more computationally intensive)")
         else:
             print("Orienting contigs using increasing/decreasing minimizer positions")
 
-        # Parse the weights of each input assembly
-        input_weights = re.split(r'\s+', self.args.l)
+        # Parse the weights of each input reference assembly
+        input_weights = [float(w) for w in re.split(r'\s+', self.args.r)]
         if len(input_weights) != len(self.args.FILES):
-            print("ERROR: The length of supplied weights and number of assembly minimizer must be equal.")
+            print("ERROR: The length of supplied weights and number of assembly minimizer TSV inputs must be equal.")
             print("Supplied lengths of arguments:")
-            print("Weights (-l):", len(input_weights), "Minimizer TSV files:", len(self.args.FILES), sep=" ")
+            print("Weights (-r):", len(input_weights), "Minimizer TSV files:", len(self.args.FILES), sep=" ")
             sys.exit(1)
 
         # Read in the minimizers for each assembly
@@ -642,7 +633,13 @@ class Ntjoin:
             mxs_info, mxs = self.read_minimizers(assembly)
             list_mx_info[assembly] = mxs_info
             list_mxs[assembly] = mxs
-            weights[assembly] = float(input_weights.pop(0))
+            weights[assembly] = input_weights.pop(0)
+        mxs_info, mxs = self.read_minimizers(self.args.s)
+        list_mx_info[self.args.s] = mxs_info
+        list_mxs[self.args.s] = mxs
+        weights[self.args.s] = self.args.l
+        print(weights)
+
         Ntjoin.list_mx_info = list_mx_info
         Ntjoin.weights = weights
 
@@ -658,23 +655,25 @@ class Ntjoin:
         # Filter the graph edges by minimum weight
         graph = self.filter_graph_global(graph)
 
-        # Find the min and max pos of minimizers per assembly, per ctg
-        Ntjoin.mx_extremes = self.find_mx_min_max(graph)
+        # Find the min and max pos of minimizers for target assembly, per ctg
+        Ntjoin.mx_extremes = self.find_mx_min_max(graph, self.args.s)
 
-        # Load scaffolds into memory
-        scaffolds = {} # assembly -> scaffold_id -> Scaffold
-        for assembly in self.args.FILES:
-            min_match = re.search(r'^(\S+).k\d+.w\d+\.tsv', assembly)
-            if not min_match:
-                print("ERROR: Minimizer TSV file must follow the naming convention:")
-                print("\tassembly.fa.k<k>.w<w>.tsv, where <k> and <w> are parameters used for minimizering")
-                sys.exit(1)
-            assembly_fa = min_match.group(1)
-            scaffolds[assembly] = self.read_fasta_file(assembly_fa)
+        # Load target scaffolds into memory
+        scaffolds = {}  # scaffold_id -> Scaffold
+        min_match = re.search(r'^(\S+).k\d+.w\d+\.tsv', self.args.s)
+        if not min_match:
+            print("ERROR: Target assembly minimizer TSV file must follow the naming convention:")
+            print("\ttarget_assembly.fa.k<k>.w<w>.tsv, where <k> and <w> are parameters used for minimizering")
+            sys.exit(1)
+        assembly_fa = min_match.group(1)
+        scaffolds = self.read_fasta_file(assembly_fa)
+
         Ntjoin.scaffolds = scaffolds
 
+        # Find the paths through the graph
         paths = self.find_paths(graph)
 
+        # Print the final scaffolds
         self.print_scaffolds(paths)
 
     def __init__(self):

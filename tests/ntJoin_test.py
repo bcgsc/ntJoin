@@ -3,15 +3,29 @@ import subprocess
 import re
 
 def run_ntJoin(file1, file2, prefix, window=1000, n=2):
-    cmd = "../ntJoin assemble -B list_files=\'" + file1 + " " + file2 + "\' " \
-          "list_weights=\'2 1\' k=32 w=" + str(window) + " n=" + str(n) + " prefix=" + prefix
+    cmd = "../ntJoin assemble -B target=%s target_weight=1 references=\'%s\' reference_weights=\'2\' " \
+          "prefix=%s k=32 w=%s n=%s" % (file2, file1, prefix, window, n)
     cmd_shlex = shlex.split(cmd)
     return_code = subprocess.call(cmd_shlex)
     assert return_code == 0
     return_paths = []
     with open(prefix + ".path", 'r') as paths:
         for line in paths:
-            path_match = re.search(r'^mx', line)
+            path_match = re.search(r'^ntJoin', line)
+            if path_match:
+                return_paths.append(line.strip())
+    return return_paths
+
+def run_ntJoin_multiple(file1, file2, file3, prefix, window=1000, n=2):
+    cmd = "../ntJoin assemble -B target=%s target_weight=1 references=\'%s %s\' reference_weights=\'2 2\' " \
+          "prefix=%s k=32 w=%s n=%s" % (file3, file1, file2, prefix, window, n)
+    cmd_shlex = shlex.split(cmd)
+    return_code = subprocess.call(cmd_shlex)
+    assert return_code == 0
+    return_paths = []
+    with open(prefix + ".path", 'r') as paths:
+        for line in paths:
+            path_match = re.search(r'^ntJoin', line)
             if path_match:
                 return_paths.append(line.strip())
     return return_paths
@@ -24,25 +38,25 @@ def run_ntJoin(file1, file2, prefix, window=1000, n=2):
 def test_mx_f_f():
     paths = run_ntJoin("ref.fa", "scaf.f-f.fa", "f-f_test")
     assert len(paths) == 1
-    assert paths.pop() == "mx0\t1_f+:0-1981 20N 2_f+:0-2329"
+    assert paths.pop() == "ntJoin0\t1_f+:0-1981 20N 2_f+:0-2329"
 
 
 def test_mx_f_r():
     paths = run_ntJoin("ref.fa", "scaf.f-r.fa", "f-r_test")
     assert len(paths) == 1
-    assert paths.pop() == "mx0\t1_f+:0-1981 20N 2_r-:0-2329"
+    assert paths.pop() == "ntJoin0\t1_f+:0-1981 20N 2_r-:0-2329"
 
 
 def test_mx_r_f():
     paths = run_ntJoin("ref.fa", "scaf.r-f.fa", "r-f_test")
     assert len(paths) == 1
-    assert paths.pop() == "mx0\t1_r-:0-1981 20N 2_f+:0-2329"
+    assert paths.pop() == "ntJoin0\t1_r-:0-1981 20N 2_f+:0-2329"
 
 
 def test_mx_r_r():
     paths = run_ntJoin("ref.fa", "scaf.r-r.fa", "r-r_test")
     assert len(paths) == 1
-    assert paths.pop() == "mx0\t1_r-:0-1981 20N 2_r-:0-2329"
+    assert paths.pop() == "ntJoin0\t1_r-:0-1981 20N 2_r-:0-2329"
 
 '''
 Test checks for the expected gap length and sequence orientation for a 
@@ -78,3 +92,8 @@ def test_regions_fr_rf():
     expected_paths = ["2_1n-1_2n-:0-2176 212N 1_1p-2_2p+:2017-4489", "1_1p-2_2p+:0-1617 198N 2_1n-1_2n-:2675-4379"]
     assert paths.pop().split("\t")[1] in expected_paths
     assert paths.pop().split("\t")[1] in expected_paths
+
+def test_regions_3():
+    paths = run_ntJoin_multiple("ref.fa", "scaf.f-f.copy.fa", "scaf.f-f.fa", "f-f-f_test", n=1)
+    assert len(paths) == 1
+    assert paths.pop() == "ntJoin0\t1_f+:0-1981 20N 2_f+:0-2329"

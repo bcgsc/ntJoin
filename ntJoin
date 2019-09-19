@@ -1,24 +1,24 @@
 #!/usr/bin/make -rRf
 
-# Use minimizers to scaffold assemblies
+# ntJoin: Scaffold assemblies using reference assembleis and minimizer graphs
 # Written by Lauren Coombe @lcoombe
 # ntJoin 0.0.1
 
-list_files=None
-min_targets=$(addsuffix .k$(k).w$(w).tsv, $(list_files))
-bam_targets=$(addsuffix .k$(k).w$(w).n$(n).assigned.scaffolds.fa.bam.bai, $(list_files))
-fai_targets=$(addsuffix .fai, $(list_files))
+# Input files
+target=None
+references=None
+min_ref_targets=$(addsuffix .k$(k).w$(w).tsv, $(references))
+fai_ref_targets=$(addsuffix .fai, $(references))
 
 # List of edge weights
-list_weights=None
+reference_weights=None
+target_weight=1
 
 # Prefix for output files
 prefix=out.k$(k).w$(w).n$(n)
 
 # Path to minimizer assemble code
 assemble_path=$(shell dirname $(realpath $(MAKEFILE_LIST)))
-
-# Reference
 
 # Window size
 w=1000
@@ -30,12 +30,12 @@ k=32
 t=4
 
 # Minimum edge weight
-n=2
+n=1
 
 # Minimum gap size between scaffolds
 g=20
 
-# Whether mkt will be run or not
+# Whether mkt will be run (True) or not (False)
 mkt=False
 
 # The proportion of increasing/decreasing minimizer positions needed to orient a contig
@@ -47,10 +47,6 @@ ref=None
 # Run Quast in large mode (1) or not (0)
 large=0
 
-# Jupiter plot parameters
-jupiter_scaffold=None
-ng=90
-
 SHELL=bash -e -o pipefail
 ifeq ($(shell zsh -e -o pipefail -c 'true' 2>/dev/null; echo $$?), 0)
 # Set pipefail to ensure that all commands of a pipe succeed.
@@ -60,14 +56,14 @@ export REPORTTIME=1
 export TIMEFMT=time user=%U system=%S elapsed=%E cpu=%P memory=%M job=%J
 endif
 
-# Record run time and memory usage in a file using GNU time.
+# Record run time and memory usage in a file using GNU time
 ifneq ($(shell command -v gtime),)
 time=command gtime -v -o $@.time
 else
 time=command time -v -o $@.time
 endif
 
-# Compress in parallel.
+# Compress in parallel
 ifneq ($(shell command -v pigz),)
 gzip=pigz -p$t -f
 else
@@ -75,43 +71,51 @@ gzip=gzip -f
 endif
 
 help:
-	@echo "Assembly merging with minimizers"
-	@echo "Usage: minimizer_assembler-make assemble prefix=<prefix> list_files='List of fasta files' list_weights='List of weights (ints) per assembly'"
 	@echo ""
-	@echo "Note: ensure the lists of assemblies and weights are in the same order, and that both are space-separated"
+	@echo "ntJoin: Scaffolding assemblies using reference assemblies and minimizer graphs"
+	@echo "Usage: ntJoin assemble target=<target scaffolds> references='List of reference assemblies' reference_weights='List of weights per reference assembly'"
+	@echo ""
 	@echo "Options:"
-	@echo "prefix	Prefix of intermediate output files [out]"
-	@echo "t		Number of threads [4]"
-	@echo "k		K-mer size for minimizers [64]"
-	@echo "w		Window size for minimizers [1000]"
-	@echo "n		Minimum edge weight [2]"
-	@echo "g		Minimum gap size [20]"
-	@echo "m		Minimum percentage of increasing/decreasing minimizer positions to orient contig [90]"
-	@echo "mkt		If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive) [False]"
+	@echo "target			Target assembly to be scaffolded in fasta format"
+	@echo "references		List of reference files (separated by a space, in fasta format)"
+	@echo "target_weight		Weight of target assembly [1]"
+	@echo "reference_weights	List of weights of reference assemblies"
+	@echo "prefix			Prefix of intermediate output files [out.k<k>.w<w>.n<n>]"
+	@echo "t			Number of threads [4]"
+	@echo "k			K-mer size for minimizers [64]"
+	@echo "w			Window size for minimizers [1000]"
+	@echo "n			Minimum edge weight [1]"
+	@echo "g			Minimum gap size [20]"
+	@echo "m			Minimum percentage of increasing/decreasing minimizer positions to orient contig [90]"
+	@echo "mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive) [False]"
+	@echo ""
+	@echo "Note: ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated"
 
-assemble: $(min_targets) \
-	$(fai_targets) \
+assemble: $(min_ref_targets) \
+	$(target).k$(k).w$(w).tsv \
+	$(fai_ref_targets) \
+	$(target).fai \
 	$(prefix).mx.dot \
-	$(addsuffix .k$(k).w$(w).n$(n).assigned.scaffolds.fa.gz, $(list_files)) \
-	$(addsuffix .k$(k).w$(w).n$(n).unassigned.scaffolds.fa.gz, $(list_files)) \
-	$(addsuffix .k$(k).w$(w).n$(n).all.scaffolds.fa.gz, $(list_files))
+	$(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa \
+	$(target).k$(k).w$(w).n$(n).unassigned.scaffolds.fa \
+	$(target).k$(k).w$(w).n$(n).all.scaffolds.fa
 
 analysis: check_params_analysis \
-	$(addsuffix .bam.bai, $(list_files)) \
-	$(bam_targets)
+	$(addsuffix .bam.bai, $(references)) \
+	$(target).bam.bai \
+	$(target).k$(k).w$(w).n$(n).all.scaffolds.fa.bam.bai
 
 all: check_params assemble analysis
 
-jupiter: check_jupiter_params \
-	check_params_analysis \
-	$(prefix)-jupiter.png
-
 check_params:
-ifeq ($(list_weights), None)
-	$(error must set list_weights)
+ifeq ($(references), None)
+	$(error must set references)
 endif
-ifeq ($(list_files), None)
-	$(error must set list_files)
+ifeq ($(reference_weights), None)
+	$(error must set reference_weights)
+endif
+ifeq ($(target), None)
+	$(error must set target)
 endif
 
 check_params_analysis:
@@ -119,16 +123,11 @@ ifeq ($(ref), None)
 	$(error must set ref)
 endif
 
-check_jupiter_params:
-ifeq ($(jupiter_scaffold), None)
-	$(error must set jupiter_scaffold)
-endif
-
 version:
 	@echo "ntJoin v0.0.1"
 	@echo "Written by Lauren Coombe (lcoombe@bcgsc.ca)"
 
-.PHONY: all version analysis assemble help check_params jupiter
+.PHONY: help all version analysis assemble check_params jupiter
 .DELETE_ON_ERROR: $(prefix).n$(n).mx.dot
 .SECONDARY:
 
@@ -141,20 +140,22 @@ version:
 %.fa.gz: %.fa
 	$(time) $(gzip) $<
 	
-$(prefix).mx.dot: $(addsuffix .k$(k).w$(w).tsv, $(list_files))
+$(prefix).mx.dot: $(target).k$(k).w$(w).tsv $(min_ref_targets)
 ifeq ($(mkt), True)
-	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) -g $(g) -t $(t) --mkt $^
+	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	-r "$(reference_weights)" -k $(k) -g $(g) -t $(t) --mkt $(min_ref_targets)
 else
-	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -l "$(list_weights)" -k $(k) -g $(g) -t $(t) -m $(m) $^
+	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	-r "$(reference_weights)" -k $(k) -g $(g) -t $(t) -m $(m) $(min_ref_targets)
 endif
 
-$(addsuffix .k$(k).w$(w).n$(n).assigned.scaffolds.fa, $(list_files)): $(prefix).mx.dot
+$(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa: $(prefix).mx.dot
 	touch $@
 
-$(addsuffix .k$(k).w$(w).n$(n).unassigned.scaffolds.fa, $(list_files)): $(prefix).mx.dot
+$(target).k$(k).w$(w).n$(n).unassigned.scaffolds.fa: $(prefix).mx.dot
 	touch $@
 
-%.all.scaffolds.fa.gz: %.assigned.scaffolds.fa.gz %.unassigned.scaffolds.fa.gz
+%.all.scaffolds.fa: %.assigned.scaffolds.fa %.unassigned.scaffolds.fa
 	$(time) cat $^ > $@
 
 %.dot.png: %.dot
@@ -167,7 +168,7 @@ $(addsuffix .k$(k).w$(w).n$(n).unassigned.scaffolds.fa, $(list_files)): $(prefix
 	samtools index $<
 
 # Run QUAST
-quast_$(prefix)/report.tsv: $(list_files) $(addsuffix .k$(k).w$(w).n$(n).assigned.scaffolds.fa.gz, $(list_files)) $(addsuffix .k$(k).w$(w).n$(n).all.scaffolds.fa.gz, $(list_files))
+quast_$(prefix)/report.tsv: $(references) $(target) $(target).k$(k).w$(w).n$(n).all.scaffolds.fa
 ifeq ($(large), 1)
 	quast -t $(t) -o quast_$(prefix) -r $(ref) --fast --scaffold-gap-max-size 100000 --split-scaffolds \
 	--large $^
@@ -175,7 +176,3 @@ else
 	quast -t $(t) -o quast_$(prefix) -r $(ref) --fast --scaffold-gap-max-size 100000 --split-scaffolds \
 	$^
 endif
-
-# Generate a Jupiter plot
-$(prefix)-jupiter.png: $(jupiter_scaffold) $(ref)
-	jupiter ng=$(ng) t=$(t) name=$(prefix)-jupiter ref=$(ref) fa=$(jupiter_scaffold)
