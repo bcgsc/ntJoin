@@ -75,3 +75,7 @@ Bedtools and samtools can be installed using [Homebrew](https://brew.sh) on macO
 ```sh
 brew install samtools bedtools
 ```
+
+## License
+
+ntJoin is released under the GNU General Public License v3.
