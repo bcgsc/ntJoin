@@ -1,23 +1,57 @@
 # ntJoin
 
-Scaffold multiple assemblies using minimizer graphs
+Scaffolding assemblies using reference assemblies and minimizer graphs
+
+## Description of the algorithm
+ntJoin takes a target assembly and one or more 'reference' assemblies as input, and uses information from the reference(s) to scaffold the target assembly. 
+Instead of using costly alignments, ntJoin uses a more lightweight approach using minimizer graphs to yield a mapping between the input assemblies. 
+
+**Main steps in the algorithm:**
+
+1. Generate an ordered minimizer sketch for each contig of each input assembly
+2. Filter the minimizers to only retain minimizers that are:
+    * Unique within each assembly
+    * Found in all assemblies (target + all references)
+3. Build a minimizer graph
+    * Nodes: minimizers
+    * Edges: between minimizers that are adjacent in at least one of the assemblies. Edge weights are the sum of weights of the assemblies that support an edge.
+4. Filter the graph based on the minimum edge weight (`n`)
+5. For each node that is a branch node (degree > 2), filter the incident edges with an increasing edge threshold
+6. Each linear path is converted to an oriented set of target assembly contig regions that will be scaffolded together
+7. Scaffolded target assembly is printed out
 
 ## Usage
 ```
-Usage: ntJoin assemble prefix=<prefix> list_files='List of fasta files' list_weights='List of weights (ints) per assembly'
-
-Note: ensure the lists of assemblies and weights are in the same order, and the files in the lists are separated by a space
+Usage: ntJoin assemble target=<target scaffolds> references='List of reference assemblies' reference_weights='List of weights per reference assembly'
 
 Options:
-prefix	Prefix of intermediate output files [out]
-t	Number of threads [4]
-k	K-mer size for minimizers [32]
-w	Window size for minimizers [1000]
-n	Minimum edge weight [2]
-g	Minimum gap size [20]
-m	Minimum percentage of increasing/decreasing minimizer positions to orient contig [90]"
-mkt	If True, use Mann-Kendall Test to predict contig orientation (more computationally-intensive) [False]"
+target			Target assembly to be scaffolded in fasta format
+references		List of reference files (separated by a space, in fasta format)
+target_weight		Weight of target assembly [1]
+reference_weights	List of weights of reference assemblies
+prefix			Prefix of intermediate output files [out.k<k>.w<w>.n<n>]
+t			Number of threads [4]
+k			K-mer size for minimizers [32]
+w			Window size for minimizers [1000]
+n			Minimum edge weight [1]
+g			Minimum gap size [20]
+m			Minimum percentage of increasing/decreasing minimizer positions to orient contig [90]
+mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive) [False]
+
+Note: ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated
 ```
+
+### Example
+
+* Target assembly to scaffold: my_scaffolds.fa 
+* Two assemblies to use as 'references': assembly_ref1.fa, assembly_ref2.fa
+* Giving the target asssembly a weight of '1' and each reference assemblies weights of '2'
+* Using k=32, w=500
+
+```
+ntJoin assemble target=my_scaffolds.fa target_weight=1 references='assembly_ref1.fa assembly_ref2.fa' reference_weights='2 2' k=32 w=500
+```
+
 --------
 ## Installation Instructions
 

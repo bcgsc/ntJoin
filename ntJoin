@@ -82,7 +82,7 @@ help:
 	@echo "reference_weights	List of weights of reference assemblies"
 	@echo "prefix			Prefix of intermediate output files [out.k<k>.w<w>.n<n>]"
 	@echo "t			Number of threads [4]"
-	@echo "k			K-mer size for minimizers [64]"
+	@echo "k			K-mer size for minimizers [32]"
 	@echo "w			Window size for minimizers [1000]"
 	@echo "n			Minimum edge weight [1]"
 	@echo "g			Minimum gap size [20]"
