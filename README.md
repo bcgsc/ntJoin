@@ -53,6 +53,12 @@ Note: ensure the lists of reference assemblies and weights are in the same order
 ntJoin assemble target=my_scaffolds.fa target_weight=1 references='assembly_ref1.fa assembly_ref2.fa' reference_weights='2 2' k=32 w=500
 ```
 
+### Output files
+
+* Scaffolded targeted assembly (`<target assembly>.k<k>.w<w>.n<n>.all.scaffolds.fa`)
+* Path file describing how target assembly was scaffolded (`<prefix>.mx.path`)
+* Unfiltered minimizer graph in dot format (`<prefix>.mx.dot`)
+
 --------
 ## Installation Instructions
 
