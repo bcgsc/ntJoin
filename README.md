@@ -3,7 +3,8 @@
 Scaffolding assemblies using reference assemblies and minimizer graphs
 
 ## Description of the algorithm
-ntJoin takes a target assembly and one or more 'reference' assemblies as input, and uses information from the reference(s) to scaffold the target assembly. 
+ntJoin takes a target assembly and one or more 'reference' assembly as input, and uses information from the reference(s) to scaffold the target assembly. The 'reference' assemblies can be true reference assembly builds, or a different draft genome assemblies.
+
 Instead of using costly alignments, ntJoin uses a more lightweight approach using minimizer graphs to yield a mapping between the input assemblies. 
 
 **Main steps in the algorithm:**
