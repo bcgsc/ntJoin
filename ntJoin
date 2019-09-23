@@ -1,6 +1,6 @@
 #!/usr/bin/make -rRf
 
-# ntJoin: Scaffold assemblies using reference assembleis and minimizer graphs
+# ntJoin: Scaffold assemblies using reference assemblies and minimizer graphs
 # Written by Lauren Coombe @lcoombe
 # ntJoin 0.0.1
 
@@ -13,9 +13,6 @@ fai_ref_targets=$(addsuffix .fai, $(references))
 # List of edge weights
 reference_weights=None
 target_weight=1
-
-# Prefix for output files
-prefix=out.k$(k).w$(w).n$(n)
 
 # Path to minimizer assemble code
 assemble_path=$(shell dirname $(realpath $(MAKEFILE_LIST)))
@@ -35,7 +32,7 @@ n=1
 # Minimum gap size between scaffolds
 g=20
 
-# Whether mkt will be run (True) or not (False)
+# Whether Mann-Kendall test will be run to orient contigs (True) or not (False)
 mkt=False
 
 # The proportion of increasing/decreasing minimizer positions needed to orient a contig
@@ -46,6 +43,9 @@ ref=None
 
 # Run Quast in large mode (1) or not (0)
 large=0
+
+# Prefix for output files
+prefix=out.k$(k).w$(w).n$(n)
 
 SHELL=bash -e -o pipefail
 ifeq ($(shell zsh -e -o pipefail -c 'true' 2>/dev/null; echo $$?), 0)
@@ -73,6 +73,7 @@ endif
 help:
 	@echo ""
 	@echo "ntJoin: Scaffolding assemblies using reference assemblies and minimizer graphs"
+	@echo "ntJoin v0.0.1"
 	@echo "Usage: ntJoin assemble target=<target scaffolds> references='List of reference assemblies' reference_weights='List of weights per reference assembly'"
 	@echo ""
 	@echo "Options:"
@@ -90,8 +91,10 @@ help:
 	@echo "mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive, overrides 'm') [False]"
 	@echo ""
 	@echo "Note: ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated"
+	@echo ""
 
-assemble: $(min_ref_targets) \
+assemble: check_params \
+	$(min_ref_targets) \
 	$(target).k$(k).w$(w).tsv \
 	$(fai_ref_targets) \
 	$(target).fai \
@@ -109,13 +112,13 @@ all: check_params assemble analysis
 
 check_params:
 ifeq ($(references), None)
-	$(error must set references)
+	$(error ERROR: Must set references)
 endif
 ifeq ($(reference_weights), None)
-	$(error must set reference_weights)
+	$(error ERROR: Must set reference_weights)
 endif
 ifeq ($(target), None)
-	$(error must set target)
+	$(error ERROR: Must set target)
 endif
 
 check_params_analysis:
@@ -157,9 +160,6 @@ $(target).k$(k).w$(w).n$(n).unassigned.scaffolds.fa: $(prefix).mx.dot
 
 %.all.scaffolds.fa: %.assigned.scaffolds.fa %.unassigned.scaffolds.fa
 	$(time) cat $^ > $@
-
-%.dot.png: %.dot
-	dot -Tpng -o $@ $<
 
 %.fa.bam: %.fa.gz
 	minimap2 -a -x asm5 -r100000 -t $(t) $(ref) $< |samtools view -b |samtools sort -o $@
