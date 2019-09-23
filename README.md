@@ -17,8 +17,8 @@ Instead of using costly alignments, ntJoin uses a more lightweight approach usin
     * Edges: between minimizers that are adjacent in at least one of the assemblies. Edge weights are the sum of weights of the assemblies that support an edge.
 4. Filter the graph based on the minimum edge weight (`n`)
 5. For each node that is a branch node (degree > 2), filter the incident edges with an increasing edge threshold
-6. Each linear path is converted to an oriented set of target assembly contig regions that will be scaffolded together
-7. Scaffolded target assembly is printed out
+6. Each linear path is converted to a list of oriented target assembly contig regions to scaffold together
+7. Target assembly scaffolds are printed out
 
 ## Usage
 ```
@@ -32,11 +32,11 @@ reference_weights	List of weights of reference assemblies
 prefix			Prefix of intermediate output files [out.k<k>.w<w>.n<n>]
 t			Number of threads [4]
 k			K-mer size for minimizers [32]
-w			Window size for minimizers [1000]
-n			Minimum edge weight [1]
-g			Minimum gap size [20]
+w			Window size for minimizers (bp) [1000]
+n			Minimum graph edge weight [1]
+g			Minimum gap size (bp) [20]
 m			Minimum percentage of increasing/decreasing minimizer positions to orient contig [90]
-mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive) [False]
+mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive, overrides 'm') [False]
 
 Note: ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated
 ```
@@ -45,7 +45,7 @@ Note: ensure the lists of reference assemblies and weights are in the same order
 
 * Target assembly to scaffold: my_scaffolds.fa 
 * Two assemblies to use as 'references': assembly_ref1.fa, assembly_ref2.fa
-* Giving the target asssembly a weight of '1' and each reference assemblies weights of '2'
+* Giving the target asssembly a weight of '1' and each reference assembly a weight of '2'
 * Using k=32, w=500
 
 ```

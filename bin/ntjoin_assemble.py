@@ -583,9 +583,9 @@ class Ntjoin:
     def parse_arguments():
         "Parse ntJoin arguments"
         parser = argparse.ArgumentParser(
-            description="ntJoin: Scaffoldin genome assemblies using reference assemblies and minimizer graphs",
-            epilog="Note: Script expects each minimizer TSV file has a matching fasta file.\n"
-                   "Example: myscaffolds.fa.k32.w1000.tsv - myscaffolds.fa is matching fasta",
+            description="ntJoin: Scaffolding genome assemblies using reference assemblies and minimizer graphs",
+            epilog="Note: Script expects that each input minimizer TSV file has a matching fasta file.\n"
+                   "Example: myscaffolds.fa.k32.w1000.tsv - myscaffolds.fa is the expected matching fasta",
             formatter_class=argparse.RawTextHelpFormatter)
         parser.add_argument("FILES", nargs="+", help="Minimizer TSV files of references")
         parser.add_argument("-s", help="Target scaffolds minimizer TSV file", required=True)
