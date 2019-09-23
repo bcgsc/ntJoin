@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ntJoin: Scaffold multiple genome assemblies using minimizers
+ntJoin: Scaffolding assemblies using reference assemblies and minimizer graphs
 Written by Lauren Coombe (@lcoombe)
 """
 
@@ -26,7 +26,7 @@ Scaffold = namedtuple("Scaffold", ["id", "length", "sequence"])
 
 # Defining helper classes
 class PathNode:
-    "Defines a node in a path"
+    "Defines a node in a path of contig regions"
     def __init__(self, contig, ori, start, end, contig_size,
                  first_mx, terminal_mx, gap_size=50):
         self.contig = contig
@@ -51,7 +51,7 @@ class PathNode:
                % (self.contig, self.ori, self.start, self.end, self.contig_size,
                   self.first_mx, self.terminal_mx)
 class Ntjoin:
-    "ntJoin: Scaffolding assemblies with minimizers"
+    "ntJoin: Scaffolding assemblies using reference assemblies and minimizer graphs"
 
     # Helper functions for interfacing with python-igraph
     @staticmethod
@@ -85,7 +85,7 @@ class Ntjoin:
         "Read the minimizers from a file, removing duplicate minimizers"
         print("Reading minimizers:", tsv_filename, datetime.datetime.today(), file=sys.stdout)
         mx_info = {}  # mx -> (contig, position)
-        mxs = []  # List of lists of minimizers (ordered)
+        mxs = []  # List of lists of minimizers
         dup_mxs = set()  # Set of minimizers identified as duplicates
         with open(tsv_filename, 'r') as tsv:
             for line in tsv:
@@ -173,14 +173,13 @@ class Ntjoin:
 
 
     def print_graph(self, graph):
-        "Prints a graph in dot format"
+        "Prints the minimizer graph in dot format"
         out_graph = self.args.p + ".mx.dot"
         outfile = open(out_graph, 'w')
         print("Printing graph", out_graph, datetime.datetime.today(), sep=" ", file=sys.stdout)
 
         outfile.write("graph G {\n")
 
-        # TODO: Make this more general
         colours = ["red", "green", "blue", "purple", "orange",
                    "turquoise", "pink", "yellow", "orchid", "salmon"]
         list_files = list(Ntjoin.list_mx_info.keys())
@@ -188,16 +187,15 @@ class Ntjoin:
             colours = ["red"]*len(list_files)
 
         for node in graph.vs():
-            files_labels = "\n".join([str(Ntjoin.list_mx_info[assembly][node['name']])
-                                      for assembly in Ntjoin.list_mx_info])
-            node_label = "\"%s\" [label=\"%s\n%s\"]" % (node['name'], node['name'], files_labels)
+            mx_ctg_pos_labels = "\n".join([str(Ntjoin.list_mx_info[assembly][node['name']])
+                                           for assembly in Ntjoin.list_mx_info])
+            node_label = "\"%s\" [label=\"%s\n%s\"]" % (node['name'], node['name'], mx_ctg_pos_labels)
             outfile.write("%s\n" % node_label)
 
         for edge in graph.es():
             outfile.write("\"%s\" -- \"%s\"" %
                           (self.vertex_name(graph, edge.source),
                            self.vertex_name(graph, edge.target)))
-            # For debugging only
             weight = edge['weight']
             support = edge['support']
             if len(support) == 1:
@@ -358,7 +356,7 @@ class Ntjoin:
                                      terminal_mx=prev_mx))
         for u, v in zip(out_path, out_path[1:]):
             gap_size = self.calculate_gap_size(u, v, component_graph, assembly)
-            u.gap_size = gap_size
+            u.set_gap_size(gap_size)
 
         out_path = self.merge_relocations(out_path)
 
@@ -375,7 +373,7 @@ class Ntjoin:
         return new_graph
 
     def filter_graph_global(self, graph):
-        "Filter the graph globally based on min edge weight"
+        "Filter the graph globally based on minimum edge weight"
         print("Filtering the graph", datetime.datetime.today(), file=sys.stdout)
         if self.args.n <= min(Ntjoin.weights.values()):
             return graph
@@ -598,11 +596,11 @@ class Ntjoin:
         parser.add_argument("-p", help="Output prefix [out]", default="out",
                             type=str, required=False)
         parser.add_argument("-n", help="Minimum edge weight [1]", default=1, type=int)
-        parser.add_argument("-k", help="k value used for minimizer step", required=True, type=int)
-        parser.add_argument("-g", help="Minimum gap size", required=False, default=1, type=int)
-        parser.add_argument("--mkt", help="Use Mann-Kendall Test to orient contigs (slower)",
+        parser.add_argument("-k", help="Kmer size used for minimizer step", required=True, type=int)
+        parser.add_argument("-g", help="Minimum gap size (bp)", required=False, default=20, type=int)
+        parser.add_argument("--mkt", help="Use Mann-Kendall Test to orient contigs (slower, overrides m)",
                             action='store_true')
-        parser.add_argument('-m', help="Require at least m % of minimizer positions to be "
+        parser.add_argument('-m', help="Require at least m %% of minimizer positions to be "
                                        "increasing/decreasing to assign contig orientation [90]\n "
                                        "Note: Only used with --mkt is NOT specified", default=90, type=int)
         parser.add_argument('-t', help="Number of threads [4]", default=4, type=int)
@@ -620,14 +618,15 @@ class Ntjoin:
         # Parse the weights of each input reference assembly
         input_weights = [float(w) for w in re.split(r'\s+', self.args.r)]
         if len(input_weights) != len(self.args.FILES):
-            print("ERROR: The length of supplied weights and number of assembly minimizer TSV inputs must be equal.")
+            print("ERROR: The length of supplied reference weights (-r) and "
+                  "number of assembly minimizer TSV inputs must be equal.")
             print("Supplied lengths of arguments:")
             print("Weights (-r):", len(input_weights), "Minimizer TSV files:", len(self.args.FILES), sep=" ")
             sys.exit(1)
 
         # Read in the minimizers for each assembly
         list_mx_info = {}  # Dictionary of dictionaries: assembly -> mx -> (contig, position)
-        list_mxs = {}  # Dictionary of lists of minimizers: assembly -> [lists of mx]
+        list_mxs = {}  # Dictionary: assembly -> [lists of mx]
         weights = {}  # Dictionary: assembly -> weight
         for assembly in self.args.FILES:
             mxs_info, mxs = self.read_minimizers(assembly)
@@ -638,12 +637,13 @@ class Ntjoin:
         list_mx_info[self.args.s] = mxs_info
         list_mxs[self.args.s] = mxs
         weights[self.args.s] = self.args.l
-        print(weights)
+        weight_str = "\n".join(["%s: %s" % (assembly, weights[assembly]) for assembly in weights])
+        print("Weights of assemblies:\n", weight_str, "\n", sep="")
 
         Ntjoin.list_mx_info = list_mx_info
         Ntjoin.weights = weights
 
-        # Filter minimizers - Keep only if unique in an assembly and found in all assemblies
+        # Filter minimizers - Keep only if found in all assemblies
         list_mxs = self.filter_minimizers(list_mxs)
 
         # Build a graph: Nodes = mx; Edges between adjacent mx in the assemblies
@@ -659,14 +659,13 @@ class Ntjoin:
         Ntjoin.mx_extremes = self.find_mx_min_max(graph, self.args.s)
 
         # Load target scaffolds into memory
-        scaffolds = {}  # scaffold_id -> Scaffold
         min_match = re.search(r'^(\S+).k\d+.w\d+\.tsv', self.args.s)
         if not min_match:
             print("ERROR: Target assembly minimizer TSV file must follow the naming convention:")
             print("\ttarget_assembly.fa.k<k>.w<w>.tsv, where <k> and <w> are parameters used for minimizering")
             sys.exit(1)
         assembly_fa = min_match.group(1)
-        scaffolds = self.read_fasta_file(assembly_fa)
+        scaffolds = self.read_fasta_file(assembly_fa)  # scaffold_id -> Scaffold
 
         Ntjoin.scaffolds = scaffolds
 
