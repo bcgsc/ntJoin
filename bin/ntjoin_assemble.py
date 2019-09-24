@@ -83,7 +83,7 @@ class Ntjoin:
     @staticmethod
     def read_minimizers(tsv_filename):
         "Read the minimizers from a file, removing duplicate minimizers"
-        print("Reading minimizers:", tsv_filename, datetime.datetime.today(), file=sys.stdout)
+        print(datetime.datetime.today(), ": Reading minimizers", tsv_filename, file=sys.stdout)
         mx_info = {}  # mx -> (contig, position)
         mxs = []  # List of lists of minimizers
         dup_mxs = set()  # Set of minimizers identified as duplicates
@@ -110,7 +110,7 @@ class Ntjoin:
     @staticmethod
     def filter_minimizers(list_mxs):
         "Filters out minimizers that are not found in all assemblies"
-        print("Filtering minimizers", datetime.datetime.today(), file=sys.stdout)
+        print(datetime.datetime.today(), ": Filtering minimizers", file=sys.stdout)
         list_mx_sets = [{mx for mx_list in list_mxs[assembly] for mx in mx_list}
                         for assembly in list_mxs]
 
@@ -132,7 +132,7 @@ class Ntjoin:
 
     def build_graph(self, list_mxs):
         "Builds an undirected graph: nodes=minimizers; edges=between adjacent minimizers"
-        print("Building graph", datetime.datetime.today(), file=sys.stdout)
+        print(datetime.datetime.today(), ": Building graph", file=sys.stdout)
         graph = ig.Graph()
 
         vertices = set()
@@ -156,13 +156,13 @@ class Ntjoin:
 
         formatted_edges = [(s, t) for s in edges for t in edges[s]]
 
-        print("Adding vertices", datetime.datetime.today(), file=sys.stdout)
+        print(datetime.datetime.today(), ": Adding vertices", file=sys.stdout)
         graph.add_vertices(list(vertices))
 
-        print("Adding edges", datetime.datetime.today(), file=sys.stdout)
+        print(datetime.datetime.today(), ": Adding edges", file=sys.stdout)
         graph.add_edges(formatted_edges)
 
-        print("Adding attributes", datetime.datetime.today(), file=sys.stdout)
+        print(datetime.datetime.today(), ": Adding attributes", file=sys.stdout)
         edge_attributes = {self.edge_index(graph, s, t): {"support": edges[s][t],
                                                           "weight": self.calc_total_weight(edges[s][t],
                                                                                            Ntjoin.weights)}
@@ -176,7 +176,7 @@ class Ntjoin:
         "Prints the minimizer graph in dot format"
         out_graph = self.args.p + ".mx.dot"
         outfile = open(out_graph, 'w')
-        print("Printing graph", out_graph, datetime.datetime.today(), sep=" ", file=sys.stdout)
+        print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stdout)
 
         outfile.write("graph G {\n")
 
@@ -208,9 +208,10 @@ class Ntjoin:
 
         outfile.write("}\n")
 
-        print("file_name\tnumber\tcolour")
+        print("\nfile_name\tnumber\tcolour")
         for i, filename in enumerate(list_files):
             print(filename, i, colours[i], sep="\t")
+        print("")
 
     def determine_orientation(self, positions):
         "Given a list of minimizer positions, determine the orientation of the contig"
@@ -374,7 +375,7 @@ class Ntjoin:
 
     def filter_graph_global(self, graph):
         "Filter the graph globally based on minimum edge weight"
-        print("Filtering the graph", datetime.datetime.today(), file=sys.stdout)
+        print(datetime.datetime.today(), ": Filtering the graph", file=sys.stdout)
         if self.args.n <= min(Ntjoin.weights.values()):
             return graph
         to_remove_edges = [edge.index for edge in graph.es()
@@ -438,10 +439,10 @@ class Ntjoin:
 
     def find_paths(self, graph):
         "Finds paths per input assembly file"
-        print("Finding paths", datetime.datetime.today(), file=sys.stdout)
+        print(datetime.datetime.today(), ": Finding paths", file=sys.stdout)
         Ntjoin.gin = graph
         components = graph.components()
-        print("Total number of components in graph:", len(components), sep=" ", file=sys.stdout)
+        print("\nTotal number of components in graph:", len(components), "\n", sep=" ", file=sys.stdout)
 
         with multiprocessing.Pool(self.args.t) as pool:
             paths = pool.map(self.find_paths_process, components)
@@ -451,7 +452,7 @@ class Ntjoin:
     @staticmethod
     def read_fasta_file(filename):
         "Read a fasta file into memory. Returns dictionary of scafID -> Scaffold"
-        print("Reading fasta file", filename, datetime.datetime.today(), file=sys.stdout)
+        print(datetime.datetime.today(), ": Reading fasta file", filename, file=sys.stdout)
         scaffolds = {}
         try:
             with open(filename, 'r') as fasta:
@@ -495,7 +496,7 @@ class Ntjoin:
 
     def print_scaffolds(self, paths):
         "Given the paths, print out the scaffolds fasta"
-        print("Printing output scaffolds", datetime.datetime.today(), file=sys.stdout)
+        print(datetime.datetime.today(), ": Printing output scaffolds", file=sys.stdout)
         assembly = self.args.s
 
         min_match = re.search(r'^(\S+)(.k\d+.w\d+)\.tsv', assembly)
@@ -607,13 +608,28 @@ class Ntjoin:
         parser.add_argument("-v", "--version", action='version', version='ntJoin v0.0.1')
         return parser.parse_args()
 
+    def print_parameters(self):
+        "Print the set parameters for the ntJoin run"
+        print("Parameters:")
+        print("\tReference TSV files: ", self.args.FILES)
+        print("\t-s ", self.args.s)
+        print("\t-l ", self.args.l)
+        print("\t-r ", self.args.r)
+        print("\t-p ", self.args.p)
+        print("\t-n ", self.args.n)
+        print("\t-k ", self.args.k)
+        print("\t-g ", self.args.g)
+        print("\t-t ", self.args.t)
+
     def main(self):
         "Run ntJoin graph stage"
-        print("Running ntJoin...")
+        print("Running ntJoin...\n")
+        self.print_parameters()
+
         if self.args.mkt:
-            print("Orienting contigs with Mann-Kendall Test (more computationally intensive)")
+            print("Orienting contigs with Mann-Kendall Test (more computationally intensive)\n")
         else:
-            print("Orienting contigs using increasing/decreasing minimizer positions")
+            print("Orienting contigs using increasing/decreasing minimizer positions\n")
 
         # Parse the weights of each input reference assembly
         input_weights = [float(w) for w in re.split(r'\s+', self.args.r)]
@@ -638,7 +654,7 @@ class Ntjoin:
         list_mxs[self.args.s] = mxs
         weights[self.args.s] = self.args.l
         weight_str = "\n".join(["%s: %s" % (assembly, weights[assembly]) for assembly in weights])
-        print("Weights of assemblies:\n", weight_str, "\n", sep="")
+        print("\nWeights of assemblies:\n", weight_str, "\n", sep="")
 
         Ntjoin.list_mx_info = list_mx_info
         Ntjoin.weights = weights
@@ -674,6 +690,8 @@ class Ntjoin:
 
         # Print the final scaffolds
         self.print_scaffolds(paths)
+
+        print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
 
     def __init__(self):
         "Create an ntJoin instance"
