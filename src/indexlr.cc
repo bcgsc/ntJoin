@@ -1,7 +1,7 @@
 // Convert linked-reads to minimizers using ntHash-2.0.0.
-// Usage:  physlr-indexlr -k K -w W [-v] [-o file] file...
+// Usage:  indexlr -k K -w W [-v] [-o file] file...
 // Output: Each line of output is a barcode followed by a list of minimzers.
-// Originally written for Physlr: (https://github.com/bcgsc/physlri
+// Originally written for Physlr: (https://github.com/bcgsc/physlr)
 // Written by Vladimir Nikolic (schutzekatze) and Shaun Jackman (@sjackman)
 
 #include "indexlr-workers.h"
@@ -52,7 +52,7 @@ minimizeReads(
 static void
 printErrorMsg(const std::string& progname, const std::string& msg)
 {
-	std::cerr << progname << ": " << msg << "\nTry 'physlr-indexlr --help' for more information.\n";
+	std::cerr << progname << ": " << msg << "\nTry 'indexlr --help' for more information.\n";
 }
 
 static void
@@ -74,7 +74,7 @@ printUsage(const std::string& progname)
 int
 main(int argc, char* argv[])
 {
-	auto progname = "physlr-indexlr";
+	auto progname = "indexlr";
 	int c;
 	int optindex = 0;
 	static int help = 0;

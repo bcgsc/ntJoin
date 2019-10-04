@@ -135,7 +135,7 @@ version:
 .SECONDARY:
 
 %.fa.k$(k).w$(w).tsv: %.fa
-	$(time) $(assemble_path)/src/physlr-indexlr --pos -k $(k) -w $(w) -t $(t) $< > $@
+	$(time) $(assemble_path)/src/indexlr --pos -k $(k) -w $(w) -t $(t) $< > $@
 
 %.fa.fai: %.fa
 	$(time) samtools faidx $<
