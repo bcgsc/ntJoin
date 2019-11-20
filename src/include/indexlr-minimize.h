@@ -23,12 +23,13 @@ startsWith(const std::string& s, const char (&prefix)[N])
 
 struct HashData
 {
-	HashData(uint64_t hash, size_t pos, char strand)
-	  : hash(hash)
+	HashData(uint64_t hash1, uint64_t hash2, size_t pos, char strand)
+	  : hash1(hash1)
+		, hash2(hash2)
 	  , pos(pos)
 	  , strand(strand)
 	{}
-	uint64_t hash;
+	uint64_t hash1, hash2;
 	size_t pos;
 	char strand;
 };
@@ -44,8 +45,8 @@ hashKmers(const std::string& readstr, const size_t k)
 		return hashes;
 	}
 	hashes.reserve(readstr.size() - k + 1);
-	for (ntHashIterator iter(readstr, 1, k); iter != ntHashIterator::end(); ++iter) {
-		hashes.push_back(HashData((*iter)[0], iter.pos(), iter.strand()));
+	for (ntHashIterator iter(readstr, 2, k); iter != ntHashIterator::end(); ++iter) {
+		hashes.push_back(HashData((*iter)[0], (*iter)[1], iter.pos(), iter.strand()));
 	}
 	return hashes;
 }
@@ -98,9 +99,9 @@ getMinimizers(const HashValues& hashes, const unsigned w)
 		if (i < leftIt - firstIt) {
 			// Use of operator '<=' returns the minimum that is furthest from left.
 			minIt = std::min_element(leftIt, rightIt, [](const HashData& a, const HashData& b) {
-				return a.hash <= b.hash;
+				return a.hash1 <= b.hash1;
 			});
-		} else if (rightIt[-1].hash <= minIt->hash) {
+		} else if (rightIt[-1].hash1 <= minIt->hash1) {
 			minIt = rightIt - 1;
 		}
 		i = minIt - firstIt;
