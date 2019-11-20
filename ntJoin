@@ -26,6 +26,9 @@ k=32
 # Number of threads
 t=4
 
+# Number of threads for ntjoin_assemble.py (Change with caution -- multi-processing increases memory)
+assemble_t=1
+
 # Minimum edge weight
 n=1
 
@@ -146,10 +149,10 @@ version:
 $(prefix).mx.dot: $(target).k$(k).w$(w).tsv $(min_ref_targets)
 ifeq ($(mkt), True)
 	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
-	-r "$(reference_weights)" -k $(k) -g $(g) -t $(t) --mkt $(min_ref_targets)
+	-r "$(reference_weights)" -k $(k) -g $(g) -t $(assemble_t) --mkt $(min_ref_targets)
 else
 	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
-	-r "$(reference_weights)" -k $(k) -g $(g) -t $(t) -m $(m) $(min_ref_targets)
+	-r "$(reference_weights)" -k $(k) -g $(g) -t $(assemble_t) -m $(m) $(min_ref_targets)
 endif
 
 $(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa: $(prefix).mx.dot
@@ -161,7 +164,7 @@ $(target).k$(k).w$(w).n$(n).unassigned.scaffolds.fa: $(prefix).mx.dot
 %.all.scaffolds.fa: %.assigned.scaffolds.fa %.unassigned.scaffolds.fa
 	$(time) cat $^ > $@
 
-%.fa.bam: %.fa.gz
+%.fa.bam: %.fa
 	minimap2 -a -x asm5 -r100000 -t $(t) $(ref) $< |samtools view -b |samtools sort -o $@
 
 %.bam.bai: %.bam

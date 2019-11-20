@@ -444,8 +444,11 @@ class Ntjoin:
         components = graph.components()
         print("\nTotal number of components in graph:", len(components), "\n", sep=" ", file=sys.stdout)
 
-        with multiprocessing.Pool(self.args.t) as pool:
-            paths = pool.map(self.find_paths_process, components)
+        if self.args.t == 1:
+            paths = [self.find_paths_process(component) for component in components]
+        else:
+            with multiprocessing.Pool(self.args.t) as pool:
+                paths = pool.map(self.find_paths_process, components)
         paths_return = [path for path_list in paths for path in path_list]
         return paths_return
 
@@ -604,7 +607,7 @@ class Ntjoin:
         parser.add_argument('-m', help="Require at least m %% of minimizer positions to be "
                                        "increasing/decreasing to assign contig orientation [90]\n "
                                        "Note: Only used with --mkt is NOT specified", default=90, type=int)
-        parser.add_argument('-t', help="Number of threads [4]", default=4, type=int)
+        parser.add_argument('-t', help="Number of threads [1]", default=1, type=int)
         parser.add_argument("-v", "--version", action='version', version='ntJoin v1.0.0')
         return parser.parse_args()
 
