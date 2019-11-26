@@ -608,7 +608,7 @@ class Ntjoin:
                                        "increasing/decreasing to assign contig orientation [90]\n "
                                        "Note: Only used with --mkt is NOT specified", default=90, type=int)
         parser.add_argument('-t', help="Number of threads [1]", default=1, type=int)
-        parser.add_argument("-v", "--version", action='version', version='ntJoin v1.0.0')
+        parser.add_argument("-v", "--version", action='version', version='ntJoin v1.0.1')
         return parser.parse_args()
 
     def print_parameters(self):
@@ -626,7 +626,7 @@ class Ntjoin:
 
     def main(self):
         "Run ntJoin graph stage"
-        print("Running ntJoin v1.0.0 ...\n")
+        print("Running ntJoin v1.0.1 ...\n")
         self.print_parameters()
 
         if self.args.mkt:
