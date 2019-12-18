@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://github.com/bcgsc/ntJoin/blob/master/logo.png">
+</p>
+
 # ntJoin
 
 Scaffolding assemblies using reference assemblies and minimizer graphs
@@ -86,3 +90,4 @@ brew install samtools bedtools
 ## License
 
 ntJoin is released under the GNU General Public License v3.
+
