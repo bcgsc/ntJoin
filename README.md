@@ -6,7 +6,7 @@
 
 # ntJoin
 
-Scaffolding assemblies using reference assemblies and minimizer graphs
+Scaffolding draft assemblies using reference assemblies and minimizer graphs
 
 ## Description of the algorithm
 
