@@ -1,12 +1,16 @@
-<p align="center">
-  <img src="https://github.com/bcgsc/ntJoin/blob/master/logo.png">
-</p>
+[![Release](https://img.shields.io/github/release/bcgsc/ntJoin.svg)](https://github.com/bcgsc/ntJoin/releases)
+[![Downloads](https://img.shields.io/github/downloads/bcgsc/ntJoin/total?logo=github)](https://github.com/bcgsc/ntJoin/releases/download/v1.0.1/ntJoin-1.0.1.tar.gz)
+[![Issues](https://img.shields.io/github/issues/bcgsc/ntJoin.svg)](https://github.com/bcgsc/ntJoin/issues)
+
+![Logo](https://github.com/bcgsc/ntJoin/blob/master/ntjoin-logo.png)
 
 # ntJoin
 
 Scaffolding assemblies using reference assemblies and minimizer graphs
 
 ## Description of the algorithm
+------------
+
 ntJoin takes a target assembly and one or more 'reference' assembly as input, and uses information from the reference(s) to scaffold the target assembly. The 'reference' assemblies can be true reference assembly builds, or a different draft genome assemblies.
 
 Instead of using costly alignments, ntJoin uses a more lightweight approach using minimizer graphs to yield a mapping between the input assemblies. 
@@ -25,7 +29,18 @@ Instead of using costly alignments, ntJoin uses a more lightweight approach usin
 6. Each linear path is converted to a list of oriented target assembly contig regions to scaffold together
 7. Target assembly scaffolds are printed out
 
+### Citing ntJoin
+------------
+
+Thank you for your [![Stars](https://img.shields.io/github/stars/bcgsc/ntJoin.svg)](https://github.com/bcgsc/ntJoin/stargazers) and for using, developing and promoting this free software!
+
+If you use ntJoin in your research, please cite:
+TBD
+
+
 ## Usage
+------------
+
 ```
 Usage: ntJoin assemble target=<target scaffolds> references='List of reference assemblies' reference_weights='List of weights per reference assembly'
 
@@ -47,6 +62,7 @@ Note: ensure the lists of reference assemblies and weights are in the same order
 ```
 
 ### Example
+------------
 
 * Target assembly to scaffold: my_scaffolds.fa 
 * Two assemblies to use as 'references': assembly_ref1.fa, assembly_ref2.fa
@@ -58,13 +74,14 @@ ntJoin assemble target=my_scaffolds.fa target_weight=1 references='assembly_ref1
 ```
 
 ### Output files
+------------
 
 * Scaffolded targeted assembly (`<target assembly>.k<k>.w<w>.n<n>.all.scaffolds.fa`)
 * Path file describing how target assembly was scaffolded (`<prefix>.mx.path`)
 * Unfiltered minimizer graph in dot format (`<prefix>.mx.dot`)
 
---------
 ## Installation Instructions
+------------
 
 #### Installing ntJoin from the source code
 ```sh
@@ -74,6 +91,8 @@ make
 ```
 
 ## Dependencies
+------------
+
 * python3 ([pybedtools](https://daler.github.io/pybedtools/), [python-igraph](https://igraph.org/python/), [pymannkendall](https://pypi.org/project/pymannkendall/))
 * [bedtools v2.21.0+](https://bedtools.readthedocs.io/en/latest/)
 * [samtools](https://github.com/samtools/samtools)
@@ -88,6 +107,24 @@ brew install samtools bedtools
 ```
 
 ## License
+------------
 
-ntJoin is released under the GNU General Public License v3.
+ntJoin Copyright (c) 2020 British Columbia Cancer Agency Branch.  All rights reserved.
+
+ntJoin is released under the GNU General Public License v3
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, version 3.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+For commercial licensing options, please contact
+Patrick Rebstein <prebstein@bccancer.bc.ca>
 
