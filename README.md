@@ -28,6 +28,13 @@ Instead of using costly alignments, ntJoin uses a more lightweight approach usin
 6. Each linear path is converted to a list of oriented target assembly contig regions to scaffold together
 7. Target assembly scaffolds are printed out
 
+
+### Credits
+
+Original concept: Rene Warren
+Design and implementation: Lauren Coombe
+
+
 ### Citing ntJoin
 
 Thank you for your [![Stars](https://img.shields.io/github/stars/bcgsc/ntJoin.svg)](https://github.com/bcgsc/ntJoin/stargazers) and for using, developing and promoting this free software!
