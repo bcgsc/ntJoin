@@ -32,6 +32,7 @@ Instead of using costly alignments, ntJoin uses a more lightweight approach usin
 ### Credits
 
 Original concept: Rene Warren
+
 Design and implementation: Lauren Coombe
 
 
