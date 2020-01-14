@@ -9,7 +9,6 @@
 Scaffolding assemblies using reference assemblies and minimizer graphs
 
 ## Description of the algorithm
-------------
 
 ntJoin takes a target assembly and one or more 'reference' assembly as input, and uses information from the reference(s) to scaffold the target assembly. The 'reference' assemblies can be true reference assembly builds, or a different draft genome assemblies.
 
@@ -30,7 +29,6 @@ Instead of using costly alignments, ntJoin uses a more lightweight approach usin
 7. Target assembly scaffolds are printed out
 
 ### Citing ntJoin
-------------
 
 Thank you for your [![Stars](https://img.shields.io/github/stars/bcgsc/ntJoin.svg)](https://github.com/bcgsc/ntJoin/stargazers) and for using, developing and promoting this free software!
 
@@ -39,7 +37,6 @@ TBD
 
 
 ## Usage
-------------
 
 ```
 Usage: ntJoin assemble target=<target scaffolds> references='List of reference assemblies' reference_weights='List of weights per reference assembly'
@@ -62,7 +59,6 @@ Note: ensure the lists of reference assemblies and weights are in the same order
 ```
 
 ### Example
-------------
 
 * Target assembly to scaffold: my_scaffolds.fa 
 * Two assemblies to use as 'references': assembly_ref1.fa, assembly_ref2.fa
@@ -74,14 +70,12 @@ ntJoin assemble target=my_scaffolds.fa target_weight=1 references='assembly_ref1
 ```
 
 ### Output files
-------------
 
 * Scaffolded targeted assembly (`<target assembly>.k<k>.w<w>.n<n>.all.scaffolds.fa`)
 * Path file describing how target assembly was scaffolded (`<prefix>.mx.path`)
 * Unfiltered minimizer graph in dot format (`<prefix>.mx.dot`)
 
 ## Installation Instructions
-------------
 
 #### Installing ntJoin from the source code
 ```sh
@@ -91,7 +85,6 @@ make
 ```
 
 ## Dependencies
-------------
 
 * python3 ([pybedtools](https://daler.github.io/pybedtools/), [python-igraph](https://igraph.org/python/), [pymannkendall](https://pypi.org/project/pymannkendall/))
 * [bedtools v2.21.0+](https://bedtools.readthedocs.io/en/latest/)
@@ -107,7 +100,6 @@ brew install samtools bedtools
 ```
 
 ## License
-------------
 
 ntJoin Copyright (c) 2020 British Columbia Cancer Agency Branch.  All rights reserved.
 
