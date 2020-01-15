@@ -41,7 +41,8 @@ Design and implementation: Lauren Coombe
 Thank you for your [![Stars](https://img.shields.io/github/stars/bcgsc/ntJoin.svg)](https://github.com/bcgsc/ntJoin/stargazers) and for using, developing and promoting this free software!
 
 If you use ntJoin in your research, please cite:
-TBD
+
+Lauren Coombe, Vladimir Nikolic, Justin Chu, Inanc Birol, Rene L Warren: ntJoin: Fast and lightweight assembly-guided scaffolding using minimizer graphs. _bioRxiv_ (2020) doi: https://doi.org/10.1101/2020.01.13.9052400.
 
 
 ## Usage
