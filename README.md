@@ -66,6 +66,8 @@ mkt			If True, use Mann-Kendall Test to predict contig orientation (computationa
 Note: ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated
 ```
 
+Running `ntJoin help` prints the help documentation.
+
 ### Example
 
 * Target assembly to scaffold: my_scaffolds.fa 
