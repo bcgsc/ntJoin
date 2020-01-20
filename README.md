@@ -1,5 +1,4 @@
 [![Release](https://img.shields.io/github/release/bcgsc/ntJoin.svg)](https://github.com/bcgsc/ntJoin/releases)
-[![Downloads](https://img.shields.io/github/downloads/bcgsc/ntJoin/total?logo=github)](https://github.com/bcgsc/ntJoin/releases/download/v1.0.1/ntJoin-1.0.1.tar.gz)
 [![Issues](https://img.shields.io/github/issues/bcgsc/ntJoin.svg)](https://github.com/bcgsc/ntJoin/issues)
 
 ![Logo](https://github.com/bcgsc/ntJoin/blob/master/ntjoin-logo.png)
