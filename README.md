@@ -86,6 +86,12 @@ ntJoin assemble target=my_scaffolds.fa target_weight=1 references='assembly_ref1
 * Unfiltered minimizer graph in dot format (`<prefix>.mx.dot`)
 
 ## Installation Instructions
+#### Installing ntJoin using Brew
+ntJoin can be installed using [Homebrew](https://brew.sh) on macOS or [Linuxbrew](http://linuxbrew.sh) on Linux:
+```sh
+brew install brewsci/bio/ntjoin
+```
+
 
 #### Installing ntJoin from the source code
 ```sh
@@ -99,14 +105,11 @@ make
 * python3 ([pybedtools](https://daler.github.io/pybedtools/), [python-igraph](https://igraph.org/python/), [pymannkendall](https://pypi.org/project/pymannkendall/))
 * [bedtools v2.21.0+](https://bedtools.readthedocs.io/en/latest/)
 * [samtools](https://github.com/samtools/samtools)
+* [zlib](https://www.zlib.net/)
 
 Python dependencies can be installed with:
 ```sh
 pip3 install -r requirements.txt
-```
-Bedtools and samtools can be installed using [Homebrew](https://brew.sh) on macOS or [Linuxbrew](http://linuxbrew.sh) on Linux:
-```sh
-brew install samtools bedtools
 ```
 
 ## License
