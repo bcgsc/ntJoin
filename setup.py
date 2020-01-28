@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="ntJoin",
-    version="0.0.1",
+    version="1.0.1",
     author="Lauren Coombe",
     author_email="lcoombe@bcgsc.ca",
     description="Assembly using minimizers",
