@@ -92,6 +92,10 @@ ntJoin can be installed using [Homebrew](https://brew.sh) on macOS or [Linuxbrew
 brew install brewsci/bio/ntjoin
 ```
 
+#### Installing ntJoin using Conda
+```sh
+conda install -c bioconda ntjoin
+```
 
 #### Installing ntJoin from the source code
 ```sh
