@@ -35,6 +35,19 @@ def run_ntjoin_multiple(file1, file2, file3, prefix, window=1000, n=2):
                 return_paths.append(line.strip())
     return return_paths
 
+def run_ntjoin_agp(file1, file2, prefix, window=1000, n=2):
+    "Run ntJoin with a pair of files"
+    cmd = "../ntJoin assemble -B target=%s target_weight=1 references=\'%s\' reference_weights=\'2\' " \
+          "prefix=%s k=32 w=%s n=%s agp=True" % (file2, file1, prefix, window, n)
+    cmd_shlex = shlex.split(cmd)
+    return_code = subprocess.call(cmd_shlex)
+    assert return_code == 0
+    return_agp = []
+    with open(prefix + ".agp", 'r') as agp:
+        for line in agp:
+            return_agp.append(line.strip())
+    return return_agp
+
 # Following 4 tests to check for the expected PATHs given 2 pieces that should be merged
 #     together based on the reference in different orientations
 #     - Pieces are the reference piece split, with ~20bp in between
@@ -105,4 +118,12 @@ def test_regions_3():
     paths = run_ntjoin_multiple("ref.fa", "scaf.f-f.copy.fa", "scaf.f-f.fa", "f-f-f_test", n=1)
     assert len(paths) == 1
     assert paths.pop() == "ntJoin0\t1_f+:0-1981 20N 2_f+:0-2329"
-    
+
+# Testing AGP output
+def test_mx_r_f():
+    "Testing ntJoin with assembly + reference, rev-fwd orientation - AGP output"
+    agp = run_ntjoin_agp("ref.fa", "scaf.r-f.fa", "r-f_test")
+    assert len(agp) == 3
+    assert agp[0].strip() == "ntJoin0\t1\t1981\t1\tW\t1_r\t1\t1981\t-"
+    assert agp[1].strip() == "ntJoin0\t1982\t2001\t2\tN\t20\tscaffold\tyes\talign_genus"
+    assert agp[2].strip() == "ntJoin0\t2002\t4330\t3\tW\t2_f\t1\t2329\t+"
