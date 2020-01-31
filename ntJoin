@@ -38,6 +38,9 @@ g=20
 # Whether Mann-Kendall test will be run to orient contigs (True) or not (False)
 mkt=False
 
+# Output AGP file?
+agp=False
+
 # The proportion of increasing/decreasing minimizer positions needed to orient a contig
 m=90
 
@@ -92,6 +95,7 @@ help:
 	@echo "g			Minimum gap size (bp) [20]"
 	@echo "m			Minimum percentage of increasing/decreasing minimizer positions to orient contig [90]"
 	@echo "mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive, overrides 'm') [False]"
+	@echo "agp			If True, output AGP file describing output scaffolds [False]"
 	@echo ""
 	@echo "Note: ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated"
 	@echo ""
@@ -148,11 +152,21 @@ version:
 	
 $(prefix).mx.dot: $(target).k$(k).w$(w).tsv $(min_ref_targets)
 ifeq ($(mkt), True)
+ifeq ($(agp), True)
+	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	-r "$(reference_weights)" -k $(k) -g $(g) -t $(assemble_t) --mkt --agp $(min_ref_targets)
+else
 	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
 	-r "$(reference_weights)" -k $(k) -g $(g) -t $(assemble_t) --mkt $(min_ref_targets)
+endif
+else
+ifeq ($(agp), True)
+	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	-r "$(reference_weights)" -k $(k) -g $(g) -t $(assemble_t) -m $(m) --agp $(min_ref_targets)
 else
 	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
 	-r "$(reference_weights)" -k $(k) -g $(g) -t $(assemble_t) -m $(m) $(min_ref_targets)
+endif
 endif
 
 $(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa: $(prefix).mx.dot

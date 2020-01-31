@@ -22,6 +22,7 @@ from read_fasta import read_fasta
 
 # Defining namedtuples
 Bed = namedtuple("Bed", ["contig", "start", "end"])
+Agp = namedtuple("Unassigned_bed", ["new_id", "contig", "start", "end"])
 Scaffold = namedtuple("Scaffold", ["id", "length", "sequence"])
 
 # Defining helper classes
@@ -496,6 +497,37 @@ class Ntjoin:
 
         return bed, genome_dict
 
+    @staticmethod
+    def write_agp(agp_file, scaffold_id, path_str):
+        "Write the given path string in AGP format to file"
+        contig_re = re.compile(r'(\S+)([\+\-])\:(\d+)-(\d+)')
+        gap_re = re.compile(r'(\d+)N')
+        format_layout = ("{}\t" * 9).strip()
+
+        ctg_coord_start = 1
+        ctg_part_count = 1
+        for component in path_str.split():
+            contig_match = re.search(contig_re, component)
+            gap_match = re.search(gap_re, component)
+            if contig_match:
+                (contig_id, contig_ori, contig_start, contig_end) = (contig_match.group(1), contig_match.group(2),
+                                                                     int(contig_match.group(3))+1, int(contig_match.group(4)))
+
+                length_segment = contig_end - contig_start + 1
+                out_line = format_layout.format(scaffold_id, ctg_coord_start, ctg_coord_start + length_segment - 1,
+                                                ctg_part_count, "W",
+                                                contig_id, contig_start, contig_end, contig_ori)
+            elif gap_match:
+                length_segment = int(gap_match.group(1))
+                out_line = format_layout.format(scaffold_id, ctg_coord_start, ctg_coord_start + length_segment - 1,
+                                                ctg_part_count, "N",
+                                                length_segment, "scaffold", "yes", "align_genus")
+            else:
+                print("ERROR: Path string is not formatted correctly: " + path_str)
+                sys.exit(1)
+            agp_file.write(out_line + "\n")
+            ctg_coord_start = ctg_coord_start + length_segment
+            ctg_part_count += 1
 
     def print_scaffolds(self, paths):
         "Given the paths, print out the scaffolds fasta"
@@ -508,6 +540,8 @@ class Ntjoin:
         outfile = open(assembly_fa + params + ".n" +
                        str(self.args.n) + ".assigned.scaffolds.fa", 'w')
         pathfile = open(self.args.p + ".path", 'w')
+        if self.args.agp:
+            agpfile = open(self.args.p + ".agp", "w")
         incorporated_segments = []  # List of Bed entries
 
         ct = 0
@@ -531,6 +565,8 @@ class Ntjoin:
                                  (node.contig, node.ori, node.start, node.end, node.gap_size) for node in path])
             path_str = re.sub(r'\s+\d+N$', r'', path_str)
             pathfile.write("%s\t%s\n" % (ctg_id, path_str))
+            if self.args.agp:
+                self.write_agp(agpfile, ctg_id, path_str)
             ct += 1
         outfile.close()
 
@@ -552,7 +588,22 @@ class Ntjoin:
         cmd_shlex = shlex.split(cmd)
 
         out_fasta = subprocess.Popen(cmd_shlex, stdout=subprocess.PIPE, universal_newlines=True)
+        agp = None
+        header_re = re.compile(r'>((\S+)\:(\d+)-(\d+))')
+        format_layout = ("{}\t" * 9).strip()
         for line in iter(out_fasta.stdout.readline, ''):
+            if self.args.agp:
+                header_match = re.search(header_re, line)
+                if header_match:
+                    agp = Agp(new_id=header_match.group(1), contig=header_match.group(2),
+                              start=int(header_match.group(3)), end=int(header_match.group(4)) - 1)
+                else:
+                    assert len(line.strip()) == agp.end - agp.start + 1
+                    out_str = format_layout.format(agp.new_id, 1, agp.end - agp.start + 1,
+                                                   1, "W",
+                                                   agp.contig, agp.start, agp.end, "+")
+                    agpfile.write(out_str + "\n")
+
             outfile.write(line)
         out_fasta.wait()
         if out_fasta.returncode != 0:
@@ -562,6 +613,8 @@ class Ntjoin:
 
         outfile.close()
         pathfile.close()
+        if self.args.agp:
+            agpfile.close()
 
     @staticmethod
     def find_mx_min_max(graph, target):
@@ -609,6 +662,7 @@ class Ntjoin:
                                        "Note: Only used with --mkt is NOT specified", default=90, type=int)
         parser.add_argument('-t', help="Number of threads [1]", default=1, type=int)
         parser.add_argument("-v", "--version", action='version', version='ntJoin v1.0.1')
+        parser.add_argument("--agp", help="Output AGP file describing scaffolds", action="store_true")
         return parser.parse_args()
 
     def print_parameters(self):
@@ -623,6 +677,8 @@ class Ntjoin:
         print("\t-k ", self.args.k)
         print("\t-g ", self.args.g)
         print("\t-t ", self.args.t)
+        if self.args.agp:
+            print("\t--agp")
 
     def main(self):
         "Run ntJoin graph stage"
