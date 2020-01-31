@@ -532,6 +532,7 @@ class Ntjoin:
 
     @staticmethod
     def write_agp_unassigned(agp, agpfile, line):
+        "Write unassigned contig to AGP file"
         header_re = re.compile(r'>((\S+)\:(\d+)-(\d+))')
         format_layout = ("{}\t" * 9).strip()
 
@@ -540,13 +541,11 @@ class Ntjoin:
             agp = Agp(new_id=header_match.group(1), contig=header_match.group(2),
                       start=int(header_match.group(3)), end=int(header_match.group(4)) - 1)
             return agp
-        else:
-            assert len(line.strip()) == agp.end - agp.start + 1
-            out_str = format_layout.format(agp.new_id, 1, agp.end - agp.start + 1,
-                                           1, "W",
-                                           agp.contig, agp.start, agp.end, "+")
-            agpfile.write(out_str + "\n")
-            return None
+        assert len(line.strip()) == agp.end - agp.start + 1
+        out_str = format_layout.format(agp.new_id, 1, agp.end - agp.start + 1,
+                                       1, "W", agp.contig, agp.start, agp.end, "+")
+        agpfile.write(out_str + "\n")
+        return None
 
     def print_scaffolds(self, paths):
         "Given the paths, print out the scaffolds fasta"

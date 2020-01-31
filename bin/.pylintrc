@@ -6,6 +6,7 @@ max-attributes = 10
 max-line-length = 120
 max-branches = 15
 max-public-methods=50
+max-statements = 55
 
 [MISCELLANEOUS]
 
