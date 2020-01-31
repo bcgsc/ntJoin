@@ -511,7 +511,8 @@ class Ntjoin:
             gap_match = re.search(gap_re, component)
             if contig_match:
                 (contig_id, contig_ori, contig_start, contig_end) = (contig_match.group(1), contig_match.group(2),
-                                                                     int(contig_match.group(3))+1, int(contig_match.group(4)))
+                                                                     int(contig_match.group(3))+1,
+                                                                     int(contig_match.group(4)))
 
                 length_segment = contig_end - contig_start + 1
                 out_line = format_layout.format(scaffold_id, ctg_coord_start, ctg_coord_start + length_segment - 1,
@@ -528,6 +529,24 @@ class Ntjoin:
             agp_file.write(out_line + "\n")
             ctg_coord_start = ctg_coord_start + length_segment
             ctg_part_count += 1
+
+    @staticmethod
+    def write_agp_unassigned(agp, agpfile, line):
+        header_re = re.compile(r'>((\S+)\:(\d+)-(\d+))')
+        format_layout = ("{}\t" * 9).strip()
+
+        header_match = re.search(header_re, line)
+        if header_match:
+            agp = Agp(new_id=header_match.group(1), contig=header_match.group(2),
+                      start=int(header_match.group(3)), end=int(header_match.group(4)) - 1)
+            return agp
+        else:
+            assert len(line.strip()) == agp.end - agp.start + 1
+            out_str = format_layout.format(agp.new_id, 1, agp.end - agp.start + 1,
+                                           1, "W",
+                                           agp.contig, agp.start, agp.end, "+")
+            agpfile.write(out_str + "\n")
+            return None
 
     def print_scaffolds(self, paths):
         "Given the paths, print out the scaffolds fasta"
@@ -588,22 +607,11 @@ class Ntjoin:
         cmd_shlex = shlex.split(cmd)
 
         out_fasta = subprocess.Popen(cmd_shlex, stdout=subprocess.PIPE, universal_newlines=True)
+
         agp = None
-        header_re = re.compile(r'>((\S+)\:(\d+)-(\d+))')
-        format_layout = ("{}\t" * 9).strip()
         for line in iter(out_fasta.stdout.readline, ''):
             if self.args.agp:
-                header_match = re.search(header_re, line)
-                if header_match:
-                    agp = Agp(new_id=header_match.group(1), contig=header_match.group(2),
-                              start=int(header_match.group(3)), end=int(header_match.group(4)) - 1)
-                else:
-                    assert len(line.strip()) == agp.end - agp.start + 1
-                    out_str = format_layout.format(agp.new_id, 1, agp.end - agp.start + 1,
-                                                   1, "W",
-                                                   agp.contig, agp.start, agp.end, "+")
-                    agpfile.write(out_str + "\n")
-
+                agp = self.write_agp_unassigned(agp, agpfile, line)
             outfile.write(line)
         out_fasta.wait()
         if out_fasta.returncode != 0:
