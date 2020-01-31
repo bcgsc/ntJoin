@@ -62,6 +62,7 @@ n			Minimum graph edge weight [1]
 g			Minimum gap size (bp) [20]
 m			Minimum percentage of increasing/decreasing minimizer positions to orient contig [90]
 mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive, overrides 'm') [False]
+agp			If True, output AGP file describing output scaffolds [False]
 
 Note: ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated
 ```
@@ -82,8 +83,9 @@ ntJoin assemble target=my_scaffolds.fa target_weight=1 references='assembly_ref1
 ### Output files
 
 * Scaffolded targeted assembly (`<target assembly>.k<k>.w<w>.n<n>.all.scaffolds.fa`)
-* Path file describing how target assembly was scaffolded (`<prefix>.mx.path`)
+* Path file describing how target assembly was scaffolded (`<prefix>.path`)
 * Unfiltered minimizer graph in dot format (`<prefix>.mx.dot`)
+* If agp=True specified, AGP describing how target assembly was scaffolded (`<prefix>.agp`)
 
 ## Installation Instructions
 #### Installing ntJoin using Brew
