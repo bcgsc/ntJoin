@@ -141,10 +141,10 @@ version:
 .DELETE_ON_ERROR: $(prefix).n$(n).mx.dot
 .SECONDARY:
 
-%.fa.k$(k).w$(w).tsv: %.fa
+%.k$(k).w$(w).tsv: %
 	$(time) $(assemble_path)/src/indexlr --pos -k $(k) -w $(w) -t $(t) $< > $@
 
-%.fa.fai: %.fa
+%.fai: %
 	$(time) samtools faidx $<
 
 %.fa.gz: %.fa
