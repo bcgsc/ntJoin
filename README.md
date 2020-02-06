@@ -75,6 +75,7 @@ Running `ntJoin help` prints the help documentation.
 * Two assemblies to use as 'references': assembly_ref1.fa, assembly_ref2.fa
 * Giving the target asssembly a weight of '1' and each reference assembly a weight of '2'
 * Using k=32, w=500
+* **Ensure that all input assembly files are in or have soft-links to the current working directory**
 
 ```
 ntJoin assemble target=my_scaffolds.fa target_weight=1 references='assembly_ref1.fa assembly_ref2.fa' reference_weights='2 2' k=32 w=500
