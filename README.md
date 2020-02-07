@@ -64,7 +64,9 @@ m			Minimum percentage of increasing/decreasing minimizer positions to orient co
 mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive, overrides 'm') [False]
 agp			If True, output AGP file describing output scaffolds [False]
 
-Note: ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated
+Notes: 
+	- Ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated
+	- Ensure all assembly files are in the current working directory
 ```
 
 Running `ntJoin help` prints the help documentation.
