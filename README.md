@@ -122,7 +122,7 @@ pip3 install -r requirements.txt
 ```
 
 ## Testing your Installation
-See tests/test_installation.sh to test your ntJoin installation and see an example command.
+See `tests/test_installation.sh` to test your ntJoin installation and see an example command.
 
 ## License
 
