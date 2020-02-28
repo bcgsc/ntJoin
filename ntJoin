@@ -111,7 +111,6 @@ assemble: check_params \
 	$(target).k$(k).w$(w).tsv \
 	$(fai_ref_targets) \
 	$(target).fai \
-	$(prefix).mx.dot \
 	$(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa \
 	$(target).k$(k).w$(w).n$(n).unassigned.scaffolds.fa \
 	$(target).k$(k).w$(w).n$(n).all.scaffolds.fa
@@ -156,7 +155,7 @@ version:
 %.fa.gz: %.fa
 	$(time) $(gzip) $<
 	
-$(prefix).mx.dot: $(target).k$(k).w$(w).tsv $(min_ref_targets)
+$(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa: $(target).k$(k).w$(w).tsv $(min_ref_targets)
 ifeq ($(mkt), True)
 ifeq ($(agp), True)
 ifeq ($(no_cut), True)
@@ -195,10 +194,7 @@ endif
 endif
 endif
 
-$(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa: $(prefix).mx.dot
-	touch $@
-
-$(target).k$(k).w$(w).n$(n).unassigned.scaffolds.fa: $(prefix).mx.dot
+$(target).k$(k).w$(w).n$(n).unassigned.scaffolds.fa: $(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa
 	touch $@
 
 %.all.scaffolds.fa: %.assigned.scaffolds.fa %.unassigned.scaffolds.fa
