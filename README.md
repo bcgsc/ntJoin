@@ -63,6 +63,7 @@ g			Minimum gap size (bp) [20]
 m			Minimum percentage of increasing/decreasing minimizer positions to orient contig [90]
 mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive, overrides 'm') [False]
 agp			If True, output AGP file describing output scaffolds [False]
+no_cut			If True, will not cut contigs at putative misassemblies [False]
 
 Notes: 
 	- Ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated
@@ -74,13 +75,13 @@ Running `ntJoin help` prints the help documentation.
 ### Example
 
 * Target assembly to scaffold: my_scaffolds.fa 
-* Two assemblies to use as 'references': assembly_ref1.fa, assembly_ref2.fa
-* Giving the target asssembly a weight of '1' and each reference assembly a weight of '2'
+* One assemblies to use as 'references': assembly_ref1.fa
+* Giving the target asssembly a weight of '1' and reference assembly a weight of '2'
 * Using k=32, w=500
 * **Ensure that all input assembly files are in or have soft-links to the current working directory**
 
 ```
-ntJoin assemble target=my_scaffolds.fa target_weight=1 references='assembly_ref1.fa assembly_ref2.fa' reference_weights='2 2' k=32 w=500
+ntJoin assemble target=my_scaffolds.fa target_weight=1 references='assembly_ref1.fa' reference_weights='2' k=32 w=500
 ```
 
 ### Output files
