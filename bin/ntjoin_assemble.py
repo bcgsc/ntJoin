@@ -474,6 +474,19 @@ class Ntjoin:
         return node.get_aligned_length() >= scaffold.length
 
 
+    @staticmethod
+    def is_subsumed(i, path, contig_regions):
+        "Returns True if a contig is subsumed"
+        if i == 0 or i >= (len(path)-1):
+            return False
+        (prev_node, next_node) = path[i-1], path[i+1]
+        if prev_node.contig == next_node.contig and prev_node.ori == next_node.ori and\
+            min(prev_node.start, next_node.start) == 0 and\
+                max(prev_node.end, next_node.end) == prev_node.contig_size and\
+                len(contig_regions[prev_node.contig]) == 2:
+            return True
+        return False
+
     def adjust_paths(self, paths, scaffolds):
         "Given the found paths, removes duplicate regions to avoid cutting sequences"
         contig_regions = {}  # contig_id -> [list of PathNode]
@@ -483,8 +496,17 @@ class Ntjoin:
                     contig_regions[node.contig] = []
                 contig_regions[node.contig].append(node)
 
-        new_paths = []
+        intermediate_paths = []
         for path in paths:
+            new_path = []
+            for i, node in enumerate(path):
+                if not self.is_subsumed(i, path, contig_regions):
+                    new_path.append(node)
+            new_path = self.merge_relocations(new_path)
+            intermediate_paths.append(new_path)
+
+        new_paths = []
+        for path in intermediate_paths:
             new_path = []
             for i, node in enumerate(path):
                 if (len(contig_regions[node.contig]) > 1 \
