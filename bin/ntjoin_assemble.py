@@ -453,6 +453,80 @@ class Ntjoin:
         paths_return = [path for path_list in paths for path in path_list]
         return paths_return
 
+
+    @staticmethod
+    def is_best_region(path_nodes, query_node):
+        "Given query node and list of nodes with the same contig ID, return True if query node is the largest region"
+        max_len = 0
+        max_node = None
+        for node in path_nodes:
+            if node.get_aligned_length() > max_len:
+                max_len = node.get_aligned_length()
+                max_node = node
+        if query_node.get_aligned_length() == max_len and max_node.terminal_mx == query_node.terminal_mx:
+            return True
+        return False
+
+
+    @staticmethod
+    def is_node_full_sequence(node, scaffold):
+        "Given a Path node and a scaffold, return True if that path contains the entire sequence of the scaffold"
+        return node.get_aligned_length() >= scaffold.length
+
+
+    @staticmethod
+    def is_subsumed(i, path, contig_regions):
+        "Returns True if a contig is subsumed"
+        if i == 0 or i >= (len(path)-1):
+            return False
+        (prev_node, next_node) = path[i-1], path[i+1]
+        if prev_node.contig == next_node.contig and prev_node.ori == next_node.ori and\
+            min(prev_node.start, next_node.start) == 0 and\
+                max(prev_node.end, next_node.end) == prev_node.contig_size and\
+                len(contig_regions[prev_node.contig]) == 2:
+            return True
+        return False
+
+    def adjust_paths(self, paths, scaffolds):
+        "Given the found paths, removes duplicate regions to avoid cutting sequences"
+        contig_regions = {}  # contig_id -> [list of PathNode]
+        for path in paths:
+            for node in path:
+                if node.contig not in contig_regions:
+                    contig_regions[node.contig] = []
+                contig_regions[node.contig].append(node)
+
+        intermediate_paths = []
+        for path in paths:
+            new_path = []
+            for i, node in enumerate(path):
+                if not self.is_subsumed(i, path, contig_regions):
+                    new_path.append(node)
+            new_path = self.merge_relocations(new_path)
+            intermediate_paths.append(new_path)
+
+        new_paths = []
+        for path in intermediate_paths:
+            new_path = []
+            for i, node in enumerate(path):
+                if (len(contig_regions[node.contig]) > 1 \
+                    and self.is_best_region(contig_regions[node.contig], node)) \
+                        or len(contig_regions[node.contig]) == 1 \
+                        and not self.is_node_full_sequence(node, scaffolds[node.contig]):
+                    node.start = 0
+                    node.end = scaffolds[node.contig].length
+                    new_path.append(node)
+                elif len(contig_regions[node.contig]) > 1 \
+                        and not self.is_best_region(contig_regions[node.contig], node):
+                    if 0 < i < len(path)-1 and new_path:
+                        new_path[-1].gap_size += (node.get_aligned_length())
+                else:
+                    new_path.append(node)
+
+            new_paths.append(new_path)
+        return new_paths
+
+
     @staticmethod
     def read_fasta_file(filename):
         "Read a fasta file into memory. Returns dictionary of scafID -> Scaffold"
@@ -670,6 +744,8 @@ class Ntjoin:
         parser.add_argument('-t', help="Number of threads [1]", default=1, type=int)
         parser.add_argument("-v", "--version", action='version', version='ntJoin v1.0.1')
         parser.add_argument("--agp", help="Output AGP file describing scaffolds", action="store_true")
+        parser.add_argument("--no_cut", help="Do not cut input contigs, place in most representative path",
+                            action="store_true")
         return parser.parse_args()
 
     def print_parameters(self):
@@ -686,16 +762,17 @@ class Ntjoin:
         print("\t-t ", self.args.t)
         if self.args.agp:
             print("\t--agp")
+        if self.args.no_cut:
+            print("\t--no_cut")
+        if self.args.mkt:
+            print("Orienting contigs with Mann-Kendall Test (more computationally intensive)\n")
+        else:
+            print("Orienting contigs using increasing/decreasing minimizer positions\n")
 
     def main(self):
         "Run ntJoin graph stage"
         print("Running ntJoin v1.0.1 ...\n")
         self.print_parameters()
-
-        if self.args.mkt:
-            print("Orienting contigs with Mann-Kendall Test (more computationally intensive)\n")
-        else:
-            print("Orienting contigs using increasing/decreasing minimizer positions\n")
 
         # Parse the weights of each input reference assembly
         input_weights = [float(w) for w in re.split(r'\s+', self.args.r)]
@@ -753,6 +830,9 @@ class Ntjoin:
 
         # Find the paths through the graph
         paths = self.find_paths(graph)
+
+        if self.args.no_cut:
+            paths = self.adjust_paths(paths, scaffolds)
 
         # Print the final scaffolds
         self.print_scaffolds(paths)

@@ -50,6 +50,9 @@ ref=None
 # Run Quast in large mode (1) or not (0)
 large=0
 
+# Cut the input contigs and putative misassemblies?
+no_cut=False
+
 # Prefix for output files
 prefix=out.k$(k).w$(w).n$(n)
 
@@ -96,6 +99,7 @@ help:
 	@echo "m			Minimum percentage of increasing/decreasing minimizer positions to orient contig [90]"
 	@echo "mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive, overrides 'm') [False]"
 	@echo "agp			If True, output AGP file describing output scaffolds [False]"
+	@echo "no_cut		If True, will not cut contigs at putative misassemblies [False]"
 	@echo ""
 	@echo "Notes: "
 	@echo "	- Ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated"
@@ -107,7 +111,6 @@ assemble: check_params \
 	$(target).k$(k).w$(w).tsv \
 	$(fai_ref_targets) \
 	$(target).fai \
-	$(prefix).mx.dot \
 	$(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa \
 	$(target).k$(k).w$(w).n$(n).unassigned.scaffolds.fa \
 	$(target).k$(k).w$(w).n$(n).all.scaffolds.fa
@@ -152,29 +155,46 @@ version:
 %.fa.gz: %.fa
 	$(time) $(gzip) $<
 	
-$(prefix).mx.dot: $(target).k$(k).w$(w).tsv $(min_ref_targets)
+$(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa: $(target).k$(k).w$(w).tsv $(min_ref_targets)
 ifeq ($(mkt), True)
 ifeq ($(agp), True)
+ifeq ($(no_cut), True)
+	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	-r "$(reference_weights)" -k $(k) -g $(g) -t $(assemble_t) --mkt --agp --no_cut $(min_ref_targets)
+else
 	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
 	-r "$(reference_weights)" -k $(k) -g $(g) -t $(assemble_t) --mkt --agp $(min_ref_targets)
+endif
+else
+ifeq ($(no_cut), True)
+	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	-r "$(reference_weights)" -k $(k) -g $(g) -t $(assemble_t) --mkt --no_cut $(min_ref_targets)
 else
 	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
 	-r "$(reference_weights)" -k $(k) -g $(g) -t $(assemble_t) --mkt $(min_ref_targets)
 endif
+endif
 else
 ifeq ($(agp), True)
+ifeq ($(no_cut), True)
+	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	-r "$(reference_weights)" -k $(k) -g $(g) -t $(assemble_t) -m $(m) --agp --no_cut $(min_ref_targets)
+else
 	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
 	-r "$(reference_weights)" -k $(k) -g $(g) -t $(assemble_t) -m $(m) --agp $(min_ref_targets)
+endif
+else
+ifeq ($(no_cut), True)
+	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	-r "$(reference_weights)" -k $(k) -g $(g) -t $(assemble_t) -m $(m) --no_cut $(min_ref_targets)
 else
 	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
 	-r "$(reference_weights)" -k $(k) -g $(g) -t $(assemble_t) -m $(m) $(min_ref_targets)
 endif
 endif
+endif
 
-$(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa: $(prefix).mx.dot
-	touch $@
-
-$(target).k$(k).w$(w).n$(n).unassigned.scaffolds.fa: $(prefix).mx.dot
+$(target).k$(k).w$(w).n$(n).unassigned.scaffolds.fa: $(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa
 	touch $@
 
 %.all.scaffolds.fa: %.assigned.scaffolds.fa %.unassigned.scaffolds.fa
