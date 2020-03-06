@@ -20,6 +20,21 @@ def run_ntjoin(file1, file2, prefix, window=1000, n=2):
                 return_paths.append(line.strip())
     return return_paths
 
+def run_ntjoin_nocut(file1, file2, prefix, window=1000, n=2):
+    "Run ntJoin with a pair of files"
+    cmd = "../ntJoin assemble -B target=%s target_weight=1 references=\'%s\' reference_weights=\'2\' " \
+          "prefix=%s k=32 w=%s n=%s no_cut=True" % (file2, file1, prefix, window, n)
+    cmd_shlex = shlex.split(cmd)
+    return_code = subprocess.call(cmd_shlex)
+    assert return_code == 0
+    return_paths = []
+    with open(prefix + ".path", 'r') as paths:
+        for line in paths:
+            path_match = re.search(r'^ntJoin', line)
+            if path_match:
+                return_paths.append(line.strip())
+    return return_paths
+
 def run_ntjoin_multiple(file1, file2, file3, prefix, window=1000, n=2):
     "Run ntJoin with a target and 2 references"
     cmd = "../ntJoin assemble -B target=%s target_weight=1 references=\'%s %s\' reference_weights=\'2 2\' " \
@@ -103,6 +118,11 @@ def test_regions_ff_rr():
     assert paths.pop().split("\t")[1] in expected_paths
     assert paths.pop().split("\t")[1] in expected_paths
 
+def test_regions_ff_rr_nocut():
+    "Testing ntJoin correcting misassemblies, joins in fwd-fwd and rev-rev"
+    paths = run_ntjoin_nocut("ref.multiple.fa", "scaf.misassembled.f-f.r-r.fa", "regions-ff-rr-nocut_test", window=500, n=1)
+    assert len(paths) == 1
+    assert paths[0].split("\t")[1] == "2_1n-1_2p-:0-4379 20N 1_1p-2_2n-:0-4489"
 
 def test_regions_fr_rf():
     "Testing ntJoin correcting misassemblies, joins in fwd-rev and rev-fwd"
