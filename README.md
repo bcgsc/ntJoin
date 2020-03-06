@@ -75,7 +75,7 @@ Running `ntJoin help` prints the help documentation.
 ### Example
 
 * Target assembly to scaffold: my_scaffolds.fa 
-* One assemblies to use as 'references': assembly_ref1.fa
+* Assembly to use as 'reference': assembly_ref1.fa
 * Giving the target asssembly a weight of '1' and reference assembly a weight of '2'
 * Using k=32, w=500
 * **Ensure that all input assembly files are in or have soft-links to the current working directory**
