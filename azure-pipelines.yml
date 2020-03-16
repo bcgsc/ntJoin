@@ -12,12 +12,12 @@ jobs:
       architecture: x64
   - script: |
       curl https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-      sudo apt-add-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-7 main"
+      sudo apt-add-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-8 main"
       sudo apt-get update
-      sudo apt-get install -y --no-install-recommends clang-format-7 clang-tidy-7 build-essential libxml2-dev \
+      sudo apt-get install -y --no-install-recommends clang-format-8 clang-tidy-8 build-essential libxml2-dev \
       libglpk-dev libgmp3-dev libblas-dev liblapack-dev libarpack2-dev
-      sudo ln -s clang-format-7 /usr/bin/clang-format
-      sudo ln -s clang-tidy-7 /usr/bin/clang-tidy
+      sudo ln -s clang-format-8 /usr/bin/clang-format
+      sudo ln -s clang-tidy-8 /usr/bin/clang-tidy
   - script: |
       sudo HOMEBREW_NO_AUTO_UPDATE=1 /home/linuxbrew/.linuxbrew/bin/brew install python
       sudo /home/linuxbrew/.linuxbrew/bin/pip3 install --upgrade setuptools \
