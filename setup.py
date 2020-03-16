@@ -5,10 +5,10 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="ntJoin",
-    version="1.0.1",
+    version="1.0.2",
     author="Lauren Coombe",
     author_email="lcoombe@bcgsc.ca",
-    description="Assembly using minimizers",
+    description="Genome assembly scaffolder using minimizer graphs",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/bcgsc/ntJoin",
