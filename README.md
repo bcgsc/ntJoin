@@ -91,6 +91,10 @@ ntJoin assemble target=my_scaffolds.fa target_weight=1 references='assembly_ref1
 * Unfiltered minimizer graph in dot format (`<prefix>.mx.dot`)
 * If agp=True specified, AGP describing how target assembly was scaffolded (`<prefix>.agp`)
 
+### Parameter considerations
+
+* We recommend setting the reference weight(s) to be higher than the target weight
+
 ## Installation Instructions
 #### Installing ntJoin using Brew
 ntJoin can be installed using [Homebrew](https://brew.sh) on macOS or [Linuxbrew](http://linuxbrew.sh) on Linux:
