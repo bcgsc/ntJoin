@@ -53,6 +53,12 @@ large=0
 # Cut the input contigs and putative misassemblies?
 no_cut=False
 
+# Use repeat filtering option?
+repeat_filter=False
+
+# Genome size in bp (required for repeat option)
+genome_size=None
+
 # Prefix for output files
 prefix=out.k$(k).w$(w).n$(n)
 
@@ -100,6 +106,7 @@ help:
 	@echo "mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive, overrides 'm') [False]"
 	@echo "agp			If True, output AGP file describing output scaffolds [False]"
 	@echo "no_cut		If True, will not cut contigs at putative misassemblies [False]"
+	@echo "repeat_filter"   If True, will identify repetitive kmers before minimizer step and avoid using these for minimizers [False]"
 	@echo ""
 	@echo "Notes: "
 	@echo "	- Ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated"
@@ -132,6 +139,11 @@ endif
 ifeq ($(target), None)
 	$(error ERROR: Must set target)
 endif
+ifeq ($(repeat_filter), True)
+ifeq ($(genome_size), None)
+    $(error ERROR: Must set genome size (bp) when using repeat filter option)
+endif
+endif
 
 check_params_analysis:
 ifeq ($(ref), None)
@@ -145,6 +157,9 @@ version:
 .PHONY: help all version analysis assemble check_params jupiter
 .DELETE_ON_ERROR: $(prefix).n$(n).mx.dot
 .SECONDARY:
+
+%.kmc.rep: %
+
 
 %.k$(k).w$(w).tsv: %
 	$(time) $(assemble_path)/src/indexlr --pos -k $(k) -w $(w) -t $(t) $< > $@
