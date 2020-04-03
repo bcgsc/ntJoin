@@ -28,7 +28,7 @@ jobs:
       HOMEBREW_NO_AUTO_UPDATE: 1
   - script: |
       cd bin
-      pylint ntjoin_assemble.py read_fasta.py
+      pylint ntjoin_assemble.py read_fasta.py run_kmc.py
     displayName: Run pylint
   - script: make -C src all
     displayName: Compile C++ executables
