@@ -29,7 +29,7 @@ struct Slot
 	std::mutex busy;
 	bool occupied = false;
 	std::condition_variable occupancyChanged;
-	long lastTenant = -1; // Required to ensure read order
+	int64_t lastTenant = -1; // Required to ensure read order
 };
 
 template<typename T>
