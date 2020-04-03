@@ -41,7 +41,7 @@ def main():
     # Run KMC (1st step)
     max_mem = args.g/1e9 * 2.0
     max_mem = max(max_mem, 1) # KMC require at least 1GB of RAM
-    kmc_out_prefix = "%s.k%d.kmc" % (args.FASTA, args.k)
+    kmc_out_prefix = "%s.k%d.w%d.kmc" % (args.FASTA, args.k, args.l)
     cmd = "kmc -ci2 -k%d -m%d -t%d -fm %s %s %s" % \
           (args.k, max_mem, args.t, filtered_fasta_name, kmc_out_prefix, tmpdir)
     print(cmd)
