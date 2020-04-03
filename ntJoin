@@ -9,6 +9,7 @@ target=None
 references=None
 min_ref_targets=$(addsuffix .k$(k).w$(w).tsv, $(references))
 fai_ref_targets=$(addsuffix .fai, $(references))
+kmc_ref_targets=$(addsuffix .k$(k).w$(w).kmc.tsv, $(references))
 
 # List of edge weights
 reference_weights=None
@@ -106,7 +107,7 @@ help:
 	@echo "mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive, overrides 'm') [False]"
 	@echo "agp			If True, output AGP file describing output scaffolds [False]"
 	@echo "no_cut		If True, will not cut contigs at putative misassemblies [False]"
-	@echo "repeat_filter"   If True, will identify repetitive kmers before minimizer step and avoid using these for minimizers [False]"
+	@echo "repeat_filter   If True, will identify repetitive kmers before minimizer step and avoid using these for minimizers [False]"
 	@echo ""
 	@echo "Notes: "
 	@echo "	- Ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated"
@@ -141,7 +142,7 @@ ifeq ($(target), None)
 endif
 ifeq ($(repeat_filter), True)
 ifeq ($(genome_size), None)
-    $(error ERROR: Must set genome size (bp) when using repeat filter option)
+	$(error ERROR: Must set genome size (bp) when using repeat filter option)
 endif
 endif
 
@@ -158,11 +159,19 @@ version:
 .DELETE_ON_ERROR: $(prefix).n$(n).mx.dot
 .SECONDARY:
 
-%.kmc.rep: %
+%.k$(k).w$(w).kmc.tsv: %
+	$(time) $(assemble_path)/bin/run_kmc.py -l $(w) -g $(genome_size) -k $(k) -t $(t) $<
 
+$(prefix).k$(k).w$(w).bf: $(target).k$(k).w$(w).kmc.tsv $(kmc_ref_targets)
+	$(time) $(assemble_path)/src/makebf -k $(k) -g $(genome_size) -t $(t) -o $@ $?
 
+ifeq ($(repeat_filter), True)
+%.k$(k).w$(w).tsv: % $(prefix).k$(k).w$(w).bf
+	$(time) $(assemble_path)/src/indexlr --pos -k $(k) -w $(w) -t $(t) -r $(prefix).k$(k).w$(w).bf $< > $@
+else
 %.k$(k).w$(w).tsv: %
 	$(time) $(assemble_path)/src/indexlr --pos -k $(k) -w $(w) -t $(t) $< > $@
+endif
 
 %.fai: %
 	$(time) samtools faidx $<
