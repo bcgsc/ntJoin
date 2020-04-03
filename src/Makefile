@@ -1,10 +1,10 @@
-CXXFLAGS=-g -O3 -Wall -Werror -Wno-error=unknown-pragmas -std=c++11 -pthread -I./include -I./vendor
+CXXFLAGS=-g -O3 -Wall -Werror -Wno-error=unknown-pragmas -std=c++11 -pthread -I./include -I./vendor -fopenmp
 LDLIBS=-lz
 
-all: indexlr
+all: indexlr makebf
 
 clean:
-	rm -f indexlr
+	rm -f indexlr makebf
 
 # Check the C++ source code for errors.
 lint: clang-format clang-tidy
@@ -23,7 +23,7 @@ clang-format:
 fix:
 	for i in *.cc; do clang-format -i -style=file $$i; done
 
-check: check-index-fasta check-index-pos-fasta check-index-pos-strand-fasta check-index-fastq
+check: check-index-fasta check-index-pos-fasta check-index-pos-strand-fasta check-index-fastq check-makebf
 
 check-index-fasta: all
 	./indexlr -t16 -k100 -w5 data/mt.fa | diff -q - data/mt.physlr.tsv.good
@@ -36,3 +36,7 @@ check-index-pos-strand-fasta: all
 
 check-index-fastq: all
 	./indexlr -t16 -k100 -w5 data/tiny.fq | diff -q - data/tiny.physlr.tsv.good
+
+check-makebf: all
+	./makebf -t16 -k8 -b1000 -o tiny.bf data/tiny_k8.rep
+	./indexlr -t16 -k8 -w1 -r tiny.bf data/tiny.fa | diff -q - data/tiny.filtered.indexlr.tsv.good

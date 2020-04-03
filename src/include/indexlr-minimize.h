@@ -2,6 +2,8 @@
 #define INDEXLR_MINIMIZE_H
 
 // ntHash 2.0.0
+#include "IOUtil.h"
+#include "btl_bloomfilter/BloomFilter.hpp"
 #include "ntHashIterator.h"
 #include "nthash.h"
 
@@ -111,16 +113,6 @@ getMinimizers(const HashValues& hashes, const unsigned w)
 		}
 	}
 	return minimizers;
-}
-
-// Test the condition of a I/O stream.
-static inline void
-assert_good(const std::ios& stream, const std::string& path)
-{
-	if (!stream.good()) {
-		std::cerr << "error: " << std::strerror(errno) << ": " << path << '\n';
-		exit(EXIT_FAILURE);
-	}
 }
 
 #endif
