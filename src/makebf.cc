@@ -109,11 +109,8 @@ main(int argc, char* argv[])
 	} else if (k == 0) {
 		printErrorMsg(progname, "option has incorrect argument -- 'k'");
 		failed = true;
-	} else if (!genomeSize_set) {
-		printErrorMsg(progname, "missing option -- 'g'");
-		failed = true;
-	} else if (filterSize == 0) {
-		printErrorMsg(progname, "option has incorrect argument -- 'b'");
+	} else if (filterSize == 0 && !genomeSize_set) {
+		printErrorMsg(progname, "must specify '-g' or valid number > 0 with '-b'");
 		failed = true;
 	} else if (infiles.empty()) {
 		printErrorMsg(progname, "missing file operand");
