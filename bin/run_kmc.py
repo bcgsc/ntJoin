@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-import argparse
-import shlex
-import subprocess
-from read_fasta import read_fasta
-
 """
 Runs KMC kmer-counting on an assembly, basing the maximum memory on the supplied genome size (bp)
 Written by Lauren Coombe (@lcoombe)
 """
 
+import argparse
+import shlex
+import subprocess
+from read_fasta import read_fasta
+
 def main():
+    "Run KMC kmer counting"
     parser = argparse.ArgumentParser(description="Run KMC kmer counting on an assembly",
                                      formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("FASTA", help="Fasta file")
@@ -40,7 +41,7 @@ def main():
     max_mem = args.g/1e9 * 2
     kmc_out_prefix = "%s.k%d.kmc" % (args.FASTA, args.k)
     cmd = "kmc -ci2 -k%d -m%d -t%d -fm %s %s %s" % \
-          (args.k, max_mem, filtered_fasta_name, kmc_out_prefix, tmpdir)
+          (args.k, max_mem, args.t, filtered_fasta_name, kmc_out_prefix, tmpdir)
     print(cmd)
     cmd_shlex = shlex.split(cmd)
     ret = subprocess.call(cmd_shlex)
@@ -51,7 +52,7 @@ def main():
     cmd = "kmc_dmp %s %s" % (kmc_out_prefix, kmc_out_prefix + ".tsv")
     print(cmd)
     cmd_shlex = shlex.split(cmd)
-    ret = subprocess.cal(cmd_shlex)
+    ret = subprocess.call(cmd_shlex)
     if ret != 0:
         raise subprocess.CalledProcessError(ret, cmd_shlex)
 
