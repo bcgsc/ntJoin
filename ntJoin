@@ -167,10 +167,10 @@ $(prefix).k$(k).w$(w).bf: $(target).k$(k).w$(w).kmc.tsv $(kmc_ref_targets)
 
 ifeq ($(repeat_filter), True)
 %.k$(k).w$(w).tsv: % $(prefix).k$(k).w$(w).bf
-	$(time) $(assemble_path)/src/indexlr --pos -k $(k) -w $(w) -t $(t) -r $(prefix).k$(k).w$(w).bf $< > $@
+	$(time) $(assemble_path)/src/indexlr --pos -v -k $(k) -w $(w) -t $(t) -r $(prefix).k$(k).w$(w).bf $< > $@
 else
 %.k$(k).w$(w).tsv: %
-	$(time) $(assemble_path)/src/indexlr --pos -k $(k) -w $(w) -t $(t) $< > $@
+	$(time) $(assemble_path)/src/indexlr --pos -v -k $(k) -w $(w) -t $(t) $< > $@
 endif
 
 %.fai: %
