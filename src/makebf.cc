@@ -78,10 +78,10 @@ main(int argc, char* argv[])
 			k = strtoul(optarg, &end, 10);
 			break;
 		case 'g':
-		    genomeSize_set = true;
-		    genomeSize = strtoul(optarg, &end, 10);
-		    filterSize = genomeSize * 2 * 8;
-		    break;
+			genomeSize_set = true;
+			genomeSize = strtod(optarg, &end);
+			filterSize = genomeSize * 2 * 8;
+			break;
 		case 'o':
 			outfile.assign(optarg);
 			break;
@@ -110,8 +110,8 @@ main(int argc, char* argv[])
 		printErrorMsg(progname, "option has incorrect argument -- 'k'");
 		failed = true;
 	} else if (!genomeSize_set) {
-	    printErrorMsg(progname, "missing option -- 'g'");
-	    failed = true;
+		printErrorMsg(progname, "missing option -- 'g'");
+		failed = true;
 	} else if (filterSize == 0) {
 		printErrorMsg(progname, "option has incorrect argument -- 'b'");
 		failed = true;
