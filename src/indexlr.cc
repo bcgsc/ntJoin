@@ -1,8 +1,8 @@
-// Convert linked-reads to minimizers using ntHash-2.0.0.
-// Usage:  physlr-indexlr -k K -w W [-r repeat_bf_path] [-s solid_bf_path] [-v] [-o FILE] FILE...
-// Output: Each line of output is a barcode followed by a list of minimzers.
+// Generate minimizers from sequences using ntHash-2.0.0.
+// Usage:  indexlr -k K -w W [-r repeat_bf_path] [-s solid_bf_path] [-v] [-o FILE] FILE...
+// Output: Each line of output is a contig followed by a list of minimizers.
 // Originally written for Physlr: (https://github.com/bcgsc/physlr)
-// Written by Vladimir Nikolic (schutzekatze) and Shaun Jackman (@sjackman)
+// Written by Vladimir Nikolic (@schutzekatze) and Shaun Jackman (@sjackman)
 
 #include "btl_bloomfilter/BloomFilter.hpp"
 #include "indexlr-workers.h"
@@ -69,7 +69,7 @@ minimizeReads(
 static void
 printErrorMsg(const std::string& progname, const std::string& msg)
 {
-	std::cerr << progname << ": " << msg << "\nTry 'physlr-indexlr --help' for more information.\n";
+	std::cerr << progname << ": " << msg << "\nTry 'indexlr --help' for more information.\n";
 }
 
 static void
@@ -93,7 +93,7 @@ printUsage(const std::string& progname)
 int
 main(int argc, char* argv[])
 {
-	auto progname = "physlr-indexlr";
+	auto progname = "indexlr";
 	int c;
 	int optindex = 0;
 	static int help = 0;
