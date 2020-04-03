@@ -16,7 +16,7 @@
 static void
 printErrorMsg(const std::string& progname, const std::string& msg)
 {
-	std::cerr << progname << ": " << msg << "\nTry 'physlr-makebf --help' for more information.\n";
+	std::cerr << progname << ": " << msg << "\nTry 'makebf --help' for more information.\n";
 }
 
 static void
@@ -26,6 +26,7 @@ printUsage(const std::string& progname)
 	          << "  -k K [-v] [-o FILE] FILE...\n\n"
 	             "  -k K       use K as k-mer size\n"
 	             "  -b B       Bloom filter size in Bytes\n"
+	             "  -g G       Genome size (bp)\n"
 	             "  -v         enable verbose output\n"
 	             "  -o FILE    write Bloom filter to FILE [required]\n"
 	             "  -t N       use N number of threads [1]\n"
@@ -48,12 +49,14 @@ int
 main(int argc, char* argv[])
 {
 
-	auto progname = "physlr-makebf";
+	auto progname = "makebf";
 	int c;
 	int optindex = 0;
 	static int help = 0;
 	unsigned k = 0;
 	uint64_t filterSize = 0;
+	uint64_t genomeSize = 0;
+	bool genomeSize_set = false;
 	bool verbose = false;
 	unsigned t = 1;
 	unsigned hashNum = 1;
@@ -63,7 +66,7 @@ main(int argc, char* argv[])
 	std::string outfile;
 	static const struct option longopts[] = { { "help", no_argument, &help, 1 },
 		                                      { nullptr, 0, nullptr, 0 } };
-	while ((c = getopt_long(argc, argv, "b:k:o:vt:", longopts, &optindex)) != -1) {
+	while ((c = getopt_long(argc, argv, "b:k:g:o:vt:", longopts, &optindex)) != -1) {
 		switch (c) {
 		case 0:
 			break;
@@ -74,6 +77,11 @@ main(int argc, char* argv[])
 			k_set = true;
 			k = strtoul(optarg, &end, 10);
 			break;
+		case 'g':
+		    genomeSize_set = true;
+		    genomeSize = strtoul(optarg, &end, 10);
+		    filterSize = genomeSize * 2 * 8;
+		    break;
 		case 'o':
 			outfile.assign(optarg);
 			break;
@@ -101,8 +109,11 @@ main(int argc, char* argv[])
 	} else if (k == 0) {
 		printErrorMsg(progname, "option has incorrect argument -- 'k'");
 		failed = true;
+	} else if (!genomeSize_set) {
+	    printErrorMsg(progname, "missing option -- 'g'");
+	    failed = true;
 	} else if (filterSize == 0) {
-		printErrorMsg(progname, "option has incorrect argument -- 'b");
+		printErrorMsg(progname, "option has incorrect argument -- 'b'");
 		failed = true;
 	} else if (infiles.empty()) {
 		printErrorMsg(progname, "missing file operand");
