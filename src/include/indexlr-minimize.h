@@ -25,7 +25,7 @@ struct HashData
 {
 	HashData(uint64_t hash1, uint64_t hash2, size_t pos, char strand)
 	  : hash1(hash1)
-		, hash2(hash2)
+	  , hash2(hash2)
 	  , pos(pos)
 	  , strand(strand)
 	{}
