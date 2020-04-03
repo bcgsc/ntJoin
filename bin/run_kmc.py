@@ -21,7 +21,7 @@ def main():
     args = parser.parse_args()
 
     # Make TMP directory
-    tmpdir = args.FASTA + ".kmc.tmp"
+    tmpdir = args.FASTA + "k" + str(args.k) + ".w" + str(args.l) + ".kmc.tmp"
     cmd = "mkdir -p " + tmpdir
     print(cmd)
     cmd_shlex = shlex.split(cmd)
@@ -30,7 +30,7 @@ def main():
         raise subprocess.CalledProcessError(ret, cmd_shlex)
 
     # Filter the fasta file based on length threshold
-    filtered_fasta_name = args.FASTA + "." + str(args.l) + "plus.fa"
+    filtered_fasta_name = args.FASTA + "k" + str(args.k) + ".w" + str(args.l)+ "." + str(args.l) + "plus.fa"
     filtered_fasta = open(filtered_fasta_name, 'w')
     with open(args.FASTA, 'r') as fasta:
         for header, seq, _, _ in read_fasta(fasta):
