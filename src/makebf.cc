@@ -141,7 +141,8 @@ main(int argc, char* argv[])
 		          << "kmer size                 = " << k << "\n"
 		          << "Bloom filter size         = " << filterSize << "\n"
 		          << std::endl;
-		std::cerr << "Inserting " << kmerVect.size() << " kmers into Bloom filter" << "\n"
+		std::cerr << "Inserting " << kmerVect.size() << " kmers into Bloom filter"
+			  << "\n"
 		          << "Using " << t << " threads." << std::endl;
 	}
 
