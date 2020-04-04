@@ -142,7 +142,7 @@ main(int argc, char* argv[])
 		          << "Bloom filter size         = " << filterSize << "\n"
 		          << std::endl;
 		std::cerr << "Inserting " << kmerVect.size() << " kmers into Bloom filter"
-			  << "\n"
+		          << "\n"
 		          << "Using " << t << " threads." << std::endl;
 	}
 
