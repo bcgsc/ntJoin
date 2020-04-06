@@ -65,8 +65,8 @@ m			Minimum percentage of increasing/decreasing minimizer positions to orient co
 mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive, overrides 'm') [False]
 agp			If True, output AGP file describing output scaffolds [False]
 no_cut			If True, will not cut contigs at putative misassemblies [False]
-repeat_filter   If True, will identify repetitive kmers before minimizer step and will not use those kmers as minimizers [False]
-genome_size      Approximate genome size (bp) - required when repeat_filter=True
+repeat_filter   	If True, will identify repetitive kmers before minimizer step and will not use those kmers as minimizers [False]
+genome_size      	Approximate genome size (bp) - required when repeat_filter=True
 
 Notes: 
 	- Ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated
