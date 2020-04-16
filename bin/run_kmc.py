@@ -18,6 +18,8 @@ def main():
     parser.add_argument("-g", help="Approximate genome size (bp)", required=True, type=float)
     parser.add_argument("-k", help="Kmer size", required=True, type=int)
     parser.add_argument("-t", help="Number of threads [4]", type=int, default=4)
+    parser.add_argument("-c", help="Lower threshold for kmer counting [2]", default=2, type=int)
+    parser.add_argument("-p", help="Output prefix [fastafile.k<k>.w<w>.kmc]", type=str, required=False)
     args = parser.parse_args()
 
     # Make TMP directory
@@ -41,9 +43,9 @@ def main():
     # Run KMC (1st step)
     max_mem = args.g/1e9 * 2.0
     max_mem = max(max_mem, 1) # KMC require at least 1GB of RAM
-    kmc_out_prefix = "%s.k%d.w%d.kmc" % (args.FASTA, args.k, args.l)
-    cmd = "kmc -ci2 -k%d -m%d -t%d -fm %s %s %s" % \
-          (args.k, max_mem, args.t, filtered_fasta_name, kmc_out_prefix, tmpdir)
+    kmc_out_prefix = args.p if args.p is not None else "%s.k%d.w%d.kmc" % (args.FASTA, args.k, args.l)
+    cmd = "kmc -ci%d -k%d -m%d -t%d -fm %s %s %s" % \
+          (args.c, args.k, max_mem, args.t, filtered_fasta_name, kmc_out_prefix, tmpdir)
     print(cmd)
     cmd_shlex = shlex.split(cmd)
     ret = subprocess.call(cmd_shlex)
