@@ -163,12 +163,22 @@ version:
 %.k$(k).w$(w).kmc.tsv: %
 	$(time) $(assemble_path)/bin/run_kmc.py -l $(w) -g $(genome_size) -k $(k) -t $(t) $<
 
+%.k$(k).w$(w).solid.kmc.tsv: %
+    $(time) $(assemble_path)/bin/run_kmc.py -l $(w) -g $(genome_size) -k $(k) -t $(t) -c 1 -p $*.k$(k).w$(w).solid.kmc $<
+
+$(prefix).k$(k).w$(w).solid.bf: $(target).k$(k).w$(w).solid.kmc.tsv $(references).k$(k).w$(w).solid.kmc.tsv
+    cat $(target).k$(k).w$(w).solid.kmc.tsv |mlr --tsv --implicit-csv-header label kmer,count_target > $(target).k$(k).w$(w).solid.kmc.mlr.tsv
+    cat $(references).k$(k).w$(w).solid.kmc.tsv |mlr --tsv --implicit-csv-header label kmer,count_ref > $(references).k$(k).w$(w).solid.kmc.mlr.tsv
+    mlr --tsv join -j kmer -f $(target).k$(k).w$(w).solid.kmc.mlr.tsv $(references).k$(k).w$(w).solid.kmc.mlr.tsv |\
+    mlr --tsv cut -o -f kmer,count_target |tail -n+2 > $(prefix).k$(k).w$(w).solid.tsv
+    $(assemble_path)/src/makebf -v -k $(k) -g $(genome_size) -t $(t) -o $@ $(prefix).k$(k).w$(w).solid.tsv
+
 $(prefix).k$(k).w$(w).bf: $(target).k$(k).w$(w).kmc.tsv $(kmc_ref_targets)
 	$(time) $(assemble_path)/src/makebf -v -k $(k) -g $(genome_size) -t $(t) -o $@ $?
 
 ifeq ($(repeat_filter), True)
-%.k$(k).w$(w).tsv: % $(prefix).k$(k).w$(w).bf
-	$(time) $(assemble_path)/src/indexlr --pos -k $(k) -w $(w) -t $(t) -r $(prefix).k$(k).w$(w).bf $< > $@
+%.k$(k).w$(w).tsv: % $(prefix).k$(k).w$(w).bf $(prefix).k$(k).w$(w).solid.bf
+	$(time) $(assemble_path)/src/indexlr --pos -k $(k) -w $(w) -t $(t) -r $(prefix).k$(k).w$(w).bf -s $(prefix).k$(k).w$(w).solid.bf $< > $@
 else
 %.k$(k).w$(w).tsv: %
 	$(time) $(assemble_path)/src/indexlr --pos -k $(k) -w $(w) -t $(t) $< > $@
