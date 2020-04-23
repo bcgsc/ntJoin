@@ -158,7 +158,7 @@ main(int argc, char* argv[])
 #pragma omp critical
 			{
 				counter++;
-				if (counter % 100000 == 0) {
+				if (counter % 10000000 == 0) {
 					std::cerr << "Processed " << counter << " kmers." << std::endl;
 				}
 			}
