@@ -126,7 +126,7 @@ main(int argc, char* argv[])
 		std::cerr << "Collecting Kmers to insert into bloom filter" << std::endl;
 	}
 	for (auto& infile : infiles) {
-		infile == "-" ? "/dev/stdin" : infile;
+		infile = (infile == "-") ? "/dev/stdin" : infile;
 		std::ifstream infileStream(infile);
 		std::string kmer;
 		int count;
