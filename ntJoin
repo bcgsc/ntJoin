@@ -10,6 +10,7 @@ references=None
 min_ref_targets=$(addsuffix .k$(k).w$(w).tsv, $(references))
 fai_ref_targets=$(addsuffix .fai, $(references))
 kmc_ref_targets=$(addsuffix .k$(k).w$(w).kmc.tsv, $(references))
+solid_bf_ref_targets=$(addsuffix .k$(k).w$(w).solid.bf, $(references))
 
 # List of edge weights
 reference_weights=None
@@ -54,8 +55,8 @@ large=0
 # Cut the input contigs and putative misassemblies?
 no_cut=False
 
-# Use repeat filtering option?
-repeat_filter=False
+# Use minimizer filtering option?
+minimizer_filter=False
 
 # Genome size in bp (required for repeat option)
 genome_size=None
@@ -107,8 +108,8 @@ help:
 	@echo "mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive, overrides 'm') [False]"
 	@echo "agp			If True, output AGP file describing output scaffolds [False]"
 	@echo "no_cut		If True, will not cut contigs at putative misassemblies [False]"
-	@echo "repeat_filter   If True, will identify repetitive kmers before minimizer step and will not use those kmers as minimizers [False]"
-	@echo "genome_size      Approximate genome size (bp) - required when repeat_filter=True"
+	@echo "minimizer_filter   If True, will identify repetitive and common kmers before minimizer step and inform minimizer choice [False]"
+	@echo "genome_size      Approximate genome size (bp) - required when minimizer_filter=True"
 	@echo ""
 	@echo "Notes: "
 	@echo "	- Ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated"
@@ -141,7 +142,7 @@ endif
 ifeq ($(target), None)
 	$(error ERROR: Must set target)
 endif
-ifeq ($(repeat_filter), True)
+ifeq ($(minimizer_filter), True)
 ifeq ($(genome_size), None)
 	$(error ERROR: Must set genome size (bp) when using repeat filter option)
 endif
@@ -163,17 +164,16 @@ version:
 %.k$(k).w$(w).kmc.tsv: %
 	$(time) $(assemble_path)/bin/run_kmc.py -l $(w) -g $(genome_size) -k $(k) -t $(t) $<
 
-%.k$(k).w$(w).solid.kmc.tsv: %
-	$(time) $(assemble_path)/bin/run_kmc.py -l $(w) -g $(genome_size) -k $(k) -t $(t) -c 1 -p $*.k$(k).w$(w).solid.kmc $<
+%.k$(k).w$(w).solid.bf: %
+	$(time) $(assemble_path)/src/makebf -v -k $(k) -g $(genome_size) -t $(t) -o $@ $<
 
-$(prefix).k$(k).w$(w).solid.bf: $(target).k$(k).w$(w).solid.kmc.tsv $(references).k$(k).w$(w).solid.kmc.tsv
-	$(assemble_path)/bin/find_common_kmers.py -t $(target).k$(k).w$(w).solid.kmc.tsv -r $(references).k$(k).w$(w).solid.kmc.tsv > $(prefix).k$(k).w$(w).solid.tsv
-	$(assemble_path)/src/makebf -v -k $(k) -g $(genome_size) -t $(t) -o $@ $(prefix).k$(k).w$(w).solid.tsv
+$(prefix).k$(k).w$(w).solid.bf: $(target).k$(k).w$(w).solid.bf $(solid_bf_ref_targets)
+	$(time) abyss-bloom intersect -k $(k) -v $@ $?
 
 $(prefix).k$(k).w$(w).bf: $(target).k$(k).w$(w).kmc.tsv $(kmc_ref_targets)
 	$(time) $(assemble_path)/src/makebf -v -k $(k) -g $(genome_size) -t $(t) -o $@ $?
 
-ifeq ($(repeat_filter), True)
+ifeq ($(minimizer_filter), True)
 %.k$(k).w$(w).tsv: % $(prefix).k$(k).w$(w).bf $(prefix).k$(k).w$(w).solid.bf
 	$(time) $(assemble_path)/src/indexlr --pos -k $(k) -w $(w) -t $(t) -r $(prefix).k$(k).w$(w).bf -s $(prefix).k$(k).w$(w).solid.bf $< > $@
 else
