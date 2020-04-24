@@ -50,15 +50,15 @@ printBloomStats(BloomFilter& bloom, ostream& os)
  * Is an estimated size using approximations of FPR formula
  * given the number of hash functions
  */
-uint64_t calcOptimalSize(uint64_t entries, double fpr, unsigned hashNum)
+uint64_t
+calcOptimalSize(uint64_t entries, double fpr, unsigned hashNum)
 {
 
 	uint64_t non64ApproxVal = uint64_t(
-		   -double(entries) * double(hashNum) /
-		   log(1.0 - pow(fpr, double(1 / double(hashNum)))));
+	    -double(entries) * double(hashNum) / log(1.0 - pow(fpr, double(1 / double(hashNum)))));
 
 	return non64ApproxVal + (64 - non64ApproxVal % 64);
-	}
+}
 
 int
 main(int argc, char* argv[])
