@@ -45,6 +45,21 @@ printBloomStats(BloomFilter& bloom, ostream& os)
 	   << "\n";
 }
 
+/*
+ * Only returns multiples of 64 for filter building purposes
+ * Is an estimated size using approximations of FPR formula
+ * given the number of hash functions
+ */
+uint64_t calcOptimalSize(uint64_t entries, double fpr, unsigned hashNum)
+{
+
+	uint64_t non64ApproxVal = uint64_t(
+		   -double(entries) * double(hashNum) /
+		   log(1.0 - pow(fpr, double(1 / double(hashNum)))));
+
+	return non64ApproxVal + (64 - non64ApproxVal % 64);
+	}
+
 int
 main(int argc, char* argv[])
 {
@@ -64,6 +79,8 @@ main(int argc, char* argv[])
 	bool k_set = false;
 	char* end = nullptr;
 	std::string outfile;
+	double fpr_target = 0.01;
+
 	static const struct option longopts[] = { { "help", no_argument, &help, 1 },
 		                                      { nullptr, 0, nullptr, 0 } };
 	while ((c = getopt_long(argc, argv, "b:k:g:o:vt:", longopts, &optindex)) != -1) {
@@ -80,7 +97,7 @@ main(int argc, char* argv[])
 		case 'g':
 			genomeSize_set = true;
 			genomeSize = strtod(optarg, &end);
-			filterSize = genomeSize * 2 * 8;
+			filterSize = calcOptimalSize(genomeSize, fpr_target, hashNum);
 			break;
 		case 'o':
 			outfile.assign(optarg);
