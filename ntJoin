@@ -169,7 +169,11 @@ version:
 .SECONDARY:
 
 %.k$(k).w$(w).kmc.tsv: %
+ifneq ($(bloom_size), None)
+	$(time) $(assemble_path)/bin/run_kmc.py -l $(w) -m $(bloom_size) -k $(k) -t $(t) $<
+else
 	$(time) $(assemble_path)/bin/run_kmc.py -l $(w) -g $(genome_size) -k $(k) -t $(t) $<
+endif
 
 %.k$(k).w$(w).solid.bf: %
 ifneq ($(bloom_size), None)
