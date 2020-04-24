@@ -58,8 +58,11 @@ no_cut=False
 # Use minimizer filtering option?
 minimizer_filter=False
 
-# Genome size in bp (required for repeat option)
+# Genome size in bp (for minimizer filter option)
 genome_size=None
+
+# Bloom filter size (for minimizer filter option)
+bloom_size=None
 
 # Prefix for output files
 prefix=out.k$(k).w$(w).n$(n)
@@ -109,11 +112,13 @@ help:
 	@echo "agp			If True, output AGP file describing output scaffolds [False]"
 	@echo "no_cut		If True, will not cut contigs at putative misassemblies [False]"
 	@echo "minimizer_filter   If True, will identify repetitive and common kmers before minimizer step and inform minimizer choice [False]"
-	@echo "genome_size      Approximate genome size (bp) - required when minimizer_filter=True"
+	@echo "genome_size      Approximate genome size (bp)"
+	@echo "bloom_size       Bloom filter size"
 	@echo ""
 	@echo "Notes: "
-	@echo "	- Ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated"
-	@echo "	- Ensure all assembly files are in the current working directory"
+	@echo " - Ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated"
+	@echo " - Ensure all assembly files are in the current working directory"
+	@echo " - Either genome_size or bloom_size must be set when minimizer_filter=True"
 	@echo ""
 
 assemble: check_params \
@@ -144,7 +149,9 @@ ifeq ($(target), None)
 endif
 ifeq ($(minimizer_filter), True)
 ifeq ($(genome_size), None)
-	$(error ERROR: Must set genome size (bp) when using repeat filter option)
+ifeq ($(bloom_size), None)
+	$(error ERROR: Must set genome size (bp) or Bloom filter size when using minimizer filter option)
+endif
 endif
 endif
 
@@ -165,13 +172,21 @@ version:
 	$(time) $(assemble_path)/bin/run_kmc.py -l $(w) -g $(genome_size) -k $(k) -t $(t) $<
 
 %.k$(k).w$(w).solid.bf: %
+ifneq ($(bloom_size), None)
+	$(time) cat $< |bioawk -c fastx '{print $$seq"\t1"}' | $(assemble_path)/src/makebf -v -k $(k) -b $(bloom_size) -t $(t) -o $@ -
+else
 	$(time) cat $< |bioawk -c fastx '{print $$seq"\t1"}' | $(assemble_path)/src/makebf -v -k $(k) -g $(genome_size) -t $(t) -o $@ -
+endif
 
 $(prefix).k$(k).w$(w).solid.bf: $(target).k$(k).w$(w).solid.bf $(solid_bf_ref_targets)
 	$(time) abyss-bloom intersect -k $(k) -v $@ $?
 
 $(prefix).k$(k).w$(w).bf: $(target).k$(k).w$(w).kmc.tsv $(kmc_ref_targets)
+ifneq ($(bloom_size), None)
+	$(time) $(assemble_path)/src/makebf -v -k $(k) -b $(bloom_size) -t $(t) -o $@ $?
+else
 	$(time) $(assemble_path)/src/makebf -v -k $(k) -g $(genome_size) -t $(t) -o $@ $?
+endif
 
 ifeq ($(minimizer_filter), True)
 %.k$(k).w$(w).tsv: % $(prefix).k$(k).w$(w).bf $(prefix).k$(k).w$(w).solid.bf
