@@ -165,7 +165,7 @@ version:
 	$(time) $(assemble_path)/bin/run_kmc.py -l $(w) -g $(genome_size) -k $(k) -t $(t) $<
 
 %.k$(k).w$(w).solid.bf: %
-	$(time) $(assemble_path)/src/makebf -v -k $(k) -g $(genome_size) -t $(t) -o $@ $<
+	$(time) cat $< |bioawk -c fastx '{print $$seq"\t1"}' | $(assemble_path)/src/makebf -v -k $(k) -g $(genome_size) -t $(t) -o $@ -
 
 $(prefix).k$(k).w$(w).solid.bf: $(target).k$(k).w$(w).solid.bf $(solid_bf_ref_targets)
 	$(time) abyss-bloom intersect -k $(k) -v $@ $?
