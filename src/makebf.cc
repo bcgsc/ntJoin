@@ -25,7 +25,7 @@ printUsage(const std::string& progname)
 	std::cout << "Usage:  " << progname
 	          << "  -k K [-v] [-o FILE] FILE...\n\n"
 	             "  -k K       use K as k-mer size\n"
-	             "  -b B       Bloom filter size in Bytes\n"
+	             "  -b B       Bloom filter size\n"
 	             "  -g G       Genome size (bp)\n"
 	             "  -v         enable verbose output\n"
 	             "  -o FILE    write Bloom filter to FILE [required]\n"
@@ -60,6 +60,57 @@ calcOptimalSize(uint64_t entries, double fpr, unsigned hashNum)
 	return non64ApproxVal + (64 - non64ApproxVal % 64);
 }
 
+static inline uint64_t
+SIToBytes(std::istringstream& iss)
+{
+	double size;
+	std::string units;
+
+	iss >> size;
+	if (iss.fail()) {
+		// not prefixed by a number
+		return 0;
+	}
+
+	iss >> units;
+	if (iss.fail() && iss.eof()) {
+		// no units given; clear fail flag
+		// and assume bytes
+		iss.clear(std::ios::eofbit);
+		return (uint64_t)ceil(size);
+	}
+
+	if (units.size() > 1) {
+		// unrecognized multichar suffix
+		iss.setstate(std::ios::failbit);
+		return 0;
+	}
+
+	switch (tolower(units[0])) {
+	case 'k':
+		size *= (uint64_t)1 << 10;
+		break;
+	case 'm':
+		size *= (uint64_t)1 << 20;
+		break;
+	case 'g':
+		size *= (uint64_t)1 << 30;
+		break;
+	default:
+		iss.setstate(std::ios::failbit);
+		return 0;
+	}
+
+	return (uint64_t)ceil(size);
+}
+
+static inline uint64_t
+SIToBytes(const std::string& str)
+{
+	std::istringstream iss(str);
+	return SIToBytes(iss);
+}
+
 int
 main(int argc, char* argv[])
 {
@@ -88,7 +139,7 @@ main(int argc, char* argv[])
 		case 0:
 			break;
 		case 'b':
-			filterSize = strtoul(optarg, &end, 10) * 8;
+			filterSize = SIToBytes(optarg) * 8;
 			break;
 		case 'k':
 			k_set = true;
