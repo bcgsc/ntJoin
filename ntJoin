@@ -177,7 +177,7 @@ endif
 
 %.k$(k).w$(w).solid.bf: %
 ifneq ($(bloom_size), None)
-	$(time) abyss-bloom build -k $(k) -t rolling-hash -b $(bloom_size) -j $(t) $@ $<
+	$(time) abyss-bloom build -k $(k) -t rolling-hash -b $(bloom_size) -v -j $(t) $@ $<
 else
 	$(time) cat $< |bioawk -c fastx '{print $$seq"\t1"}' | $(assemble_path)/src/makebf -v -k $(k) -g $(genome_size) -t $(t) -o $@ -
 endif
@@ -187,7 +187,7 @@ $(prefix).k$(k).w$(w).solid.bf: $(target).k$(k).w$(w).solid.bf $(solid_bf_ref_ta
 
 $(prefix).k$(k).w$(w).bf: $(target).k$(k).w$(w).kmc.tsv $(kmc_ref_targets)
 ifneq ($(bloom_size), None)
-	$(time) $(assemble_path)/src/makebf -v -k $(k) -b $(bloom_size) -t $(t) -o $@ $?
+    cat $? |awk -F"\t" '{i+=1; print ">"i" "$2"\n"$1}' |$(time) abyss-bloom build -k $(k) -v -t rolling-hash -j $(t) -b $(bloom_size) $@ -
 else
 	$(time) $(assemble_path)/src/makebf -v -k $(k) -g $(genome_size) -t $(t) -o $@ $?
 endif
