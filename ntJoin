@@ -187,7 +187,7 @@ $(prefix).k$(k).w$(w).solid.bf: $(target).k$(k).w$(w).solid.bf $(solid_bf_ref_ta
 
 $(prefix).k$(k).w$(w).bf: $(target).k$(k).w$(w).kmc.tsv $(kmc_ref_targets)
 ifneq ($(bloom_size), None)
-    cat $? |awk -F"\t" '{i+=1; print ">"i" "$2"\n"$1}' |$(time) abyss-bloom build -k $(k) -v -t rolling-hash -j $(t) -b $(bloom_size) $@ -
+	cat $? |awk -F"\t" '{i+=1; print ">"i" "$$2"\n"$$1}' |$(time) abyss-bloom build -k $(k) -v -t rolling-hash -j $(t) -b $(bloom_size) $@ -
 else
 	$(time) $(assemble_path)/src/makebf -v -k $(k) -g $(genome_size) -t $(t) -o $@ $?
 endif
