@@ -111,7 +111,7 @@ conda install -c bioconda ntjoin
 #### Installing ntJoin from the source code
 ```sh
 git clone https://github.com/bcgsc/ntJoin.git
-cd src
+cd ntJoin/src
 make
 ```
 
