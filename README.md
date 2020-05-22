@@ -118,7 +118,7 @@ make
 ## Dependencies
 
 * python3 ([pybedtools](https://daler.github.io/pybedtools/), [python-igraph](https://igraph.org/python/), [pymannkendall](https://pypi.org/project/pymannkendall/))
-* [bedtools v2.21.0+](https://bedtools.readthedocs.io/en/latest/)
+* [bedtools v2.29.2+](https://bedtools.readthedocs.io/en/latest/)
 * [samtools](https://github.com/samtools/samtools)
 * [zlib](https://www.zlib.net/)
 
