@@ -799,7 +799,8 @@ class Ntjoin:
         parser.add_argument("-n", help="Minimum edge weight [1]", default=1, type=int)
         parser.add_argument("-k", help="Kmer size used for minimizer step", required=True, type=int)
         parser.add_argument("-g", help="Minimum gap size (bp)", required=False, default=20, type=int)
-        parser.add_argument("-G", help="Maximum gap size (bp) (0 if no maximum threshold)", required=False, default=0, type=int)
+        parser.add_argument("-G", help="Maximum gap size (bp) (0 if no maximum threshold)", required=False,
+                            default=0, type=int)
         parser.add_argument("--mkt", help="Use Mann-Kendall Test to orient contigs (slower, overrides m)",
                             action='store_true')
         parser.add_argument('-m', help="Require at least m %% of minimizer positions to be "
