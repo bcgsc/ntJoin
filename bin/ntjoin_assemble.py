@@ -522,6 +522,8 @@ class Ntjoin:
                         and not self.is_best_region(contig_regions[node.contig], node):
                     if 0 < i < len(path)-1 and new_path:
                         new_path[-1].gap_size += (node.get_aligned_length())
+                        if self.args.G > 0:
+                            new_path[-1].gap_size = min(self.args.G, new_path[-1].gap_size)
                 else:
                     new_path.append(node)
 
