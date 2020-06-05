@@ -405,7 +405,7 @@ class Ntjoin:
         "Given a graph, return True if all the components are linear"
         for component in graph.components():
             component_graph = graph.subgraph(component)
-            if not all(u.degree() < 2 for u in component_graph.vs()):
+            if not all(u.degree() < 3 for u in component_graph.vs()):
                 return False
         return True
 
