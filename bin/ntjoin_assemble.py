@@ -605,21 +605,53 @@ class Ntjoin:
             ctg_part_count += 1
 
     @staticmethod
-    def write_agp_unassigned(agp, agpfile, line):
+    def write_agp_unassigned(agpfile, header, seq):
         "Write unassigned contig to AGP file"
         header_re = re.compile(r'>((\S+)\:(\d+)-(\d+))')
         format_layout = ("{}\t" * 9).strip()
 
-        header_match = re.search(header_re, line)
+        len_diff_start, len_diff_end = 0, 0
+        sequence_start_strip = seq.strip().lstrip("Nn")
+        if len(sequence_start_strip) != len(seq):
+            len_diff_start = len(seq) - len(sequence_start_strip)
+        sequence_end_strip = sequence_start_strip.rstrip("Nn")
+        if len(sequence_end_strip) != len(sequence_start_strip):
+            len_diff_end = len(sequence_start_strip) - len(sequence_end_strip)
+
+        if not sequence_end_strip: # Just return if the sequence was all N (so empty)
+            return
+
+        header_match = re.search(header_re, header)
         if header_match:
             agp = Agp(new_id=header_match.group(1), contig=header_match.group(2),
-                      start=int(header_match.group(3)), end=int(header_match.group(4)) - 1)
-            return agp
-        assert len(line.strip()) == agp.end - agp.start + 1
+                      start=int(header_match.group(3)) + len_diff_start,
+                      end=int(header_match.group(4)) - 1 - len_diff_end)
+        assert len(seq.strip().strip("Nn")) == agp.end - agp.start + 1
         out_str = format_layout.format(agp.new_id, 1, agp.end - agp.start + 1,
                                        1, "W", agp.contig, agp.start, agp.end, "+")
         agpfile.write(out_str + "\n")
-        return None
+
+    def join_sequences(self, sequences_list, path):
+        "Join the sequences for a contig, adjusting the path coordinates if Ns are stripped"
+        sequence_start_strip = sequences_list[0].lstrip("Nn")
+        if len(sequence_start_strip) != len(sequences_list[0]):
+            len_diff = len(sequences_list[0]) - len(sequence_start_strip)
+            sequences_list[0] = sequence_start_strip
+            if path[0].ori == "+":
+                path[0].start += len_diff
+            else:
+                path[0].end -= len_diff
+
+        sequence_end_strip = sequences_list[-1].rstrip("Nn")
+        if len(sequence_end_strip) != len(sequences_list[-1]):
+            len_diff = len(sequences_list[-1]) - len(sequence_end_strip)
+            sequences_list[-1] = sequence_end_strip
+            if path[-1].ori == "+":
+                path[-1].end -= len_diff
+            else:
+                path[-1].start += len_diff
+
+        return "".join(sequences_list)
 
     def print_scaffolds(self, paths):
         "Given the paths, print out the scaffolds fasta"
@@ -650,8 +682,10 @@ class Ntjoin:
             if len(sequences) < 2:
                 continue
             ctg_id = "ntJoin" + str(ct)
+            ctg_sequence = self.join_sequences(sequences, path)
+
             outfile.write(">%s\n%s\n" %
-                          (ctg_id, "".join(sequences).strip("Nn")))
+                          (ctg_id, ctg_sequence))
             incorporated_segments.extend(path_segments)
             path_str = " ".join(["%s%s:%d-%d %dN" %
                                  (node.contig, node.ori, node.start, node.end, node.gap_size) for node in path])
@@ -681,11 +715,12 @@ class Ntjoin:
 
         out_fasta = subprocess.Popen(cmd_shlex, stdout=subprocess.PIPE, universal_newlines=True)
 
-        agp = None
-        for line in iter(out_fasta.stdout.readline, ''):
+        for header, seq, _, _ in read_fasta(iter(out_fasta.stdout.readline, '')):
             if self.args.agp:
-                agp = self.write_agp_unassigned(agp, agpfile, line)
-            outfile.write(line)
+                self.write_agp_unassigned(agpfile, header, seq)
+            seq = seq.strip().strip("Nn")
+            if seq:
+                outfile.write("{header}\n{seq}\n".format(header=header, seq=seq))
         out_fasta.wait()
         if out_fasta.returncode != 0:
             print("bedtools getfasta failed -- is bedtools on your PATH?")
