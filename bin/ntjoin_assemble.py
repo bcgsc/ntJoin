@@ -29,7 +29,7 @@ Scaffold = namedtuple("Scaffold", ["id", "length", "sequence"])
 class PathNode:
     "Defines a node in a path of contig regions"
     def __init__(self, contig, ori, start, end, contig_size,
-                 first_mx, terminal_mx, gap_size=50):
+                 first_mx, terminal_mx, gap_size=0):
         self.contig = contig
         self.ori = ori
         self.start = start
@@ -632,25 +632,35 @@ class Ntjoin:
         agpfile.write(out_str + "\n")
 
     @staticmethod
-    def join_sequences(sequences_list, path):
+    def join_sequences(sequences_list, path, path_segments):
         "Join the sequences for a contig, adjusting the path coordinates if Ns are stripped"
         sequence_start_strip = sequences_list[0].lstrip("Nn")
         if len(sequence_start_strip) != len(sequences_list[0]):
             len_diff = len(sequences_list[0]) - len(sequence_start_strip)
             sequences_list[0] = sequence_start_strip
-            if path[0].ori == "+":
-                path[0].start += len_diff
-            else:
-                path[0].end -= len_diff
+            for i in range(len(path)):
+                if path[i].contig == path_segments[0].contig and \
+                                path[i].start == path_segments[0].start and \
+                                path[i].end == path_segments[0].end:
+                    if path[i].ori == "+":
+                        path[i].start += len_diff
+                    else:
+                        path[i].end -= len_diff
+                    break
 
         sequence_end_strip = sequences_list[-1].rstrip("Nn")
         if len(sequence_end_strip) != len(sequences_list[-1]):
             len_diff = len(sequences_list[-1]) - len(sequence_end_strip)
             sequences_list[-1] = sequence_end_strip
-            if path[-1].ori == "+":
-                path[-1].end -= len_diff
-            else:
-                path[-1].start += len_diff
+            for i in reversed(range(len(path))):
+                if path[i].contig == path_segments[-1].contig and \
+                                path[i].start == path_segments[-1].start and \
+                                path[i].end == path_segments[-1].end:
+                    if path[i].ori == "+":
+                        path[i].end -= len_diff
+                    else:
+                        path[i].start += len_diff
+                    break
 
         return "".join(sequences_list)
 
@@ -683,7 +693,7 @@ class Ntjoin:
             if len(sequences) < 2:
                 continue
             ctg_id = "ntJoin" + str(ct)
-            ctg_sequence = self.join_sequences(sequences, path)
+            ctg_sequence = self.join_sequences(sequences, path, path_segments)
 
             outfile.write(">%s\n%s\n" %
                           (ctg_id, ctg_sequence))
