@@ -631,7 +631,8 @@ class Ntjoin:
                                        1, "W", agp.contig, agp.start, agp.end, "+")
         agpfile.write(out_str + "\n")
 
-    def join_sequences(self, sequences_list, path):
+    @staticmethod
+    def join_sequences(sequences_list, path):
         "Join the sequences for a contig, adjusting the path coordinates if Ns are stripped"
         sequence_start_strip = sequences_list[0].lstrip("Nn")
         if len(sequence_start_strip) != len(sequences_list[0]):
