@@ -639,11 +639,11 @@ class Ntjoin:
         if len(sequence_start_strip) != len(sequences_list[0]):
             len_diff = len(sequences_list[0]) - len(sequence_start_strip)
             sequences_list[0] = sequence_start_strip
-            for i in range(len(path)):
-                if path[i].contig == path_segments[0].contig and \
-                                path[i].start == path_segments[0].start and \
-                                path[i].end == path_segments[0].end:
-                    if path[i].ori == "+":
+            for i, node in enumerate(path):
+                if node.contig == path_segments[0].contig and \
+                                node.start == path_segments[0].start and \
+                                node.end == path_segments[0].end:
+                    if node.ori == "+":
                         path[i].start += len_diff
                     else:
                         path[i].end -= len_diff
