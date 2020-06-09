@@ -607,14 +607,14 @@ class Ntjoin:
     @staticmethod
     def write_agp_unassigned(agpfile, header, seq):
         "Write unassigned contig to AGP file"
-        header_re = re.compile(r'>((\S+)\:(\d+)-(\d+))')
+        header_re = re.compile(r'((\S+)\:(\d+)-(\d+))')
         format_layout = ("{}\t" * 9).strip()
 
         len_diff_start, len_diff_end = 0, 0
-        sequence_start_strip = seq.strip().lstrip("Nn")
+        sequence_start_strip = seq.strip().lstrip("Nn") # Strip from 5'
         if len(sequence_start_strip) != len(seq):
             len_diff_start = len(seq) - len(sequence_start_strip)
-        sequence_end_strip = sequence_start_strip.rstrip("Nn")
+        sequence_end_strip = sequence_start_strip.rstrip("Nn") # Strip from 3'
         if len(sequence_end_strip) != len(sequence_start_strip):
             len_diff_end = len(sequence_start_strip) - len(sequence_end_strip)
 
@@ -622,10 +622,11 @@ class Ntjoin:
             return
 
         header_match = re.search(header_re, header)
+        agp = None
         if header_match:
             agp = Agp(new_id=header_match.group(1), contig=header_match.group(2),
-                      start=int(header_match.group(3)) + len_diff_start,
-                      end=int(header_match.group(4)) - 1 - len_diff_end)
+                      start=int(header_match.group(3)) + 1 + len_diff_start,
+                      end=int(header_match.group(4)) - len_diff_end)
         assert len(seq.strip().strip("Nn")) == agp.end - agp.start + 1
         out_str = format_layout.format(agp.new_id, 1, agp.end - agp.start + 1,
                                        1, "W", agp.contig, agp.start, agp.end, "+")
@@ -633,8 +634,8 @@ class Ntjoin:
 
     @staticmethod
     def join_sequences(sequences_list, path, path_segments):
-        "Join the sequences for a contig, adjusting the path coordinates if Ns are stripped"
-        sequence_start_strip = sequences_list[0].lstrip("Nn")
+        "Join the sequences for a contig, adjusting the path coordinates if terminal Ns are stripped"
+        sequence_start_strip = sequences_list[0].lstrip("Nn") # Strip from 5'
         if len(sequence_start_strip) != len(sequences_list[0]):
             len_diff = len(sequences_list[0]) - len(sequence_start_strip)
             sequences_list[0] = sequence_start_strip
@@ -648,7 +649,7 @@ class Ntjoin:
                         path[i].end -= len_diff
                     break
 
-        sequence_end_strip = sequences_list[-1].rstrip("Nn")
+        sequence_end_strip = sequences_list[-1].rstrip("Nn") # Strip from 3'
         if len(sequence_end_strip) != len(sequences_list[-1]):
             len_diff = len(sequences_list[-1]) - len(sequence_end_strip)
             sequences_list[-1] = sequence_end_strip
@@ -731,7 +732,7 @@ class Ntjoin:
                 self.write_agp_unassigned(agpfile, header, seq)
             seq = seq.strip().strip("Nn")
             if seq:
-                outfile.write("{header}\n{seq}\n".format(header=header, seq=seq))
+                outfile.write(">{header}\n{seq}\n".format(header=header, seq=seq))
         out_fasta.wait()
         if out_fasta.returncode != 0:
             print("bedtools getfasta failed -- is bedtools on your PATH?")
