@@ -294,6 +294,8 @@ class Ntjoin:
             raise AssertionError
 
         gap_size = max(mean_dist - a - b, self.args.g)
+        if self.args.G > 0:
+            gap_size = min(gap_size, self.args.G)
         return gap_size
 
     @staticmethod
@@ -520,6 +522,8 @@ class Ntjoin:
                         and not self.is_best_region(contig_regions[node.contig], node):
                     if 0 < i < len(path)-1 and new_path:
                         new_path[-1].gap_size += (node.get_aligned_length())
+                        if self.args.G > 0:
+                            new_path[-1].gap_size = min(self.args.G, new_path[-1].gap_size)
                 else:
                     new_path.append(node)
 
@@ -797,6 +801,8 @@ class Ntjoin:
         parser.add_argument("-n", help="Minimum edge weight [1]", default=1, type=int)
         parser.add_argument("-k", help="Kmer size used for minimizer step", required=True, type=int)
         parser.add_argument("-g", help="Minimum gap size (bp)", required=False, default=20, type=int)
+        parser.add_argument("-G", help="Maximum gap size (bp) (0 if no maximum threshold)", required=False,
+                            default=0, type=int)
         parser.add_argument("--mkt", help="Use Mann-Kendall Test to orient contigs (slower, overrides m)",
                             action='store_true')
         parser.add_argument('-m', help="Require at least m %% of minimizer positions to be "
@@ -820,6 +826,7 @@ class Ntjoin:
         print("\t-n ", self.args.n)
         print("\t-k ", self.args.k)
         print("\t-g ", self.args.g)
+        print("\t-G ", self.args.G)
         print("\t-t ", self.args.t)
         if self.args.agp:
             print("\t--agp")
