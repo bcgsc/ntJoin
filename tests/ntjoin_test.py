@@ -73,6 +73,11 @@ def test_mx_f_f():
     assert len(paths) == 1
     assert paths.pop() == "ntJoin0\t1_f+:0-1981 20N 2_f+:0-2329"
 
+def test_mx_f_f_termN():
+    "Testing stripping terminal Ns in output scaffolds"
+    paths = run_ntjoin("ref.fa", "scaf.f-f.termN.fa", "f-f_test")
+    assert len(paths) == 1
+    assert paths.pop() == "ntJoin0\t1_f+:4-1985 20N 2_f+:0-2329"
 
 def test_mx_f_r():
     "Testing ntJoin with assembly + reference, fwd-rev orientation"
@@ -147,3 +152,13 @@ def test_mx_r_f():
     assert agp[0].strip() == "ntJoin0\t1\t1981\t1\tW\t1_r\t1\t1981\t-"
     assert agp[1].strip() == "ntJoin0\t1982\t2001\t2\tN\t20\tscaffold\tyes\talign_genus"
     assert agp[2].strip() == "ntJoin0\t2002\t4330\t3\tW\t2_f\t1\t2329\t+"
+
+# Testing AGP output
+def test_mx_f_f():
+    "Testing ntJoin with assembly + reference, fwd-fwd orientation, with terminal gaps - AGP output + unassigned"
+    agp = run_ntjoin_agp("ref.fa", "scaf.f-f.termN.unassigned.fa", "f-f_test")
+    assert len(agp) == 4
+    assert agp[0].strip() == "ntJoin0\t1\t1981\t1\tW\t1_f\t5\t1985\t+"
+    assert agp[1].strip() == "ntJoin0\t1982\t2001\t2\tN\t20\tscaffold\tyes\talign_genus"
+    assert agp[2].strip() == "ntJoin0\t2002\t4330\t3\tW\t2_f\t1\t2329\t+"
+    assert agp[3].strip() == "unassigned:0-14\t1\t8\t1\tW\tunassigned\t3\t10\t+"
