@@ -161,4 +161,4 @@ def test_mx_f_f():
     assert agp[0].strip() == "ntJoin0\t1\t1981\t1\tW\t1_f\t5\t1985\t+"
     assert agp[1].strip() == "ntJoin0\t1982\t2001\t2\tN\t20\tscaffold\tyes\talign_genus"
     assert agp[2].strip() == "ntJoin0\t2002\t4330\t3\tW\t2_f\t1\t2329\t+"
-    assert agp[3].strip() == "unassigned:0-8\t1\t8\t1\tW\tunassigned\t1\t8\t+"
+    assert agp[3].strip() == "unassigned:0-14\t1\t8\t1\tW\tunassigned\t3\t10\t+"
