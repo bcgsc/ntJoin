@@ -647,6 +647,7 @@ class Ntjoin:
                         path[i].start += len_diff
                     else:
                         path[i].end -= len_diff
+                    assert len(sequence_start_strip) - path[i].gap_size == path[i].end - path[i].start
                     break
 
         sequence_end_strip = sequences_list[-1].rstrip("Nn") # Strip from 3'
@@ -661,9 +662,19 @@ class Ntjoin:
                         path[i].end -= len_diff
                     else:
                         path[i].start += len_diff
+                    assert len(sequence_end_strip) == path[i].end - path[i].start
                     break
 
         return "".join(sequences_list)
+
+    @staticmethod
+    def check_terminal_node_gap_zero(path):
+        "Ensure that the terminal PathNode has gap size of 0"
+        for i in reversed(range(len(path))):
+            if path[i].ori != "?":
+                if path[i].gap_size != 0:
+                    path[i].set_gap_size(0)
+                break
 
     def print_scaffolds(self, paths):
         "Given the paths, print out the scaffolds fasta"
@@ -685,6 +696,9 @@ class Ntjoin:
         for path in paths:
             sequences = []
             path_segments = []
+
+            self.check_terminal_node_gap_zero(path)
+
             for node in path:
                 if node.ori == "?":
                     continue
