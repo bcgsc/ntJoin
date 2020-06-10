@@ -99,6 +99,7 @@ help:
 	@echo "w			Window size for minimizers (bp) [1000]"
 	@echo "n			Minimum graph edge weight [1]"
 	@echo "g			Minimum gap size (bp) [20]"
+	@echo "G			Maximum gap size (bp) (0 if no maximum) [0]"
 	@echo "m			Minimum percentage of increasing/decreasing minimizer positions to orient contig [90]"
 	@echo "mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive, overrides 'm') [False]"
 	@echo "agp			If True, output AGP file describing output scaffolds [False]"
