@@ -298,7 +298,8 @@ class Ntjoin:
             gap_size = min(gap_size, self.args.G)
         return gap_size
 
-    def is_new_region_overlapping(self, start, end, incorporated_segments_ctg):
+    @staticmethod
+    def is_new_region_overlapping(start, end, incorporated_segments_ctg):
         "Checks if the specified region overlaps any existing regions in incorporated segments"
         for segment in incorporated_segments_ctg:
             if start <= segment.end and segment.start <= end:
@@ -464,7 +465,7 @@ class Ntjoin:
         for path_node in path:
             if path_node.contig not in incorporated_list:
                 incorporated_list[path_node.contig] = []
-            incorporated_list.append(Bed(contig=path_node.contig,
+            incorporated_list[path_node.contig].append(Bed(contig=path_node.contig,
                                          start=path_node.start,
                                          end=path_node.end))
 
@@ -942,7 +943,7 @@ class Ntjoin:
             paths = self.adjust_paths(paths, scaffolds, incorporated_segments)
 
         # Print the final scaffolds
-        self.print_scaffolds(paths)
+        self.print_scaffolds(paths, incorporated_segments)
 
         print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
 
