@@ -298,8 +298,15 @@ class Ntjoin:
             gap_size = min(gap_size, self.args.G)
         return gap_size
 
-    @staticmethod
-    def merge_relocations(path):
+    def is_new_region_overlapping(self, start, end, incorporated_segments_ctg):
+        "Checks if the specified region overlaps any existing regions in incorporated segments"
+        for segment in incorporated_segments_ctg:
+            if start <= segment.end and segment.start <= end:
+                return True
+        return False
+
+
+    def merge_relocations(self, path, incorporated_segments):
         "If a path has adjacent collinear intervals of the same contig, merge them"
         if len(path) < 2:
             return path
@@ -307,11 +314,25 @@ class Ntjoin:
         for node_i, node_j in zip(path, path[1:]):
             if node_i.contig == node_j.contig:
                 if node_i.ori == "+" and node_j.ori == "+" and node_i.end <= node_j.start:
+                    if self.is_new_region_overlapping(node_i.start, node_j.end,
+                                                      incorporated_segments[node_i.contig]):
+                        return_path.append(node_j)
+                        continue
                     return_path[-1].end = node_j.end
                     return_path[-1].terminal_mx = node_j.terminal_mx
+                    incorporated_segments[node_i.contig].append(Bed(contig=node_i.contig,
+                                                                    start=node_i.start,
+                                                                    end=node_j.end))
                 elif node_i.ori == "-" and node_j.ori == "-" and node_i.start >= node_j.end:
+                    if self.is_new_region_overlapping(node_j.start, node_i.end,
+                                                      incorporated_segments[node_i.contig]):
+                        return_path.append(node_j)
+                        continue
                     return_path[-1].start = node_j.start
                     return_path[-1].first_mx = node_j.first_mx
+                    incorporated_segments[node_i.contig].append(Bed(contig=node_i.contig,
+                                                                    start=node_j.start,
+                                                                    end=node_i.end))
                 else:
                     return_path.append(node_j)
             else:
@@ -361,8 +382,6 @@ class Ntjoin:
         for u, v in zip(out_path, out_path[1:]):
             gap_size = self.calculate_gap_size(u, v, component_graph, assembly)
             u.set_gap_size(gap_size)
-
-        out_path = self.merge_relocations(out_path)
 
         return out_path
 
@@ -439,6 +458,16 @@ class Ntjoin:
                     return_paths.append(ctg_path)
         return return_paths
 
+    @staticmethod
+    def tally_incorporated_segments(incorporated_list, path):
+        "Keep track of extents incorporated into path"
+        for path_node in path:
+            if path_node.contig not in incorporated_list:
+                incorporated_list[path_node.contig] = []
+            incorporated_list.append(Bed(contig=path_node.contig,
+                                         start=path_node.start,
+                                         end=path_node.end))
+
 
     def find_paths(self, graph):
         "Finds paths per input assembly file"
@@ -452,8 +481,16 @@ class Ntjoin:
         else:
             with multiprocessing.Pool(self.args.t) as pool:
                 paths = pool.map(self.find_paths_process, components)
-        paths_return = [path for path_list in paths for path in path_list]
-        return paths_return
+
+        paths_return = []
+        incorporated_segments = {}
+        for path_list in paths:
+            for path in path_list:
+                paths_return.append(path)
+                self.tally_incorporated_segments(incorporated_segments, path)
+
+
+        return paths_return, incorporated_segments
 
 
     @staticmethod
@@ -489,7 +526,7 @@ class Ntjoin:
             return True
         return False
 
-    def adjust_paths(self, paths, scaffolds):
+    def adjust_paths(self, paths, scaffolds, incorporated_segments):
         "Given the found paths, removes duplicate regions to avoid cutting sequences"
         contig_regions = {}  # contig_id -> [list of PathNode]
         for path in paths:
@@ -504,7 +541,7 @@ class Ntjoin:
             for i, node in enumerate(path):
                 if not self.is_subsumed(i, path, contig_regions):
                     new_path.append(node)
-            new_path = self.merge_relocations(new_path)
+            new_path = self.merge_relocations(new_path, incorporated_segments)
             intermediate_paths.append(new_path)
 
         new_paths = []
@@ -680,7 +717,7 @@ class Ntjoin:
                     path[i].set_gap_size(0)
                 break
 
-    def print_scaffolds(self, paths):
+    def print_scaffolds(self, paths, previous_incorporated_segments):
         "Given the paths, print out the scaffolds fasta"
         print(datetime.datetime.today(), ": Printing output scaffolds", file=sys.stdout)
         assembly = self.args.s
@@ -700,6 +737,8 @@ class Ntjoin:
         for path in paths:
             sequences = []
             path_segments = []
+
+            path = self.merge_relocations(path, previous_incorporated_segments)
 
             self.check_terminal_node_gap_zero(path)
 
@@ -897,10 +936,10 @@ class Ntjoin:
         Ntjoin.scaffolds = scaffolds
 
         # Find the paths through the graph
-        paths = self.find_paths(graph)
+        paths, incorporated_segments = self.find_paths(graph)
 
         if self.args.no_cut:
-            paths = self.adjust_paths(paths, scaffolds)
+            paths = self.adjust_paths(paths, scaffolds, incorporated_segments)
 
         # Print the final scaffolds
         self.print_scaffolds(paths)
