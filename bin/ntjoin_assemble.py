@@ -102,9 +102,11 @@ class OverlapRegion:
 
         # Double check if any still overlap. If so, adjust smaller of the regions.
         sorted_regions = sorted([(b, a) for b, a in return_regions.items() if a is not None], key=lambda x: x[1])
-        for i in range(0, len(sorted_regions)-1):
-            region1_before, region2_before = sorted_regions[i][0], sorted_regions[i+1][0]
-            region1_after, region2_after = sorted_regions[i][1], sorted_regions[i+1][1]
+        i, j = 0, 1
+        while j < len(sorted_regions)-1:
+        #for i in range(0, len(sorted_regions)-1):
+            region1_before, region2_before = sorted_regions[i][0], sorted_regions[j][0]
+            region1_after, region2_after = sorted_regions[i][1], sorted_regions[j][1]
             if region1_after is None or region2_after is None:
                 continue
             if self.are_overlapping(region1_after, region2_after):
@@ -113,6 +115,8 @@ class OverlapRegion:
                     return_regions[region1_before] = None
                 elif self.is_subsumed(region2_after, region1_after):
                     return_regions[region2_before] = None
+                    j += 1 # since removed region 2, don't increment i to catch potential overlaps
+                    continue
                 elif (region1_after.end - region1_after.start) > (region2_after.end - region2_after.start):
                     # Adjust region 2 start
                     return_regions[region2_before] = Bed(contig=region2_after.contig, start=region1_after.end + 1,
@@ -125,6 +129,7 @@ class OverlapRegion:
                     print("Unexpected case!")
                     print(region1_before, region2_before, region1_after, region1_after)
             i += 1
+            j += 1
 
         return return_regions
 
