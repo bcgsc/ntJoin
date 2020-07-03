@@ -121,7 +121,9 @@ class OverlapRegion:
                     # Adjust region 1 end
                     return_regions[region1_before] = Bed(contig=region1_after.contig, start=region1_after.start,
                                                          end=region2_after.start - 1)
-
+                else:
+                    print("Unexpected case!")
+                    print(region1_before, region2_before, region1_after, region1_after)
             i += 1
 
         return return_regions
