@@ -796,12 +796,13 @@ class Ntjoin:
         for path_node in path:
             if path_node.contig in intersecting_regions:
                 node_bed = Bed(contig=path_node.contig, start=path_node.start, end=path_node.end)
-                new_bed = intersecting_regions[path_node.contig][node_bed]
-                if new_bed is None:
-                    continue
-                if new_bed != node_bed:
-                    path_node.start = new_bed.start
-                    path_node.end = new_bed.end
+                if node_bed in intersecting_regions[path_node.contig]:
+                    new_bed = intersecting_regions[path_node.contig][node_bed]
+                    if new_bed is None:
+                        continue
+                    if new_bed != node_bed:
+                        path_node.start = new_bed.start
+                        path_node.end = new_bed.end
             new_path.append(path_node)
 
         return new_path
