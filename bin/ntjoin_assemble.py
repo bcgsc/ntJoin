@@ -384,10 +384,12 @@ class Ntjoin:
         return gap_size
 
     @staticmethod
-    def is_new_region_overlapping(start, end, incorporated_segments_ctg):
+    def is_new_region_overlapping(start, end, node_i, node_j, incorporated_segments_ctg):
         "Checks if the specified region overlaps any existing regions in incorporated segments"
         for segment in incorporated_segments_ctg:
-            if start <= segment.end and segment.start <= end:
+            if start <= segment.end and segment.start <= end and \
+                    (segment.start != node_i.start and segment.end != node_i.end) and \
+                    (segment.start != node_j.start and segment.end != node_j.end):
                 return True
         return False
 
@@ -400,7 +402,7 @@ class Ntjoin:
         for node_i, node_j in zip(path, path[1:]):
             if node_i.contig == node_j.contig:
                 if node_i.ori == "+" and node_j.ori == "+" and node_i.end <= node_j.start:
-                    if self.is_new_region_overlapping(node_i.start, node_j.end,
+                    if self.is_new_region_overlapping(node_i.start, node_j.end, node_i, node_j,
                                                       incorporated_segments[node_i.contig]):
                         return_path.append(node_j)
                         continue
@@ -410,7 +412,7 @@ class Ntjoin:
                                                                     start=node_i.start,
                                                                     end=node_j.end))
                 elif node_i.ori == "-" and node_j.ori == "-" and node_i.start >= node_j.end:
-                    if self.is_new_region_overlapping(node_j.start, node_i.end,
+                    if self.is_new_region_overlapping(node_j.start, node_i.end, node_i, node_j,
                                                       incorporated_segments[node_i.contig]):
                         return_path.append(node_j)
                         continue
