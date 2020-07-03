@@ -103,8 +103,8 @@ class OverlapRegion:
         # Double check if any still overlap. If so, adjust smaller of the regions.
         sorted_regions = sorted([(b, a) for b, a in return_regions.items() if a is not None], key=lambda x: x[1])
         i, j = 0, 1
-        print(sorted_regions[0].contig, sorted_regions)
-        while j < len(sorted_regions)-1:
+        print(sorted_regions[0][0], sorted_regions)
+        while j < len(sorted_regions):
         #for i in range(0, len(sorted_regions)-1):
             region1_before, region2_before = sorted_regions[i][0], sorted_regions[j][0]
             region1_after, region2_after = sorted_regions[i][1], sorted_regions[j][1]
