@@ -736,8 +736,8 @@ class Ntjoin:
         new_path = []
         for path_node in path:
             if path_node.contig in intersecting_regions:
-                if path_node.start != intersecting_regions[path_node.contig].start or \
-                    path_node.end != intersecting_regions[path_node.contig].end:
+                if path_node.start != intersecting_regions[path_node.contig].best_region.start or \
+                    path_node.end != intersecting_regions[path_node.contig].best_region.end:
                     continue
             new_path.append(path_node)
 
