@@ -734,13 +734,50 @@ class Ntjoin:
     def remove_overlapping_regions(self, path, intersecting_regions):
         "Remove any regions that are overlapping, retaining longest"
         new_path = []
+        intersection_regions = {} #ctg -> [(start, end)]
         for path_node in path:
             if path_node.contig in intersecting_regions:
-                if path_node.start != intersecting_regions[path_node.contig].best_region.start or \
-                    path_node.end != intersecting_regions[path_node.contig].best_region.end:
-                    continue
+                if path_node.contig not in intersection_regions:
+                    intersection_regions[path_node.contig] = []
+                best_start, best_end = intersecting_regions[path_node.contig].best_region.start, \
+                                       intersecting_regions[path_node.contig].best_region.end
+                if path_node.start != best_start or \
+                    path_node.end != best_end: # it isn't the best one
+                    if path_node.start >= best_start and path_node.end <= best_end:
+                        #This is a subsumed path
+                        continue
+                    else:
+                        if path_node.start <= best_end and best_start <= path_node.end:
+                            #Overlaps with the best one
+                            if path_node.start < best_start:
+                                path_node.end = best_start - 1
+                            elif path_node.end > best_end:
+                                path_node.start = best_end + 1
+                intersection_regions[path_node.contig].append((path_node.start, path_node.end))
+
             new_path.append(path_node)
 
+        # Go through again, checking for intersecting regions
+        still_overlapping = {}
+        for contig in intersection_regions:
+            sorted_regions = sorted(intersection_regions[contig])
+            for i, j in zip(sorted_regions, sorted_regions[1:]):
+                i_start, i_end = i
+                j_start, j_end = j
+                if i_start <= j_end and j_start <= i_end:
+                    # They are overlapping still
+                    still_overlapping.add(contig)
+
+        if still_overlapping:
+            for path_node in path:
+                if path_node.contig in still_overlapping:
+                    best_start, best_end = intersecting_regions[path_node.contig].best_region.start, \
+                                           intersecting_regions[path_node.contig].best_region.end
+                    if path_node.start != best_start or \
+                        path_node.end != best_end: # it isn't the best one
+                            continue
+                new_path.append(path_node)
+        
         return new_path
 
 
