@@ -837,7 +837,7 @@ class Ntjoin:
             for bed_entry in incorporated_segments[ctg]:
                 incorporated_bed_list.append(bed_entry)
         incorporated_bed_str = "\n".join(["%s\t%s\t%s" % (chrom, s, e)
-                                          for chrom, s, e in incorporated_segments])
+                                          for chrom, s, e in incorporated_bed_list])
         incorporated_segments_bed = pybedtools.BedTool(incorporated_bed_str,
                                                        from_string=True).sort()
         bed_intersect = incorporated_segments_bed.intersect(b=incorporated_segments_bed,
