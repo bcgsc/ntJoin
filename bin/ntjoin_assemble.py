@@ -83,7 +83,6 @@ class OverlapRegion:
         if not self.regions or self.best_region is None:
             return None
         for bed_region in self.regions:
-            new_region = bed_region
             if bed_region == self.best_region:
                 return_regions[bed_region] = bed_region
             elif self.is_subsumed(bed_region, self.best_region):
@@ -92,9 +91,11 @@ class OverlapRegion:
             elif self.are_overlapping(bed_region, self.best_region):
                 # Overlaps with best region, but isn't subsumed
                 if bed_region.start <= self.best_region.start:
-                    new_region.end = self.best_region.start - 1
+                    new_region = Bed(contig=bed_region.contig, start=bed_region.start,
+                                     end=self.best_region.start - 1)
                 elif bed_region.end >= self.best_region.end:
-                    new_region.start = self.best_region.end + 1
+                    new_region = Bed(contig=bed_region.contig, start=self.best_region.end + 1,
+                                     end=bed_region.end)
                 return_regions[bed_region] = new_region
             else:
                 return_regions[bed_region] = bed_region
