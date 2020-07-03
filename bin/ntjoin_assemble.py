@@ -115,10 +115,12 @@ class OverlapRegion:
                     return_regions[region2_before] = None
                 elif (region1_after.end - region1_after.start) > (region2_after.end - region2_after.start):
                     # Adjust region 2 start
-                    return_regions[region2_before].start = region1_after.end + 1
+                    return_regions[region2_before] = Bed(contig=region2_after.contig, start=region1_after.end + 1,
+                                                         end=region2_after.end)
                 elif (region1_after.end - region1_after.start) <= (region2_after.end - region2_after.start):
                     # Adjust region 1 end
-                    return_regions[region1_before].end = region2_after.start - 1
+                    return_regions[region1_before] = Bed(contig=region1_after.contig, start=region1_after.start,
+                                                         end=region2_after.start - 1)
 
             i += 1
 
