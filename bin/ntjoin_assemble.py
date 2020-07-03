@@ -51,6 +51,19 @@ class PathNode:
         return "Contig:%s\tOrientation:%s\tStart-End:%d-%d\tLength:%s\tFirstmx:%s\tLastmx:%s" \
                % (self.contig, self.ori, self.start, self.end, self.contig_size,
                   self.first_mx, self.terminal_mx)
+
+class OverlapRegion:
+    def __init__(self):
+        self.regions = []
+        self.best_region = None
+
+    def add_region(self, bed_region):
+        if self.best_region is None or \
+                                bed_region.end - bed_region.start > \
+                                self.best_region.end - self.best_region.start:
+            self.best_region = bed_region
+        self.regions.append(bed_region)
+
 class Ntjoin:
     "ntJoin: Scaffolding assemblies using reference assemblies and minimizer graphs"
 
@@ -466,8 +479,8 @@ class Ntjoin:
             if path_node.contig not in incorporated_list:
                 incorporated_list[path_node.contig] = []
             incorporated_list[path_node.contig].append(Bed(contig=path_node.contig,
-                                         start=path_node.start,
-                                         end=path_node.end))
+                                                           start=path_node.start,
+                                                           end=path_node.end))
 
 
     def find_paths(self, graph):
@@ -718,7 +731,20 @@ class Ntjoin:
                     path[i].set_gap_size(0)
                 break
 
-    def print_scaffolds(self, paths, previous_incorporated_segments):
+    def remove_overlapping_regions(self, path, intersecting_regions):
+        "Remove any regions that are overlapping, retaining longest"
+        new_path = []
+        for path_node in path:
+            if path_node.contig in intersecting_regions:
+                if path_node.start != intersecting_regions[path_node.contig].start or \
+                    path_node.end != intersecting_regions[path_node.contig].end:
+                    continue
+            new_path.append(path_node)
+
+        return new_path
+
+
+    def print_scaffolds(self, paths, previous_incorporated_segments, intersecting_regions):
         "Given the paths, print out the scaffolds fasta"
         print(datetime.datetime.today(), ": Printing output scaffolds", file=sys.stdout)
         assembly = self.args.s
@@ -740,6 +766,8 @@ class Ntjoin:
             path_segments = []
 
             path = self.merge_relocations(path, previous_incorporated_segments)
+
+            path = self.remove_overlapping_regions(path, intersecting_regions)
 
             self.check_terminal_node_gap_zero(path)
 
@@ -801,6 +829,29 @@ class Ntjoin:
         pathfile.close()
         if self.args.agp:
             agpfile.close()
+
+    def tally_intersecting_segments(self, incorporated_segments):
+        "Tally ctgs with intersecting segments, and keep track of 'best'"
+        incorporated_bed_list = []
+        for ctg in incorporated_segments:
+            for bed_entry in incorporated_segments[ctg]:
+                incorporated_bed_list.append(bed_entry)
+        incorporated_bed_str = "\n".join(["%s\t%s\t%s" % (chrom, s, e)
+                                          for chrom, s, e in incorporated_segments])
+        incorporated_segments_bed = pybedtools.BedTool(incorporated_bed_str,
+                                                       from_string=True).sort()
+        bed_intersect = incorporated_segments_bed.intersect(b=incorporated_segments_bed,
+                                                            c=True, wa=True)
+
+        overlap_regions = {}
+
+        for bed in bed_intersect:
+            if bed.count > 1:
+                if bed.chrom not in overlap_regions:
+                    overlap_regions[bed.chrom] = OverlapRegion()
+                overlap_regions[bed.chrom].add_region(Bed(contig=bed.chrom, start=bed.start, end=bed.end))
+
+        return overlap_regions
 
     @staticmethod
     def find_mx_min_max(graph, target):
@@ -942,8 +993,11 @@ class Ntjoin:
         if self.args.no_cut:
             paths = self.adjust_paths(paths, scaffolds, incorporated_segments)
 
+        # Tally any regions that overlap
+        intersecting_regions = self.tally_intersecting_segments(incorporated_segments)
+
         # Print the final scaffolds
-        self.print_scaffolds(paths, incorporated_segments)
+        self.print_scaffolds(paths, incorporated_segments, intersecting_regions)
 
         print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
 
