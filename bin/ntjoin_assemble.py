@@ -547,6 +547,8 @@ class Ntjoin:
     @staticmethod
     def tally_incorporated_segments(incorporated_list, path):
         "Keep track of extents incorporated into path"
+        if len(path) < 2:
+            return
         for path_node in path:
             if path_node.contig not in incorporated_list:
                 incorporated_list[path_node.contig] = []
