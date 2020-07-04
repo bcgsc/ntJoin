@@ -574,7 +574,12 @@ class Ntjoin:
                 paths_return.append(path)
                 self.tally_incorporated_segments(incorporated_segments, path)
 
-        return paths_return, incorporated_segments
+        paths_return_merged = []
+        for path in paths_return:
+            path = self.merge_relocations(path, incorporated_segments)
+            paths_return_merged.append(path)
+
+        return paths_return_merged, incorporated_segments
 
 
     @staticmethod
