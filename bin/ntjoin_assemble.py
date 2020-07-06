@@ -100,7 +100,7 @@ class OverlapRegion:
             else:
                 return_regions[bed_region] = bed_region
 
-        # Double check if any still overlap. If so, adjust smaller of the regions.
+        # Double check if any still overlaps. If so, adjust smaller of the overlapping regions.
         existing_overlaps = True
         while existing_overlaps:
             sorted_regions = sorted([(b, a) for b, a in return_regions.items() if a is not None], key=lambda x: x[1])
@@ -121,7 +121,6 @@ class OverlapRegion:
                     elif self.is_subsumed(region2_after, region1_after):
                         # Region 2 is subsumed in region 1 - Remove region 2
                         return_regions[region2_before] = None
-                        continue
                     elif (region1_after.end - region1_after.start) > (region2_after.end - region2_after.start):
                         # Adjust region 2 start
                         return_regions[region2_before] = Bed(contig=region2_after.contig, start=region1_after.end + 1,
@@ -551,7 +550,7 @@ class Ntjoin:
 
     @staticmethod
     def tally_incorporated_segments(incorporated_list, path):
-        "Keep track of extents incorporated into path"
+        "Keep track of contig segments incorporated into path"
         if len(path) < 2:
             return
         for path_node in path:
@@ -623,7 +622,7 @@ class Ntjoin:
         return False
 
     def adjust_paths(self, paths, scaffolds, incorporated_segments):
-        "Given the found paths, removes duplicate regions to avoid cutting sequences"
+        "Given the found paths, removes duplicate regions to avoid cutting sequences (no_cut=True option)"
         contig_regions = {}  # contig_id -> [list of PathNode]
         for path in paths:
             for node in path:
