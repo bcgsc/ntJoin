@@ -396,37 +396,54 @@ class Ntjoin:
         return False
 
 
-    def merge_relocations(self, path, incorporated_segments):
+    def merge_relocations(self, path):
         "If a path has adjacent collinear intervals of the same contig, merge them"
         if len(path) < 2:
             return path
         return_path = [path[0]]
+        to_remove_segments = set() # Set of BED files to remove from incorporated segments (were merged)
         for node_i, node_j in zip(path, path[1:]):
             if node_i.contig == node_j.contig:
                 if node_i.ori == "+" and node_j.ori == "+" and node_i.end <= node_j.start:
                     if self.is_new_region_overlapping(node_i.start, node_j.end, node_i, node_j,
-                                                      incorporated_segments[node_i.contig]):
+                                                      Ntjoin.incorporated_segments[node_i.contig]):
                         return_path.append(node_j)
                         continue
                     return_path[-1].end = node_j.end
                     return_path[-1].terminal_mx = node_j.terminal_mx
-                    incorporated_segments[node_i.contig].append(Bed(contig=node_i.contig,
-                                                                    start=node_i.start,
-                                                                    end=node_j.end))
+                    Ntjoin.incorporated_segments[node_i.contig].append(Bed(contig=node_i.contig,
+                                                                           start=node_i.start,
+                                                                           end=node_j.end))
+                    to_remove_segments.add(Bed(contig=node_i.contig, start=node_i.start, end=node_i.end))
+                    to_remove_segments.add(Bed(contig=node_j.contig, start=node_j.start, end=node_j.end))
                 elif node_i.ori == "-" and node_j.ori == "-" and node_i.start >= node_j.end:
                     if self.is_new_region_overlapping(node_j.start, node_i.end, node_i, node_j,
-                                                      incorporated_segments[node_i.contig]):
+                                                      Ntjoin.incorporated_segments[node_i.contig]):
                         return_path.append(node_j)
                         continue
                     return_path[-1].start = node_j.start
                     return_path[-1].first_mx = node_j.first_mx
-                    incorporated_segments[node_i.contig].append(Bed(contig=node_i.contig,
-                                                                    start=node_j.start,
-                                                                    end=node_i.end))
+                    Ntjoin.incorporated_segments[node_i.contig].append(Bed(contig=node_i.contig,
+                                                                           start=node_j.start,
+                                                                           end=node_i.end))
+                    to_remove_segments.add(Bed(contig=node_i.contig, start=node_i.start, end=node_i.end))
+                    to_remove_segments.add(Bed(contig=node_j.contig, start=node_j.start, end=node_j.end))
                 else:
                     return_path.append(node_j)
             else:
                 return_path.append(node_j)
+
+        ctgs_remove_segments = {node.contig for node in to_remove_segments}
+        new_incorporated_segments = {}
+        for contig in Ntjoin.incorporated_segments:
+            if contig in ctgs_remove_segments:
+                new_list = [segment for segment in Ntjoin.incorporated_segments[contig] if
+                            segment not in to_remove_segments]
+                new_incorporated_segments[contig] = new_list
+            else:
+                new_incorporated_segments[contig] = Ntjoin.incorporated_segments[contig]
+
+        Ntjoin.incorporated_segments = new_incorporated_segments
 
         return return_path
 
@@ -580,9 +597,11 @@ class Ntjoin:
                 paths_return.append(path)
                 self.tally_incorporated_segments(incorporated_segments, path)
 
+        Ntjoin.incorporated_segments = incorporated_segments
+
         paths_return_merged = []
         for path in paths_return:
-            path = self.merge_relocations(path, incorporated_segments)
+            path = self.merge_relocations(path)
             paths_return_merged.append(path)
 
         return paths_return_merged, incorporated_segments
@@ -621,7 +640,7 @@ class Ntjoin:
             return True
         return False
 
-    def adjust_paths(self, paths, scaffolds, incorporated_segments):
+    def adjust_paths(self, paths, scaffolds):
         "Given the found paths, removes duplicate regions to avoid cutting sequences (no_cut=True option)"
         contig_regions = {}  # contig_id -> [list of PathNode]
         for path in paths:
@@ -636,7 +655,7 @@ class Ntjoin:
             for i, node in enumerate(path):
                 if not self.is_subsumed(i, path, contig_regions):
                     new_path.append(node)
-            new_path = self.merge_relocations(new_path, incorporated_segments)
+            new_path = self.merge_relocations(new_path)
             intermediate_paths.append(new_path)
 
         new_paths = []
@@ -831,7 +850,7 @@ class Ntjoin:
         return new_path
 
 
-    def print_scaffolds(self, paths, previous_incorporated_segments, intersecting_regions):
+    def print_scaffolds(self, paths, intersecting_regions):
         "Given the paths, print out the scaffolds fasta"
         print(datetime.datetime.today(), ": Printing output scaffolds", file=sys.stdout)
         assembly = self.args.s
@@ -852,7 +871,7 @@ class Ntjoin:
             sequences = []
             path_segments = []
 
-            path = self.merge_relocations(path, previous_incorporated_segments)
+            path = self.merge_relocations(path)
 
             path = self.remove_overlapping_regions(path, intersecting_regions)
 
@@ -918,11 +937,11 @@ class Ntjoin:
             agpfile.close()
 
     @staticmethod
-    def tally_intersecting_segments(incorporated_segments):
+    def tally_intersecting_segments():
         "Tally ctgs with intersecting segments, and keep track of 'best'"
         incorporated_bed_list = []
-        for ctg in incorporated_segments:
-            for bed_entry in incorporated_segments[ctg]:
+        for ctg in Ntjoin.incorporated_segments:
+            for bed_entry in Ntjoin.incorporated_segments[ctg]:
                 incorporated_bed_list.append(bed_entry)
         incorporated_bed_str = "\n".join(["%s\t%s\t%s" % (chrom, s, e)
                                           for chrom, s, e in incorporated_bed_list])
@@ -1082,14 +1101,16 @@ class Ntjoin:
         # Find the paths through the graph
         paths, incorporated_segments = self.find_paths(graph)
 
+        Ntjoin.incorporated_segments = incorporated_segments
+
         if self.args.no_cut:
-            paths = self.adjust_paths(paths, scaffolds, incorporated_segments)
+            paths = self.adjust_paths(paths, scaffolds)
 
         # Tally any regions that overlap
-        intersecting_regions = self.tally_intersecting_segments(incorporated_segments)
+        intersecting_regions = self.tally_intersecting_segments()
 
         # Print the final scaffolds
-        self.print_scaffolds(paths, incorporated_segments, intersecting_regions)
+        self.print_scaffolds(paths, intersecting_regions)
 
         print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
 
