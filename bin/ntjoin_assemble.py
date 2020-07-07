@@ -411,6 +411,7 @@ class Ntjoin:
                         continue
                     return_path[-1].end = node_j.end
                     return_path[-1].terminal_mx = node_j.terminal_mx
+                    return_path[-1].gap_size = node_j.gap_size
                     Ntjoin.incorporated_segments[node_i.contig].append(Bed(contig=node_i.contig,
                                                                            start=node_i.start,
                                                                            end=node_j.end))
@@ -423,6 +424,7 @@ class Ntjoin:
                         continue
                     return_path[-1].start = node_j.start
                     return_path[-1].first_mx = node_j.first_mx
+                    return_path[-1].gap_size = node_j.gap_size
                     Ntjoin.incorporated_segments[node_i.contig].append(Bed(contig=node_i.contig,
                                                                            start=node_j.start,
                                                                            end=node_i.end))
