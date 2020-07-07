@@ -401,7 +401,6 @@ class Ntjoin:
         if len(path) < 2:
             return path
         return_path = [path[0]]
-        to_remove_segments = set() # Set of BED files to remove from incorporated segments (were merged)
         for node_i, node_j in zip(path, path[1:]):
             if node_i.contig == node_j.contig:
                 if node_i.ori == "+" and node_j.ori == "+" and node_i.end <= node_j.start:
@@ -409,43 +408,39 @@ class Ntjoin:
                                                       Ntjoin.incorporated_segments[node_i.contig]):
                         return_path.append(node_j)
                         continue
+                    Ntjoin.incorporated_segments[node_i.contig].add(Bed(contig=return_path[-1].contig,
+                                                                        start=return_path[-1].start,
+                                                                        end=node_j.end))
+                    Ntjoin.incorporated_segments[node_i.contig].remove(Bed(contig=return_path[-1].contig,
+                                                                           start=return_path[-1].start,
+                                                                           end=return_path[-1].end))
+                    Ntjoin.incorporated_segments[node_j.contig].remove(Bed(contig=node_j.contig,
+                                                                           start=node_j.start,
+                                                                           end=node_j.end))
                     return_path[-1].end = node_j.end
                     return_path[-1].terminal_mx = node_j.terminal_mx
                     return_path[-1].gap_size = node_j.gap_size
-                    Ntjoin.incorporated_segments[node_i.contig].append(Bed(contig=node_i.contig,
-                                                                           start=node_i.start,
-                                                                           end=node_j.end))
-                    to_remove_segments.add(Bed(contig=node_i.contig, start=node_i.start, end=node_i.end))
-                    to_remove_segments.add(Bed(contig=node_j.contig, start=node_j.start, end=node_j.end))
                 elif node_i.ori == "-" and node_j.ori == "-" and node_i.start >= node_j.end:
                     if self.is_new_region_overlapping(node_j.start, node_i.end, node_i, node_j,
                                                       Ntjoin.incorporated_segments[node_i.contig]):
                         return_path.append(node_j)
                         continue
+                    Ntjoin.incorporated_segments[node_i.contig].add(Bed(contig=return_path[-1].contig,
+                                                                        start=node_j.start,
+                                                                        end=return_path[-1].end))
+                    Ntjoin.incorporated_segments[node_i.contig].remove(Bed(contig=return_path[-1].contig,
+                                                                           start=return_path[-1].start,
+                                                                           end=return_path[-1].end))
+                    Ntjoin.incorporated_segments[node_j.contig].remove(Bed(contig=node_j.contig,
+                                                                           start=node_j.start,
+                                                                           end=node_j.end))
                     return_path[-1].start = node_j.start
                     return_path[-1].first_mx = node_j.first_mx
                     return_path[-1].gap_size = node_j.gap_size
-                    Ntjoin.incorporated_segments[node_i.contig].append(Bed(contig=node_i.contig,
-                                                                           start=node_j.start,
-                                                                           end=node_i.end))
-                    to_remove_segments.add(Bed(contig=node_i.contig, start=node_i.start, end=node_i.end))
-                    to_remove_segments.add(Bed(contig=node_j.contig, start=node_j.start, end=node_j.end))
                 else:
                     return_path.append(node_j)
             else:
                 return_path.append(node_j)
-
-        ctgs_remove_segments = {node.contig for node in to_remove_segments}
-        new_incorporated_segments = {}
-        for contig in Ntjoin.incorporated_segments:
-            if contig in ctgs_remove_segments:
-                new_list = [segment for segment in Ntjoin.incorporated_segments[contig] if
-                            segment not in to_remove_segments]
-                new_incorporated_segments[contig] = new_list
-            else:
-                new_incorporated_segments[contig] = Ntjoin.incorporated_segments[contig]
-
-        Ntjoin.incorporated_segments = new_incorporated_segments
 
         return return_path
 
@@ -574,10 +569,10 @@ class Ntjoin:
             return
         for path_node in path:
             if path_node.contig not in incorporated_list:
-                incorporated_list[path_node.contig] = []
-            incorporated_list[path_node.contig].append(Bed(contig=path_node.contig,
-                                                           start=path_node.start,
-                                                           end=path_node.end))
+                incorporated_list[path_node.contig] = set()
+            incorporated_list[path_node.contig].add(Bed(contig=path_node.contig,
+                                                        start=path_node.start,
+                                                        end=path_node.end))
 
     def find_paths(self, graph):
         "Finds paths per input assembly file"
