@@ -26,6 +26,8 @@ minimizeReads(
     const size_t k,
     const size_t w,
     const size_t t,
+    const bool withReadId,
+    const bool withBx,
     const bool withPositions,
     const bool withStrands,
     const bool verbose)
@@ -37,7 +39,17 @@ minimizeReads(
 	outputWorker.start();
 
 	auto minimizeWorkers = std::vector<MinimizeWorker>(
-	    t, MinimizeWorker(k, w, withPositions, withStrands, verbose, inputWorker, outputWorker));
+	    t,
+	    MinimizeWorker(
+	        k,
+	        w,
+	        withReadId,
+	        withBx,
+	        withPositions,
+	        withStrands,
+	        verbose,
+	        inputWorker,
+	        outputWorker));
 	for (auto& worker : minimizeWorkers) {
 		worker.start();
 	}
@@ -62,6 +74,9 @@ printUsage(const std::string& progname)
 	          << "  -k K -w W [-v] [-o FILE] FILE...\n\n"
 	             "  -k K       use K as k-mer size\n"
 	             "  -w W       use W as sliding-window size\n"
+	             "  --id       include read name in the first output column\n"
+	             "  --bx       include barcode in the first (if --id is not provided)\n"
+	             "             or second (if --id is provided) column of the output\n"
 	             "  --pos      include minimizer positions in the output\n"
 	             "  --strand   include minimizer strand in the output\n"
 	             "  -v         enable verbose output\n"
@@ -85,14 +100,17 @@ main(int argc, char* argv[])
 	bool failed = false;
 	bool w_set = false;
 	bool k_set = false;
-	static int withPositions = 0;
-	static int withStrands = 0;
+	int withReadId = 0;
+	int withBx = 0;
+	int withPositions = 0;
+	int withStrands = 0;
 	char* end = nullptr;
 	std::string outfile("/dev/stdout");
-	static const struct option longopts[] = { { "pos", no_argument, &withPositions, 1 },
-		                                      { "strand", no_argument, &withStrands, 1 },
-		                                      { "help", no_argument, &help, 1 },
-		                                      { nullptr, 0, nullptr, 0 } };
+	const struct option longopts[] = {
+		{ "id", no_argument, &withReadId, 1 },     { "bx", no_argument, &withBx, 1 },
+		{ "pos", no_argument, &withPositions, 1 }, { "strand", no_argument, &withStrands, 1 },
+		{ "help", no_argument, &help, 1 },         { nullptr, 0, nullptr, 0 }
+	};
 	while ((c = getopt_long(argc, argv, "k:w:o:vt:", longopts, &optindex)) != -1) {
 		switch (c) {
 		case 0:
@@ -158,6 +176,8 @@ main(int argc, char* argv[])
 		    k,
 		    w,
 		    t,
+		    withReadId,
+		    withBx,
 		    withPositions,
 		    withStrands,
 		    verbose);

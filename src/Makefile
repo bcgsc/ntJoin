@@ -21,18 +21,18 @@ clang-format:
 
 # Fix white-space errors with clang-format.
 fix:
-	for i in *.cc; do clang-format -i -style=file $$i; done
+	for i in *.cc include/*.h; do clang-format -i -style=file $$i; done
 
 check: check-index-fasta check-index-pos-fasta check-index-pos-strand-fasta check-index-fastq
 
 check-index-fasta: all
-	./indexlr -t16 -k100 -w5 data/mt.fa | diff -q - data/mt.physlr.tsv.good
+	./indexlr -t16 -k100 -w5 --id data/mt.fa | diff -q - data/mt.physlr.tsv.good
 
 check-index-pos-fasta: all
-	./indexlr -t16 -k100 -w5 --pos data/mt.fa | diff -q - data/mt.pos.physlr.tsv.good
+	./indexlr -t16 -k100 -w5 --id --pos data/mt.fa | diff -q - data/mt.pos.physlr.tsv.good
 
 check-index-pos-strand-fasta: all
-	./indexlr -t16 -k100 -w5 --pos --strand data/mt.fa | diff -q - data/mt.pos.strand.physlr.tsv.good
+	./indexlr -t16 -k100 -w5 --id --pos --strand data/mt.fa | diff -q - data/mt.pos.strand.physlr.tsv.good
 
 check-index-fastq: all
-	./indexlr -t16 -k100 -w5 data/tiny.fq | diff -q - data/tiny.physlr.tsv.good
+	./indexlr -t16 -k100 -w5 --id --bx data/tiny.fq | diff -q - data/tiny.physlr.tsv.good
