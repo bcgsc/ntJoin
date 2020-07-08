@@ -79,6 +79,8 @@ class MinimizeWorker
 	MinimizeWorker(
 	    size_t k,
 	    size_t w,
+	    bool withReadId,
+	    bool withBx,
 	    bool withPositions,
 	    bool withStrands,
 	    bool verbose,
@@ -86,6 +88,8 @@ class MinimizeWorker
 	    OutputWorker& outputWorker)
 	  : k(k)
 	  , w(w)
+	  , withReadId(withReadId)
+	  , withBx(withBx)
 	  , withPositions(withPositions)
 	  , withStrands(withStrands)
 	  , verbose(verbose)
@@ -96,6 +100,8 @@ class MinimizeWorker
 	MinimizeWorker(const MinimizeWorker& worker)
 	  : k(worker.k)
 	  , w(worker.w)
+	  , withReadId(worker.withReadId)
+	  , withBx(worker.withBx)
 	  , withPositions(worker.withPositions)
 	  , withStrands(worker.withStrands)
 	  , verbose(worker.verbose)
@@ -106,6 +112,8 @@ class MinimizeWorker
 	MinimizeWorker(MinimizeWorker&& worker) noexcept
 	  : k(worker.k)
 	  , w(worker.w)
+	  , withReadId(worker.withReadId)
+	  , withBx(worker.withBx)
 	  , withPositions(worker.withPositions)
 	  , withStrands(worker.withStrands)
 	  , verbose(worker.verbose)
@@ -125,6 +133,8 @@ class MinimizeWorker
   private:
 	size_t k = 0;
 	size_t w = 0;
+	bool withReadId = false;
+	bool withBx = false;
 	bool withPositions = false;
 	bool withStrands = false;
 	bool verbose = false;
@@ -258,8 +268,7 @@ MinimizeWorker::work()
 				}
 				read.barcode.erase(0, 5);
 			} else {
-				// No barcode tag is present. For FASTA, use the sequence ID. For FASTQ, use NA.
-				read.barcode = inputWorker.fasta ? read.id : "NA";
+				read.barcode = "NA";
 			}
 
 			if (read.sequence.size() < k) {
@@ -285,8 +294,16 @@ MinimizeWorker::work()
 
 			auto minimizers = getMinimizers(hashes, w);
 
-			ss << read.barcode;
 			char sep = '\t';
+			if (withReadId) {
+				ss << read.id;
+			}
+			if (withBx) {
+				if (withReadId) {
+					ss << sep;
+				}
+				ss << read.barcode;
+			}
 			if (minimizers.empty()) {
 				ss << sep;
 			}
