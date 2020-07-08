@@ -51,6 +51,93 @@ class PathNode:
         return "Contig:%s\tOrientation:%s\tStart-End:%d-%d\tLength:%s\tFirstmx:%s\tLastmx:%s" \
                % (self.contig, self.ori, self.start, self.end, self.contig_size,
                   self.first_mx, self.terminal_mx)
+
+class OverlapRegion:
+    "Overlapping regions in a contig to fix"
+    def __init__(self):
+        self.regions = []
+        self.best_region = None
+
+    def add_region(self, bed_region):
+        "Add a new region to the overlapping set"
+        if self.best_region is None or \
+                        (bed_region.end - bed_region.start) > \
+                        (self.best_region.end - self.best_region.start):
+            self.best_region = bed_region
+        self.regions.append(bed_region)
+        assert bed_region.contig == self.best_region.contig
+
+    @staticmethod
+    def are_overlapping(region1, region2):
+        "Returns True if the given regions are overlapping"
+        return region1.start <= region2.end and region2.start <= region1.end
+
+    @staticmethod
+    def is_subsumed(region1, region2):
+        "Returns True is region 1 is subsumed in region2"
+        return region1.start >= region2.start and region1.end <= region2.end
+
+    def find_non_overlapping(self):
+        "Given overlapping regions, resolve to remove overlaps"
+        return_regions = {} # Bed -> (replacement Bed) or None
+        if not self.regions or self.best_region is None:
+            return None
+        for bed_region in self.regions:
+            if bed_region == self.best_region:
+                return_regions[bed_region] = bed_region
+            elif self.is_subsumed(bed_region, self.best_region):
+                # Subsumed region in the best region
+                return_regions[bed_region] = None
+            elif self.are_overlapping(bed_region, self.best_region):
+                # Overlaps with best region, but isn't subsumed
+                if bed_region.start <= self.best_region.start:
+                    new_region = Bed(contig=bed_region.contig, start=bed_region.start,
+                                     end=self.best_region.start - 1)
+                elif bed_region.end >= self.best_region.end:
+                    new_region = Bed(contig=bed_region.contig, start=self.best_region.end + 1,
+                                     end=bed_region.end)
+                return_regions[bed_region] = new_region
+            else:
+                return_regions[bed_region] = bed_region
+
+        # Double check if any still overlaps. If so, adjust smaller of the overlapping regions.
+        existing_overlaps = True
+        while existing_overlaps:
+            sorted_regions = sorted([(b, a) for b, a in return_regions.items() if a is not None], key=lambda x: x[1])
+            i, j = 0, 1
+            existing_overlaps = False
+            while j < len(sorted_regions):
+                region1_before, region2_before = sorted_regions[i][0], sorted_regions[j][0]
+                region1_after, region2_after = sorted_regions[i][1], sorted_regions[j][1]
+                if region1_after is None or region2_after is None:
+                    i += 1
+                    j += 1
+                    continue
+                if self.are_overlapping(region1_after, region2_after):
+                    existing_overlaps = True
+                    if self.is_subsumed(region1_after, region2_after):
+                        # Region 1 is subsumed in region 2 - Remove region 1
+                        return_regions[region1_before] = None
+                    elif self.is_subsumed(region2_after, region1_after):
+                        # Region 2 is subsumed in region 1 - Remove region 2
+                        return_regions[region2_before] = None
+                    elif (region1_after.end - region1_after.start) > (region2_after.end - region2_after.start):
+                        # Adjust region 2 start
+                        return_regions[region2_before] = Bed(contig=region2_after.contig, start=region1_after.end + 1,
+                                                             end=region2_after.end)
+                    elif (region1_after.end - region1_after.start) <= (region2_after.end - region2_after.start):
+                        # Adjust region 1 end
+                        return_regions[region1_before] = Bed(contig=region1_after.contig, start=region1_after.start,
+                                                             end=region2_after.start - 1)
+                    else:
+                        print("Unexpected case!")
+                        print(region1_before, region2_before, region1_after, region1_after)
+
+                i += 1
+                j += 1
+
+        return return_regions
+
 class Ntjoin:
     "ntJoin: Scaffolding assemblies using reference assemblies and minimizer graphs"
 
@@ -299,7 +386,17 @@ class Ntjoin:
         return gap_size
 
     @staticmethod
-    def merge_relocations(path):
+    def is_new_region_overlapping(start, end, node_i, node_j, incorporated_segments_ctg):
+        "Checks if the specified region overlaps any existing regions in incorporated segments"
+        for segment in incorporated_segments_ctg:
+            if start <= segment.end and segment.start <= end and \
+                    (segment.start != node_i.start and segment.end != node_i.end) and \
+                    (segment.start != node_j.start and segment.end != node_j.end):
+                return True
+        return False
+
+
+    def merge_relocations(self, path):
         "If a path has adjacent collinear intervals of the same contig, merge them"
         if len(path) < 2:
             return path
@@ -307,11 +404,39 @@ class Ntjoin:
         for node_i, node_j in zip(path, path[1:]):
             if node_i.contig == node_j.contig:
                 if node_i.ori == "+" and node_j.ori == "+" and node_i.end <= node_j.start:
+                    if self.is_new_region_overlapping(node_i.start, node_j.end, node_i, node_j,
+                                                      Ntjoin.incorporated_segments[node_i.contig]):
+                        return_path.append(node_j)
+                        continue
+                    Ntjoin.incorporated_segments[node_i.contig].add(Bed(contig=return_path[-1].contig,
+                                                                        start=return_path[-1].start,
+                                                                        end=node_j.end))
+                    Ntjoin.incorporated_segments[node_i.contig].remove(Bed(contig=return_path[-1].contig,
+                                                                           start=return_path[-1].start,
+                                                                           end=return_path[-1].end))
+                    Ntjoin.incorporated_segments[node_j.contig].remove(Bed(contig=node_j.contig,
+                                                                           start=node_j.start,
+                                                                           end=node_j.end))
                     return_path[-1].end = node_j.end
                     return_path[-1].terminal_mx = node_j.terminal_mx
+                    return_path[-1].gap_size = node_j.gap_size
                 elif node_i.ori == "-" and node_j.ori == "-" and node_i.start >= node_j.end:
+                    if self.is_new_region_overlapping(node_j.start, node_i.end, node_i, node_j,
+                                                      Ntjoin.incorporated_segments[node_i.contig]):
+                        return_path.append(node_j)
+                        continue
+                    Ntjoin.incorporated_segments[node_i.contig].add(Bed(contig=return_path[-1].contig,
+                                                                        start=node_j.start,
+                                                                        end=return_path[-1].end))
+                    Ntjoin.incorporated_segments[node_i.contig].remove(Bed(contig=return_path[-1].contig,
+                                                                           start=return_path[-1].start,
+                                                                           end=return_path[-1].end))
+                    Ntjoin.incorporated_segments[node_j.contig].remove(Bed(contig=node_j.contig,
+                                                                           start=node_j.start,
+                                                                           end=node_j.end))
                     return_path[-1].start = node_j.start
                     return_path[-1].first_mx = node_j.first_mx
+                    return_path[-1].gap_size = node_j.gap_size
                 else:
                     return_path.append(node_j)
             else:
@@ -361,8 +486,6 @@ class Ntjoin:
         for u, v in zip(out_path, out_path[1:]):
             gap_size = self.calculate_gap_size(u, v, component_graph, assembly)
             u.set_gap_size(gap_size)
-
-        out_path = self.merge_relocations(out_path)
 
         return out_path
 
@@ -439,6 +562,17 @@ class Ntjoin:
                     return_paths.append(ctg_path)
         return return_paths
 
+    @staticmethod
+    def tally_incorporated_segments(incorporated_list, path):
+        "Keep track of contig segments incorporated into path"
+        if len(path) < 2:
+            return
+        for path_node in path:
+            if path_node.contig not in incorporated_list:
+                incorporated_list[path_node.contig] = set()
+            incorporated_list[path_node.contig].add(Bed(contig=path_node.contig,
+                                                        start=path_node.start,
+                                                        end=path_node.end))
 
     def find_paths(self, graph):
         "Finds paths per input assembly file"
@@ -452,8 +586,22 @@ class Ntjoin:
         else:
             with multiprocessing.Pool(self.args.t) as pool:
                 paths = pool.map(self.find_paths_process, components)
-        paths_return = [path for path_list in paths for path in path_list]
-        return paths_return
+
+        paths_return = []
+        incorporated_segments = {}
+        for path_list in paths:
+            for path in path_list:
+                paths_return.append(path)
+                self.tally_incorporated_segments(incorporated_segments, path)
+
+        Ntjoin.incorporated_segments = incorporated_segments
+
+        paths_return_merged = []
+        for path in paths_return:
+            path = self.merge_relocations(path)
+            paths_return_merged.append(path)
+
+        return paths_return_merged, incorporated_segments
 
 
     @staticmethod
@@ -490,7 +638,7 @@ class Ntjoin:
         return False
 
     def adjust_paths(self, paths, scaffolds):
-        "Given the found paths, removes duplicate regions to avoid cutting sequences"
+        "Given the found paths, removes duplicate regions to avoid cutting sequences (no_cut=True option)"
         contig_regions = {}  # contig_id -> [list of PathNode]
         for path in paths:
             for node in path:
@@ -680,7 +828,26 @@ class Ntjoin:
                     path[i].set_gap_size(0)
                 break
 
-    def print_scaffolds(self, paths):
+    @staticmethod
+    def remove_overlapping_regions(path, intersecting_regions):
+        "Remove any regions that are overlapping, adjusting if needed"
+        new_path = []
+        for path_node in path:
+            if path_node.contig in intersecting_regions:
+                node_bed = Bed(contig=path_node.contig, start=path_node.start, end=path_node.end)
+                if node_bed in intersecting_regions[path_node.contig]:
+                    new_bed = intersecting_regions[path_node.contig][node_bed]
+                    if new_bed is None:
+                        continue
+                    if new_bed != node_bed:
+                        path_node.start = new_bed.start
+                        path_node.end = new_bed.end
+            new_path.append(path_node)
+
+        return new_path
+
+
+    def print_scaffolds(self, paths, intersecting_regions):
         "Given the paths, print out the scaffolds fasta"
         print(datetime.datetime.today(), ": Printing output scaffolds", file=sys.stdout)
         assembly = self.args.s
@@ -700,6 +867,10 @@ class Ntjoin:
         for path in paths:
             sequences = []
             path_segments = []
+
+            path = self.merge_relocations(path)
+
+            path = self.remove_overlapping_regions(path, intersecting_regions)
 
             self.check_terminal_node_gap_zero(path)
 
@@ -761,6 +932,34 @@ class Ntjoin:
         pathfile.close()
         if self.args.agp:
             agpfile.close()
+
+    @staticmethod
+    def tally_intersecting_segments():
+        "Tally ctgs with intersecting segments, and keep track of 'best'"
+        incorporated_bed_list = []
+        for ctg in Ntjoin.incorporated_segments:
+            for bed_entry in Ntjoin.incorporated_segments[ctg]:
+                incorporated_bed_list.append(bed_entry)
+        incorporated_bed_str = "\n".join(["%s\t%s\t%s" % (chrom, s, e)
+                                          for chrom, s, e in incorporated_bed_list])
+        incorporated_segments_bed = pybedtools.BedTool(incorporated_bed_str,
+                                                       from_string=True).sort()
+        bed_intersect = incorporated_segments_bed.intersect(b=incorporated_segments_bed,
+                                                            c=True, wa=True)
+
+        overlap_regions = {}
+
+        for bed in bed_intersect:
+            if bed.count > 1:
+                if bed.chrom not in overlap_regions:
+                    overlap_regions[bed.chrom] = OverlapRegion()
+                overlap_regions[bed.chrom].add_region(Bed(contig=bed.chrom, start=bed.start, end=bed.end))
+
+        overlap_regions_fix = {}
+        for overlap_contig in overlap_regions:
+            overlap_regions_fix[overlap_contig] = overlap_regions[overlap_contig].find_non_overlapping()
+
+        return overlap_regions_fix
 
     @staticmethod
     def find_mx_min_max(graph, target):
@@ -897,13 +1096,18 @@ class Ntjoin:
         Ntjoin.scaffolds = scaffolds
 
         # Find the paths through the graph
-        paths = self.find_paths(graph)
+        paths, incorporated_segments = self.find_paths(graph)
+
+        Ntjoin.incorporated_segments = incorporated_segments
 
         if self.args.no_cut:
             paths = self.adjust_paths(paths, scaffolds)
 
+        # Tally any regions that overlap
+        intersecting_regions = self.tally_intersecting_segments()
+
         # Print the final scaffolds
-        self.print_scaffolds(paths)
+        self.print_scaffolds(paths, intersecting_regions)
 
         print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
 
