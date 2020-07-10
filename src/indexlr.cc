@@ -169,6 +169,10 @@ main(int argc, char* argv[])
 		exit(EXIT_FAILURE);
 	}
 
+	if (!withReadId && !withBx) {
+		withReadId = 1;
+	}
+
 	for (auto& infile : infiles) {
 		minimizeReads(
 		    infile == "-" ? "/dev/stdin" : infile,
