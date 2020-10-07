@@ -10,17 +10,17 @@ lint: clang-format clang-tidy
 
 # Check the C++ source code for errors with clang-tidy.
 clang-tidy:
-	clang-tidy -warnings-as-errors='*' include/*.h *.cpp -- -std=c++11 -x c++ -I./include -I./vendor
+	clang-tidy -warnings-as-errors='*' *.cpp -- -std=c++11 -x c++ -Ibtllib/include
 
 # Check the C++ source code for white-space errors with clang-format.
 clang-format:
-	for i in *.cpp include/*.h; do clang-format -style=file $$i >$$i.fixed; done
-	for i in *.cpp include/*.h; do diff -su $$i $$i.fixed && rm -f $$i.fixed; done
+	for i in *.cpp; do clang-format -style=file $$i >$$i.fixed; done
+	for i in *.cpp; do diff -su $$i $$i.fixed && rm -f $$i.fixed; done
 	if ls *.fixed; then exit 1; fi
 
 # Fix white-space errors with clang-format.
 fix:
-	for i in *.cpp include/*.h; do clang-format -i -style=file $$i; done
+	for i in *.cpp; do clang-format -i -style=file $$i; done
 
 check: check-index-fasta check-index-pos-fasta check-index-pos-strand-fasta check-index-fastq
 
