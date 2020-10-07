@@ -372,13 +372,13 @@ class Ntjoin:
         try:
             assert a >= 0
             assert b >= 0
-        except:
+        except AssertionError as assert_error:
             print("ERROR: Gap distance estimation less than 0", "Vertex 1:", u, "Vertex 2:", v,
                   sep="\n")
             print("Minimizer positions:", Ntjoin.list_mx_info[cur_assembly][u_mx][1],
                   Ntjoin.list_mx_info[cur_assembly][v_mx][1])
             print("Estimated distance: ", mean_dist)
-            raise AssertionError
+            raise ValueError from assert_error
 
         gap_size = max(mean_dist - a - b, self.args.g)
         if self.args.G > 0:
