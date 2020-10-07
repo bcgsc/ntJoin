@@ -1,3 +1,4 @@
+
 #include "btllib/indexlr.hpp"
 #include "btllib/bloom_filter.hpp"
 
@@ -193,6 +194,17 @@ main(int argc, char* argv[])
     std::unique_ptr<std::thread> info_compiler(new std::thread([&]() {
       std::stringstream ss;
       while ((record = indexlr->get_minimizers())) {
+        if (with_id || (!with_id && !with_bx)) { ss << record.id << '\t'; }
+        if (with_bx) { ss << record.barcode << '\t'; }
+        int j = 0;
+        for (const auto& min : record.minimizers) {
+          if (j > 0) { ss << ' '; }
+          ss << min.hash2;
+          if (with_pos) { ss << ':' << min.pos; }
+          if (with_seq) { ss << ':' << min.seq; }
+          j++;
+        }
+        ss << '\n';
         if (record.num % OUTPUT_PERIOD == OUTPUT_PERIOD - 1) {
           max_seen_output_size = std::max(max_seen_output_size, ss.str().size());
           std::unique_lock<std::mutex> lock(output_queue_mutex);
@@ -203,18 +215,6 @@ main(int argc, char* argv[])
           std::string newstring;
           newstring.reserve(max_seen_output_size);
           ss.str(std::move(newstring));
-        } else {
-          if (with_id || (!with_id && !with_bx)) { ss << record.id << '\t'; }
-          if (with_bx) { ss << record.barcode << '\t'; }
-          int j = 0;
-          for (const auto& min : record.minimizers) {
-            if (j > 0) { ss << ' '; } 
-            ss << min.hash2;
-            if (with_pos) { ss << ':' << min.pos; }
-            if (with_seq) { ss << ':' << min.seq; }
-            j++;
-          }
-          ss << '\n';
         }
       }
       {
