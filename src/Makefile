@@ -1,5 +1,4 @@
-CXXFLAGS=-g -O3 -Wall -Werror -Wno-error=unknown-pragmas -std=c++11 -pthread -I./include -I./vendor
-LDLIBS=-lz
+CXXFLAGS=-O3 -Wall -Werror -Wno-unknown-pragmas -std=c++11 -pthread -Ibtllib/include
 
 all: indexlr
 
@@ -11,17 +10,17 @@ lint: clang-format clang-tidy
 
 # Check the C++ source code for errors with clang-tidy.
 clang-tidy:
-	clang-tidy -warnings-as-errors='*' include/*.h *.cc -- -std=c++11 -x c++ -I./include -I./vendor
+	clang-tidy -warnings-as-errors='*' *.cpp -- -std=c++11 -x c++ -Ibtllib/include
 
 # Check the C++ source code for white-space errors with clang-format.
 clang-format:
-	for i in *.cc include/*.h; do clang-format -style=file $$i >$$i.fixed; done
-	for i in *.cc include/*.h; do diff -su $$i $$i.fixed && rm -f $$i.fixed; done
+	for i in *.cpp; do clang-format -style=file $$i >$$i.fixed; done
+	for i in *.cpp; do diff -su $$i $$i.fixed && rm -f $$i.fixed; done
 	if ls *.fixed; then exit 1; fi
 
 # Fix white-space errors with clang-format.
 fix:
-	for i in *.cc include/*.h; do clang-format -i -style=file $$i; done
+	for i in *.cpp; do clang-format -i -style=file $$i; done
 
 check: check-index-fasta check-index-pos-fasta check-index-pos-strand-fasta check-index-fastq
 
@@ -32,7 +31,7 @@ check-index-pos-fasta: all
 	./indexlr -t16 -k100 -w5 --id --pos data/mt.fa | diff -q - data/mt.pos.physlr.tsv.good
 
 check-index-pos-strand-fasta: all
-	./indexlr -t16 -k100 -w5 --id --pos --strand data/mt.fa | diff -q - data/mt.pos.strand.physlr.tsv.good
+	./indexlr -t16 -k100 -w5 --id --pos --seq data/mt.fa | diff -q - data/mt.pos.seq.physlr.tsv.good
 
 check-index-fastq: all
 	./indexlr -t16 -k100 -w5 --id --bx data/tiny.fq | diff -q - data/tiny.physlr.tsv.good
