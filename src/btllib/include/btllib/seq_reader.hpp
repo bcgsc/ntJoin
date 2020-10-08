@@ -864,6 +864,10 @@ struct SeqReader::read_fastq_buffer
         seq_reader.read_stage = ReadStage::HEADER;
         return true;
       }
+      default: {
+        log_error("SeqReader has entered an invalid state.");
+        std::exit(EXIT_FAILURE);
+      }
     }
     return false;
   }
@@ -914,6 +918,7 @@ struct SeqReader::read_fasta_transition
       case ReadStage::SEQ: {
         seq_reader.readline_file_append(seq_reader.reader_record->seq);
         seq_reader.read_stage = ReadStage::HEADER;
+        return;
       }
       default: {
         log_error("SeqReader has entered an invalid state.");
@@ -947,6 +952,11 @@ struct SeqReader::read_fastq_transition
       case ReadStage::QUAL: {
         seq_reader.readline_file_append(seq_reader.reader_record->qual);
         seq_reader.read_stage = ReadStage::HEADER;
+        return;
+      }
+      default: {
+        log_error("SeqReader has entered an invalid state.");
+        std::exit(EXIT_FAILURE);
       }
     }
   }
