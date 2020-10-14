@@ -21,6 +21,9 @@
 const static std::string PROGNAME = "indexlr";
 const static std::string VERSION = "v1.1";
 const static size_t OUTPUT_PERIOD = 512;
+const static size_t INITIAL_OUTPUT_STREAM_SIZE = 100;
+const static size_t QUEUE_SIZE = 128;
+const static size_t MAX_THREADS = 5;
 
 static void
 print_error_msg(const std::string& msg)
@@ -128,10 +131,10 @@ main(int argc, char* argv[])
 			std::exit(EXIT_FAILURE);
 		}
 	}
-	if (t > 5) {
-		t = 5;
-		std::cerr << (PROGNAME + ' ' + VERSION +
-		              ": Using more than 5 threads does not scale, reverting to 5.\n")
+	if (t > MAX_THREADS) {
+		t = MAX_THREADS;
+		std::cerr << (PROGNAME + ' ' + VERSION + ": Using more than " +
+		              std::to_string(MAX_THREADS) + " threads does not scale, reverting to 5.\n")
 		          << std::flush;
 	}
 	std::vector<std::string> infiles(&argv[optind], &argv[argc]);
@@ -169,7 +172,7 @@ main(int argc, char* argv[])
 		std::exit(EXIT_FAILURE);
 	}
 
-	int flags = 0;
+	unsigned flags = 0;
 	if (with_id) {
 		flags |= btllib::Indexlr::Flag::ID;
 	}
@@ -209,8 +212,7 @@ main(int argc, char* argv[])
 		std::queue<std::string> output_queue;
 		std::mutex output_queue_mutex;
 		std::condition_variable queue_empty, queue_full;
-		size_t max_seen_output_size = 100;
-		size_t queue_max_size = 128;
+		size_t max_seen_output_size = INITIAL_OUTPUT_STREAM_SIZE;
 		std::unique_ptr<std::thread> info_compiler(new std::thread([&]() {
 			std::stringstream ss;
 			while ((record = indexlr->get_minimizers())) {
@@ -239,12 +241,13 @@ main(int argc, char* argv[])
 				}
 				ss << '\n';
 				if (record.num % OUTPUT_PERIOD == OUTPUT_PERIOD - 1) {
-					max_seen_output_size = std::max(max_seen_output_size, ss.str().size());
+					auto ss_str = ss.str();
+					max_seen_output_size = std::max(max_seen_output_size, ss_str.size());
 					std::unique_lock<std::mutex> lock(output_queue_mutex);
-					while (output_queue.size() == queue_max_size) {
+					while (output_queue.size() == QUEUE_SIZE) {
 						queue_full.wait(lock);
 					}
-					output_queue.push(ss.str());
+					output_queue.push(std::move(ss_str));
 					queue_empty.notify_one();
 					lock.unlock();
 					std::string newstring;
