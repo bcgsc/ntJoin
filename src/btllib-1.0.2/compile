@@ -1,0 +1,130 @@
+#!/bin/bash
+
+command -v python >/dev/null
+python_exists=$?
+
+command -v python-config >/dev/null
+python_config_exists=$?
+
+command -v python3 >/dev/null
+python3_exists=$?
+
+command -v python3-config >/dev/null
+python3_config_exists=$?
+
+set -e
+
+SCRIPTPATH="$( cd "$(dirname "$0")" ; pwd -P )"
+cd $SCRIPTPATH
+
+if [[ $python_exists -eq 0 && $python_config_exists -eq 0 ]]; then
+  py_version1=$(python --version 2>&1)
+  py_version1_num=$(echo $py_version1 | awk '{print $2}' | awk -F '.' '{print $1 "." $2}')
+else
+  py_version1=""
+  py_version1_num=-1
+fi
+
+if [[ $python3_exists -eq 0 && $python3_config_exists -eq 0 ]]; then
+  py_version2=$(python3 --version 2>&1)
+  py_version2_num=$(echo $py_version2 | awk '{print $2}' | awk -F '.' '{print $1 "." $2}')
+else
+  py_version2=""
+  py_version2_num=-1
+fi
+
+if [[ ! "$py_version1_num" < "3.0" && "$py_version1_num" < "4.0" ]]; then
+  py_cflags1=$(python-config --cflags)
+  py_cflags2=$(python3-config --cflags)
+  py_ldflags1=$(python-config --ldflags)
+  py_ldflags2=$(python3-config --ldflags)
+
+  py2_flags=false
+  for flag in $py_cflags1; do
+    if [[ -n $(echo $flag | grep python2) ]]; then
+      py2_flags=true
+      break
+    fi
+  done
+  for flag in $py_ldflags1; do
+    if [[ -n $(echo $flag | grep python2) ]]; then
+      py2_flags=true
+      break
+    fi
+  done
+
+  if [[ $py2_flags -eq false ]]; then
+    py_Lpaths1=()
+    py_Lpaths2=()
+    for flag in $py_ldflags1; do
+      if [[ $flag == "-L"* ]]; then
+        py_Lpaths1+=($flag)
+      fi
+    done
+    for flag in $py_ldflags2; do
+      if [[ $flag == "-L"* ]]; then
+        py_Lpaths2+=($flag)
+      fi
+    done
+    old_IFS="$IFS"
+    IFS=$'\n'
+    py_Lpaths1_sorted=($(sort <<<"${py_Lpaths1[*]}"))
+    py_Lpaths2_sorted=($(sort <<<"${py_Lpaths2[*]}"))
+    IFS="$old_IFS"
+
+    if [[ "$py_version1" != "$py_version2" || \
+    ( -n "${py_Lpaths1_sorted}" && -n "${py_Lpaths2_sorted}" && "${py_Lpaths1_sorted}" != "${py_Lpaths2_sorted}" ) ]]; then
+      if [[ -n "${py_Lpaths1_sorted}" && -n "${py_Lpaths2_sorted}" && "${py_Lpaths1_sorted}" != "${py_Lpaths2_sorted}" ]]; then
+        option1="$py_version1 (${py_Lpaths1})"
+        option2="$py_version2 (${py_Lpaths2})"
+      else
+        option1="$py_version1"
+        option2="$py_version2"
+      fi
+
+      echo "Multiple Pythons found"
+      PS3="Select which one to build with: "
+      options=("${option1}" "${option2}")
+      select opt in "${options[@]}"; do
+        case $opt in
+          "${option1}")
+              echo "Using ${option1}";
+              export BTLLIB_PYTHON_CFLAGS="$py_cflags1"
+              export BTLLIB_PYTHON_LDFLAGS="$py_ldflags1"
+              export BTLLIB_PYTHON_VERSION="$py_version1_num"
+              break;;
+          "${option2}")
+              echo "Using ${option2}";
+              export BTLLIB_PYTHON_CFLAGS="$py_cflags2"
+              export BTLLIB_PYTHON_LDFLAGS="$py_ldflags2"
+              export BTLLIB_PYTHON_VERSION="$py_version2_num"
+              break;;
+          *) echo "Invalid option $REPLY";;
+        esac
+      done
+    fi
+  fi
+fi
+
+in_venv=false
+if [[ ! $(which meson) || ! $(which ninja) ]]; then
+  if [[ ! -f venv ]]; then
+    python3 -m venv venv
+  fi
+  source venv/bin/activate
+  pip3 install meson ninja
+  in_venv=true
+fi
+
+rm -rf build
+if [[ ! -d build || ! -d python || ! -d java ]]; then
+  meson setup --buildtype release --prefix=$SCRIPTPATH build
+fi
+cd build
+ninja install
+cd ..
+
+cd $SCRIPTPATH
+if [[ $in_venv == true ]]; then
+  deactivate
+fi
