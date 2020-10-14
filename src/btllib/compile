@@ -118,7 +118,7 @@ fi
 
 rm -rf build
 if [[ ! -d build || ! -d python || ! -d java ]]; then
-  meson build --prefix=$SCRIPTPATH
+  meson setup --buildtype release --prefix=$SCRIPTPATH build
 fi
 cd build
 ninja install

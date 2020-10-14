@@ -36,12 +36,12 @@ public class KmerBloomFilter extends BloomFilter {
     super.delete();
   }
 
-  public KmerBloomFilter(long k, long bytes, long hash_num) {
-    this(btllibJNI.new_KmerBloomFilter__SWIG_0(k, bytes, hash_num), true);
+  public KmerBloomFilter(long bytes, long hash_num, long k) {
+    this(btllibJNI.new_KmerBloomFilter__SWIG_0(bytes, hash_num, k), true);
   }
 
-  public KmerBloomFilter(long k, long bytes) {
-    this(btllibJNI.new_KmerBloomFilter__SWIG_1(k, bytes), true);
+  public KmerBloomFilter(String path) {
+    this(btllibJNI.new_KmerBloomFilter__SWIG_1(path), true);
   }
 
   public void insert(String seq) {
@@ -58,6 +58,10 @@ public class KmerBloomFilter extends BloomFilter {
 
   public long contains(String seq, long seq_len) {
     return btllibJNI.KmerBloomFilter_contains__SWIG_1(swigCPtr, this, seq, seq_len);
+  }
+
+  public void write(String path) {
+    btllibJNI.KmerBloomFilter_write(swigCPtr, this, path);
   }
 
 }

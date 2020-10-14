@@ -87,8 +87,9 @@ main()
 
       name = get_random_name(10);
       comment = get_random_name(20);
-      seq = get_random_sequence(200 + s);
-      qual = get_random_name(200 + s);
+      size_t seq_size = get_random(100, 2000);
+      seq = get_random_seq(seq_size);
+      qual = get_random_name(seq_size);
 
       random_seqs.write(name, comment, seq, qual);
 

@@ -67,6 +67,8 @@ $(function() {
 <div class="header">
   <div class="summary">
 <a href="#pub-methods">Public Member Functions</a> &#124;
+<a href="#pub-static-methods">Static Public Member Functions</a> &#124;
+<a href="#pro-attribs">Protected Attributes</a> &#124;
 <a href="classbtllib_1_1BloomFilter-members.html">List of all members</a>  </div>
   <div class="headertitle">
 <div class="title">btllib::BloomFilter Class Reference</div>  </div>
@@ -117,7 +119,55 @@ double&#160;</td><td class="memItemRight" valign="bottom"><b>get_fpr</b> () cons
 <tr class="memitem:a6daf59f89a4bbeb2ab1adb7e0606352c"><td class="memItemLeft" align="right" valign="top"><a id="a6daf59f89a4bbeb2ab1adb7e0606352c"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>write</b> (const std::string &amp;path)</td></tr>
 <tr class="separator:a6daf59f89a4bbeb2ab1adb7e0606352c"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-static-methods"></a>
+Static Public Member Functions</h2></td></tr>
+<tr class="memitem:a2671dfd28714057547e9b7ac21d44d88"><td class="memItemLeft" align="right" valign="top"><a id="a2671dfd28714057547e9b7ac21d44d88"></a>
+static std::shared_ptr&lt; cpptoml::table &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>parse_header</b> (std::ifstream &amp;file, const std::string &amp;magic_string)</td></tr>
+<tr class="separator:a2671dfd28714057547e9b7ac21d44d88"><td class="memSeparator" colspan="2">&#160;</td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pro-attribs"></a>
+Protected Attributes</h2></td></tr>
+<tr class="memitem:afea6bb6fb5b0043598e37aab954b0c81"><td class="memItemLeft" align="right" valign="top"><a id="afea6bb6fb5b0043598e37aab954b0c81"></a>
+std::atomic&lt; uint8_t &gt; *&#160;</td><td class="memItemRight" valign="bottom"><b>array</b> = nullptr</td></tr>
+<tr class="separator:afea6bb6fb5b0043598e37aab954b0c81"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a7c66fad22334cbbc12eb44ea155cc1b2"><td class="memItemLeft" align="right" valign="top"><a id="a7c66fad22334cbbc12eb44ea155cc1b2"></a>
+size_t&#160;</td><td class="memItemRight" valign="bottom"><b>bytes</b> = 0</td></tr>
+<tr class="separator:a7c66fad22334cbbc12eb44ea155cc1b2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2d9e78bd3ed7094ea2de8e6725e111d0"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><b>array_size</b></td></tr>
+<tr class="separator:a2d9e78bd3ed7094ea2de8e6725e111d0"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abeefd3985bcb24834159aa861b2adcc7"><td class="memItemLeft" align="right" valign="top"><a id="abeefd3985bcb24834159aa861b2adcc7"></a>
+size_t&#160;</td><td class="memItemRight" valign="bottom"><b>array_bits</b> = 0</td></tr>
+<tr class="separator:abeefd3985bcb24834159aa861b2adcc7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a547a845798ec3b0ee063945a5116a04a"><td class="memItemLeft" align="right" valign="top"><a id="a547a845798ec3b0ee063945a5116a04a"></a>
+unsigned&#160;</td><td class="memItemRight" valign="bottom"><b>hash_num</b> = 0</td></tr>
+<tr class="separator:a547a845798ec3b0ee063945a5116a04a"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<h2 class="groupheader">Member Data Documentation</h2>
+<a id="a2d9e78bd3ed7094ea2de8e6725e111d0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a2d9e78bd3ed7094ea2de8e6725e111d0">&#9670;&nbsp;</a></span>array_size</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">size_t btllib::BloomFilter::array_size</td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">protected</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<b>Initial value:</b><div class="fragment"><div class="line">=</div>
+<div class="line">    0</div>
+</div><!-- fragment -->
+</div>
+</div>
 <hr/>The documentation for this class was generated from the following file:<ul>
 <li>include/btllib/<a class="el" href="bloom__filter_8hpp_source.html">bloom_filter.hpp</a></li>
 </ul>

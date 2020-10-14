@@ -18,9 +18,11 @@ log_warning(const std::string& msg);
 inline void
 log_error(const std::string& msg);
 inline void
-check_error(bool condition, const std::string& msg);
+check_info(bool condition, const std::string& msg);
 inline void
 check_warning(bool condition, const std::string& msg);
+inline void
+check_error(bool condition, const std::string& msg);
 inline void
 check_stream(const std::ios& stream, const std::string& name);
 
@@ -37,27 +39,26 @@ get_time()
 inline void
 log_info(const std::string& msg)
 {
-  std::cerr << '[' << get_time() << "] [INFO] " << msg << std::endl;
+  std::cerr << ('[' + get_time() + "] [INFO] " + msg + '\n') << std::flush;
 }
 
 inline void
 log_warning(const std::string& msg)
 {
-  std::cerr << '[' << get_time() << "] [WARNING] " << msg << std::endl;
+  std::cerr << ('[' + get_time() + "] [WARNING] " + msg + '\n') << std::flush;
 }
 
 inline void
 log_error(const std::string& msg)
 {
-  std::cerr << '[' << get_time() << "] [ERROR] " << msg << std::endl;
+  std::cerr << ('[' + get_time() + "] [ERROR] " + msg + '\n') << std::flush;
 }
 
 inline void
-check_error(bool condition, const std::string& msg)
+check_info(bool condition, const std::string& msg)
 {
   if (condition) {
-    log_error(msg);
-    std::exit(EXIT_FAILURE);
+    log_info(msg);
   }
 }
 
@@ -66,6 +67,15 @@ check_warning(bool condition, const std::string& msg)
 {
   if (condition) {
     log_warning(msg);
+  }
+}
+
+inline void
+check_error(bool condition, const std::string& msg)
+{
+  if (condition) {
+    log_error(msg);
+    std::exit(EXIT_FAILURE);
   }
 }
 

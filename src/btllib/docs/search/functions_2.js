@@ -1,4 +1,4 @@
 var searchData=
 [
-  ['kmerbloomfilter_42',['KmerBloomFilter',['../classbtllib_1_1KmerBloomFilter.html#aab96ba76e5ca614fd350353c1809a65c',1,'btllib::KmerBloomFilter']]]
+  ['kmerbloomfilter_42',['KmerBloomFilter',['../classbtllib_1_1KmerBloomFilter.html#aebcf0f91e72aa2212a6d0f744789fb86',1,'btllib::KmerBloomFilter']]]
 ];

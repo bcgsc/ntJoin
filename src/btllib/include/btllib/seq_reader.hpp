@@ -113,37 +113,37 @@ private:
     CString(CString&& cstring) noexcept
     {
       std::swap(s, cstring.s);
-      size = cstring.size;
+      s_size = cstring.s_size;
       cstring.clear();
-      std::swap(cap, cstring.cap);
+      std::swap(s_cap, cstring.s_cap);
     }
     CString(const std::string& str)
     {
-      if (str.size() + 1 > cap) {
-        cap = str.size() + 1;
-        s = (char*)std::realloc((char*)s, cap); // NOLINT
+      if (str.size() + 1 > s_cap) {
+        s_cap = str.size() + 1;
+        s = (char*)std::realloc((char*)s, s_cap); // NOLINT
       }
-      size = str.size();
-      memcpy(s, str.c_str(), size + 1);
+      s_size = str.size();
+      memcpy(s, str.c_str(), s_size + 1);
     }
 
     CString& operator=(const CString&) = delete;
     CString& operator=(CString&& cstring) noexcept
     {
       std::swap(s, cstring.s);
-      size = cstring.size;
+      s_size = cstring.s_size;
       cstring.clear();
-      std::swap(cap, cstring.cap);
+      std::swap(s_cap, cstring.s_cap);
       return *this;
     }
     CString& operator=(const std::string& str)
     {
-      if (str.size() + 1 > cap) {
-        cap = str.size() + 1;
-        s = (char*)std::realloc((char*)s, cap); // NOLINT
+      if (str.size() + 1 > s_cap) {
+        s_cap = str.size() + 1;
+        s = (char*)std::realloc((char*)s, s_cap); // NOLINT
       }
-      size = str.size();
-      memcpy(s, str.c_str(), size + 1);
+      s_size = str.size();
+      memcpy(s, str.c_str(), s_size + 1);
       return *this;
     }
 
@@ -152,15 +152,16 @@ private:
     void clear()
     {
       s[0] = '\0';
-      size = 0;
+      s_size = 0;
     }
-    bool empty() const { return (ssize_t)size <= 0; }
+    bool empty() const { return (ssize_t)s_size <= 0; }
+    size_t size() const { return s_size; }
 
     operator char*() const { return s; }
 
     char* s = (char*)std::malloc(CSTRING_DEFAULT_CAP); // NOLINT
-    size_t size = 0;
-    size_t cap = CSTRING_DEFAULT_CAP;
+    size_t s_size = 0;
+    size_t s_cap = CSTRING_DEFAULT_CAP;
   };
 
   struct RecordCString
@@ -660,17 +661,17 @@ SeqReader::readline_buffer_append(CString& s)
   char c = char(0);
   for (; buffer_start < buffer_end && (c = buffer[buffer_start]) != '\n';
        ++buffer_start) {
-    if (s.size >= s.cap) {
-      s.cap *= 2;
-      s.s = (char*)std::realloc((char*)(s.s), s.cap); // NOLINT
+    if (s.s_size >= s.s_cap) {
+      s.s_cap *= 2;
+      s.s = (char*)std::realloc((char*)(s.s), s.s_cap); // NOLINT
     }
-    s.s[s.size++] = c;
+    s.s[s.s_size++] = c;
   }
-  if (s.size >= s.cap) {
-    s.cap *= 2;
-    s.s = (char*)std::realloc((char*)(s.s), s.cap); // NOLINT
+  if (s.s_size >= s.s_cap) {
+    s.s_cap *= 2;
+    s.s = (char*)std::realloc((char*)(s.s), s.s_cap); // NOLINT
   }
-  s.s[s.size] = '\0';
+  s.s[s.s_size] = '\0';
   if (c == '\n') {
     ++buffer_start;
     return true;
@@ -681,19 +682,19 @@ SeqReader::readline_buffer_append(CString& s)
 inline void
 SeqReader::readline_file(CString& s)
 {
-  s.size = getline(&(s.s), &(s.cap), source);
+  s.s_size = getline(&(s.s), &(s.s_cap), source);
 }
 
 inline void
 SeqReader::readline_file_append(CString& s)
 {
   readline_file(tmp);
-  if (s.size + tmp.size + 1 > s.cap) {
-    s.cap = s.size + tmp.size + 1;
-    s.s = (char*)std::realloc((char*)(s.s), s.cap); // NOLINT
+  if (s.s_size + tmp.s_size + 1 > s.s_cap) {
+    s.s_cap = s.s_size + tmp.s_size + 1;
+    s.s = (char*)std::realloc((char*)(s.s), s.s_cap); // NOLINT
   }
-  memcpy(s.s + s.size, tmp.s, tmp.size + 1);
-  s.size += tmp.size;
+  memcpy(s.s + s.s_size, tmp.s, tmp.s_size + 1);
+  s.s_size += tmp.s_size;
 }
 
 // NOLINTNEXTLINE
@@ -718,11 +719,11 @@ SeqReader::readline_file_append(CString& s)
     if (tmp_string.length() > 0 && tmp_string[0] != '@') {                     \
       size_t pos = 0, pos2 = 0, pos3 = 0;                                      \
       pos2 = tmp_string.find('\t');                                            \
-      if (tmp_string.size() + 1 > seq_reader.reader_record->header.cap) {      \
-        seq_reader.reader_record->header.cap = tmp_string.size() + 1;          \
+      if (tmp_string.size() + 1 > seq_reader.reader_record->header.s_cap) {    \
+        seq_reader.reader_record->header.s_cap = tmp_string.size() + 1;        \
         seq_reader.reader_record->header.s =                                   \
           (char*)std::realloc((char*)(seq_reader.reader_record->header),       \
-                              seq_reader.reader_record->header.cap);           \
+                              seq_reader.reader_record->header.s_cap);         \
       }                                                                        \
       seq_reader.reader_record->header = tmp_string.substr(0, pos2);           \
       for (int i = 0; i < int(SEQ) - 1; i++) {                                 \
@@ -733,17 +734,17 @@ SeqReader::readline_file_append(CString& s)
       if (pos3 == std::string::npos) {                                         \
         pos3 = tmp_string.length();                                            \
       }                                                                        \
-      if (tmp_string.size() + 1 > seq_reader.reader_record->seq.cap) {         \
-        seq_reader.reader_record->seq.cap = tmp_string.size() + 1;             \
+      if (tmp_string.size() + 1 > seq_reader.reader_record->seq.s_cap) {       \
+        seq_reader.reader_record->seq.s_cap = tmp_string.size() + 1;           \
         seq_reader.reader_record->seq.s =                                      \
           (char*)std::realloc((char*)(seq_reader.reader_record->seq.s),        \
-                              seq_reader.reader_record->seq.cap);              \
+                              seq_reader.reader_record->seq.s_cap);            \
       }                                                                        \
-      if (tmp_string.size() + 1 > seq_reader.reader_record->qual.cap) {        \
-        seq_reader.reader_record->qual.cap = tmp_string.size() + 1;            \
+      if (tmp_string.size() + 1 > seq_reader.reader_record->qual.s_cap) {      \
+        seq_reader.reader_record->qual.s_cap = tmp_string.size() + 1;          \
         seq_reader.reader_record->qual.s =                                     \
           (char*)std::realloc((char*)(seq_reader.reader_record->qual.s),       \
-                              seq_reader.reader_record->qual.cap);             \
+                              seq_reader.reader_record->qual.s_cap);           \
       }                                                                        \
       seq_reader.reader_record->seq =                                          \
         tmp_string.substr(pos + 1, pos2 - pos - 1);                            \
@@ -770,11 +771,11 @@ SeqReader::readline_file_append(CString& s)
     if (tmp_string.length() > 0 && tmp_string[0] == 'S') {                     \
       size_t pos = 0, pos2 = 0;                                                \
       pos2 = tmp_string.find('\t', 1);                                         \
-      if (tmp_string.size() + 1 > seq_reader.reader_record->header.cap) {      \
-        seq_reader.reader_record->header.cap = tmp_string.size() + 1;          \
+      if (tmp_string.size() + 1 > seq_reader.reader_record->header.s_cap) {    \
+        seq_reader.reader_record->header.s_cap = tmp_string.size() + 1;        \
         seq_reader.reader_record->header.s =                                   \
           (char*)std::realloc((char*)(seq_reader.reader_record->header.s),     \
-                              seq_reader.reader_record->header.cap);           \
+                              seq_reader.reader_record->header.s_cap);         \
       }                                                                        \
       seq_reader.reader_record->header = tmp_string.substr(1, pos2 - 1);       \
       for (int i = 0; i < int(SEQ) - 1; i++) {                                 \
@@ -784,11 +785,11 @@ SeqReader::readline_file_append(CString& s)
       if (pos2 == std::string::npos) {                                         \
         pos2 = tmp_string.length();                                            \
       }                                                                        \
-      if (tmp_string.size() + 1 > seq_reader.reader_record->seq.cap) {         \
-        seq_reader.reader_record->seq.cap = tmp_string.size() + 1;             \
+      if (tmp_string.size() + 1 > seq_reader.reader_record->seq.s_cap) {       \
+        seq_reader.reader_record->seq.s_cap = tmp_string.size() + 1;           \
         seq_reader.reader_record->seq.s =                                      \
           (char*)std::realloc((char*)(seq_reader.reader_record->seq.s),        \
-                              seq_reader.reader_record->seq.cap);              \
+                              seq_reader.reader_record->seq.s_cap);            \
       }                                                                        \
       seq_reader.reader_record->seq =                                          \
         tmp_string.substr(pos + 1, pos2 - pos - 1);                            \
@@ -1170,38 +1171,50 @@ SeqReader::start_processor()
         for (;;) {
           cstring_queue.read(records_in);
           for (size_t i = 0; i < records_in.count; i++) {
-            records_out.data[i].seq = std::string(records_in.data[i].seq.s,
-                                                  records_in.data[i].seq.size);
+            records_out.data[i].seq = std::string(
+              records_in.data[i].seq, records_in.data[i].seq.size());
             auto& seq = records_out.data[i].seq;
             if (!seq.empty() && seq.back() == '\n') {
               seq.pop_back();
             }
 
             records_out.data[i].qual = std::string(
-              records_in.data[i].qual.s, records_in.data[i].qual.size);
+              records_in.data[i].qual, records_in.data[i].qual.size());
             auto& qual = records_out.data[i].qual;
             if (!qual.empty() && qual.back() == '\n') {
               qual.pop_back();
             }
 
-            char* space = std::strstr(records_in.data[i].header, " ");
+            char *first_whitespace = nullptr, *last_whitespace = nullptr;
+            for (size_t j = 0; j < records_in.data[i].header.size(); j++) {
+              if (bool(std::isspace(records_in.data[i].header[j]))) {
+                if (first_whitespace == nullptr) {
+                  first_whitespace = records_in.data[i].header + j;
+                }
+                last_whitespace = records_in.data[i].header + j;
+              } else if (last_whitespace != nullptr) {
+                break;
+              }
+            }
             size_t name_start =
               (format == Format::FASTA || format == Format::FASTQ) ? 1 : 0;
-            if (space == nullptr) {
+
+            if (first_whitespace == nullptr) {
               records_out.data[i].name =
-                std::string(records_in.data[i].header.s + name_start,
-                            records_in.data[i].header.size - name_start);
+                std::string(records_in.data[i].header + name_start,
+                            records_in.data[i].header.size() - name_start);
               records_out.data[i].comment = "";
             } else {
-              records_out.data[i].name =
-                std::string(records_in.data[i].header.s + name_start,
-                            space - records_in.data[i].header.s - name_start);
-              records_out.data[i].comment =
-                std::string(space + 1,
-                            records_in.data[i].header.size -
-                              (space - records_in.data[i].header.s) - 1);
+              records_out.data[i].name = std::string(
+                records_in.data[i].header + name_start,
+                first_whitespace - records_in.data[i].header - name_start);
+              records_out.data[i].comment = std::string(
+                last_whitespace + 1,
+                records_in.data[i].header.size() -
+                  (last_whitespace - records_in.data[i].header) - 1);
             }
             records_in.data[i].header.clear();
+
             auto& name = records_out.data[i].name;
             auto& comment = records_out.data[i].comment;
             if (!name.empty() && name.back() == '\n') {
@@ -1210,6 +1223,7 @@ SeqReader::start_processor()
             if (!comment.empty() && comment.back() == '\n') {
               comment.pop_back();
             }
+
             if (trim_masked()) {
               const auto len = seq.length();
               size_t trim_start = 0, trim_end = seq.length();

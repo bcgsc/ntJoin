@@ -1259,6 +1259,7 @@ public:
   const uint64_t* hashes() const;
 
   size_t get_pos() const { return pos; }
+  bool forward() const { return forward_hash <= reverse_hash; }
   unsigned get_k() const { return k; }
   unsigned get_hash_num() const { return hash_num; }
 

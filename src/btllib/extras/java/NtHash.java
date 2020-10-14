@@ -57,6 +57,10 @@ public class NtHash {
     return btllibJNI.NtHash_get_pos(swigCPtr, this);
   }
 
+  public boolean forward() {
+    return btllibJNI.NtHash_forward(swigCPtr, this);
+  }
+
   public long get_k() {
     return btllibJNI.NtHash_get_k(swigCPtr, this);
   }

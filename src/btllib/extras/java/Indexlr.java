@@ -198,20 +198,24 @@ public class Indexlr {
       }
     }
   
-    public void setHash1(SWIGTYPE_p_uint64_t value) {
-      btllibJNI.Indexlr_Minimizer_hash1_set(swigCPtr, this, SWIGTYPE_p_uint64_t.getCPtr(value));
+    public Minimizer(SWIGTYPE_p_uint64_t min_hash, SWIGTYPE_p_uint64_t out_hash, long pos, boolean forward, String seq) {
+      this(btllibJNI.new_Indexlr_Minimizer(SWIGTYPE_p_uint64_t.getCPtr(min_hash), SWIGTYPE_p_uint64_t.getCPtr(out_hash), pos, forward, seq), true);
     }
   
-    public SWIGTYPE_p_uint64_t getHash1() {
-      return new SWIGTYPE_p_uint64_t(btllibJNI.Indexlr_Minimizer_hash1_get(swigCPtr, this), true);
+    public void setMin_hash(SWIGTYPE_p_uint64_t value) {
+      btllibJNI.Indexlr_Minimizer_min_hash_set(swigCPtr, this, SWIGTYPE_p_uint64_t.getCPtr(value));
     }
   
-    public void setHash2(SWIGTYPE_p_uint64_t value) {
-      btllibJNI.Indexlr_Minimizer_hash2_set(swigCPtr, this, SWIGTYPE_p_uint64_t.getCPtr(value));
+    public SWIGTYPE_p_uint64_t getMin_hash() {
+      return new SWIGTYPE_p_uint64_t(btllibJNI.Indexlr_Minimizer_min_hash_get(swigCPtr, this), true);
     }
   
-    public SWIGTYPE_p_uint64_t getHash2() {
-      return new SWIGTYPE_p_uint64_t(btllibJNI.Indexlr_Minimizer_hash2_get(swigCPtr, this), true);
+    public void setOut_hash(SWIGTYPE_p_uint64_t value) {
+      btllibJNI.Indexlr_Minimizer_out_hash_set(swigCPtr, this, SWIGTYPE_p_uint64_t.getCPtr(value));
+    }
+  
+    public SWIGTYPE_p_uint64_t getOut_hash() {
+      return new SWIGTYPE_p_uint64_t(btllibJNI.Indexlr_Minimizer_out_hash_get(swigCPtr, this), true);
     }
   
     public void setPos(long value) {
@@ -222,16 +226,20 @@ public class Indexlr {
       return btllibJNI.Indexlr_Minimizer_pos_get(swigCPtr, this);
     }
   
+    public void setForward(boolean value) {
+      btllibJNI.Indexlr_Minimizer_forward_set(swigCPtr, this, value);
+    }
+  
+    public boolean getForward() {
+      return btllibJNI.Indexlr_Minimizer_forward_get(swigCPtr, this);
+    }
+  
     public void setSeq(String value) {
       btllibJNI.Indexlr_Minimizer_seq_set(swigCPtr, this, value);
     }
   
     public String getSeq() {
       return btllibJNI.Indexlr_Minimizer_seq_get(swigCPtr, this);
-    }
-  
-    public Minimizer() {
-      this(btllibJNI.new_Indexlr_Minimizer(), true);
     }
   
   }
@@ -311,24 +319,28 @@ public class Indexlr {
     return new Indexlr.Record(btllibJNI.Indexlr_get_minimizers(swigCPtr, this), true);
   }
 
-  public Indexlr(String seqfile, long k, long w, long flags, long threads, BloomFilter bf1, BloomFilter bf2) {
-    this(btllibJNI.new_Indexlr__SWIG_0(seqfile, k, w, flags, threads, BloomFilter.getCPtr(bf1), bf1, BloomFilter.getCPtr(bf2), bf2), true);
+  public Indexlr(String seqfile, long k, long w, long flags, long threads, boolean verbose, BloomFilter bf1, BloomFilter bf2) {
+    this(btllibJNI.new_Indexlr__SWIG_0(seqfile, k, w, flags, threads, verbose, BloomFilter.getCPtr(bf1), bf1, BloomFilter.getCPtr(bf2), bf2), true);
   }
 
-  public Indexlr(String seqfile, long k, long w, long flags, long threads, BloomFilter bf1) {
-    this(btllibJNI.new_Indexlr__SWIG_1(seqfile, k, w, flags, threads, BloomFilter.getCPtr(bf1), bf1), true);
+  public Indexlr(String seqfile, long k, long w, long flags, long threads, boolean verbose, BloomFilter bf1) {
+    this(btllibJNI.new_Indexlr__SWIG_1(seqfile, k, w, flags, threads, verbose, BloomFilter.getCPtr(bf1), bf1), true);
+  }
+
+  public Indexlr(String seqfile, long k, long w, long flags, long threads, boolean verbose) {
+    this(btllibJNI.new_Indexlr__SWIG_2(seqfile, k, w, flags, threads, verbose), true);
   }
 
   public Indexlr(String seqfile, long k, long w, long flags, long threads) {
-    this(btllibJNI.new_Indexlr__SWIG_2(seqfile, k, w, flags, threads), true);
+    this(btllibJNI.new_Indexlr__SWIG_3(seqfile, k, w, flags, threads), true);
   }
 
   public Indexlr(String seqfile, long k, long w, long flags) {
-    this(btllibJNI.new_Indexlr__SWIG_3(seqfile, k, w, flags), true);
+    this(btllibJNI.new_Indexlr__SWIG_4(seqfile, k, w, flags), true);
   }
 
   public Indexlr(String seqfile, long k, long w) {
-    this(btllibJNI.new_Indexlr__SWIG_4(seqfile, k, w), true);
+    this(btllibJNI.new_Indexlr__SWIG_5(seqfile, k, w), true);
   }
 
   public final static long MAX_SIMULTANEOUS_INDEXLRS = btllibJNI.Indexlr_MAX_SIMULTANEOUS_INDEXLRS_get();
