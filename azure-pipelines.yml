@@ -46,3 +46,12 @@ jobs:
     env:
       HOMEBREW_NO_AUTO_UPDATE: 1
     displayName: Testing minimizer graph code
+    
+- job: macOS_default_clang
+  pool:
+    vmImage: macOS-10.14
+  steps:
+  - script: make -C src all
+    displayName: Compile C++ executables with clang
+  - script: make -C src check
+    displayName: Test C++ executables
