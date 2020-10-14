@@ -73,15 +73,12 @@ main(int argc, char* argv[])
 	bool with_repeat = false, with_solid = false;
 	std::string outfile("-");
 	bool failed = false;
-	static const struct option longopts[] = { { "id", no_argument, &with_id, 1 },
-		                                      { "bx", no_argument, &with_bx, 1 },
-		                                      { "pos", no_argument, &with_pos, 1 },
-		                                      { "strand", no_argument, &with_strand, 1 },
-		                                      { "seq", no_argument, &with_seq, 1 },
-
-		                                      { "help", no_argument, &help, 1 },
-		                                      { "version", no_argument, &version, 1 },
-		                                      { nullptr, 0, nullptr, 0 } };
+	static const struct option longopts[] = {
+		{ "id", no_argument, &with_id, 1 },      { "bx", no_argument, &with_bx, 1 },
+		{ "pos", no_argument, &with_pos, 1 },    { "strand", no_argument, &with_strand, 1 },
+		{ "seq", no_argument, &with_seq, 1 },    { "help", no_argument, &help, 1 },
+		{ "version", no_argument, &version, 1 }, { nullptr, 0, nullptr, 0 }
+	};
 	while ((c = getopt_long(argc, argv, "k:w:o:t:vr:s:", longopts, &optindex)) != -1) {
 		switch (c) {
 		case 0:
