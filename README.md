@@ -106,7 +106,7 @@ brew install brewsci/bio/ntjoin
 
 #### Installing ntJoin using Conda
 ```sh
-conda install -c bioconda ntjoin
+conda install -c bioconda -c conda-forge ntjoin
 ```
 
 #### Installing ntJoin from the source code
