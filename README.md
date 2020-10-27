@@ -70,6 +70,7 @@ no_cut			If True, will not cut contigs at putative misassemblies [False]
 Notes: 
 	- Ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated
 	- Ensure all assembly files are in the current working directory
+        - All input assembly files must be in single-line fasta format
 ```
 
 Running `ntJoin help` prints the help documentation.
