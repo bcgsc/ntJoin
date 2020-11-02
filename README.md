@@ -66,6 +66,7 @@ m			Minimum percentage of increasing/decreasing minimizer positions to orient co
 mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive, overrides 'm') [False]
 agp			If True, output AGP file describing output scaffolds [False]
 no_cut			If True, will not cut contigs at putative misassemblies [False]
+time		    	If True, will log the time for each step [False]"
 
 Notes: 
 	- Ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated
