@@ -51,7 +51,8 @@ print_usage()
 	       "minimizer value).\n"
 	       "              If a combination of --pos, --strand, and --seq options are provided, "
 	       "they're appended in the --pos, --strand, --seq order after the minimizer value.\n"
-	       "  --long      Enable long mode which is more efficient for long sequences (e.g. long reads, contigs, reference).\n"
+	       "  --long      Enable long mode which is more efficient for long sequences (e.g. long "
+	       "reads, contigs, reference).\n"
 	       "  -r repeat_bf_path  Use a Bloom filter to filter out repetitive minimizers.\n"
 	       "  -s solid_bf_path  Use a Bloom filter to only select solid minimizers.\n"
 	       "  -o FILE     Write output to FILE, default is stdout.\n"
@@ -79,12 +80,15 @@ main(int argc, char* argv[])
 	int long_mode = 0;
 	std::string outfile("-");
 	bool failed = false;
-	static const struct option longopts[] = {
-		{ "id", no_argument, &with_id, 1 },      { "bx", no_argument, &with_bx, 1 },
-		{ "pos", no_argument, &with_pos, 1 },    { "strand", no_argument, &with_strand, 1 },
-		{ "seq", no_argument, &with_seq, 1 },    { "long", no_argument, &long_mode, 1 }, { "help", no_argument, &help, 1 },
-		{ "version", no_argument, &version, 1 }, { nullptr, 0, nullptr, 0 }
-	};
+	static const struct option longopts[] = { { "id", no_argument, &with_id, 1 },
+		                                      { "bx", no_argument, &with_bx, 1 },
+		                                      { "pos", no_argument, &with_pos, 1 },
+		                                      { "strand", no_argument, &with_strand, 1 },
+		                                      { "seq", no_argument, &with_seq, 1 },
+		                                      { "long", no_argument, &long_mode, 1 },
+		                                      { "help", no_argument, &help, 1 },
+		                                      { "version", no_argument, &version, 1 },
+		                                      { nullptr, 0, nullptr, 0 } };
 	while ((c = getopt_long(argc, argv, "k:w:o:t:vr:s:", longopts, &optindex)) != -1) {
 		switch (c) {
 		case 0:
@@ -201,12 +205,19 @@ main(int argc, char* argv[])
 		if (with_repeat && with_solid) {
 			flags |= btllib::Indexlr::Flag::FILTER_IN;
 			flags |= btllib::Indexlr::Flag::FILTER_OUT;
-			indexlr = std::unique_ptr<btllib::Indexlr>(
-			    new btllib::Indexlr(infile, k, w, flags, t, verbose, solid_bf->get_bloom_filter(), repeat_bf->get_bloom_filter()));
+			indexlr = std::unique_ptr<btllib::Indexlr>(new btllib::Indexlr(
+			    infile,
+			    k,
+			    w,
+			    flags,
+			    t,
+			    verbose,
+			    solid_bf->get_bloom_filter(),
+			    repeat_bf->get_bloom_filter()));
 		} else if (with_repeat) {
 			flags |= btllib::Indexlr::Flag::FILTER_OUT;
-			indexlr = std::unique_ptr<btllib::Indexlr>(
-			    new btllib::Indexlr(infile, k, w, flags, t, verbose, repeat_bf->get_bloom_filter()));
+			indexlr = std::unique_ptr<btllib::Indexlr>(new btllib::Indexlr(
+			    infile, k, w, flags, t, verbose, repeat_bf->get_bloom_filter()));
 		} else if (with_solid) {
 			flags |= btllib::Indexlr::Flag::FILTER_IN;
 			indexlr = std::unique_ptr<btllib::Indexlr>(
