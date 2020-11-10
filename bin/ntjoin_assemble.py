@@ -14,10 +14,12 @@ from collections import namedtuple
 import shlex
 import subprocess
 import sys
+import warnings
 import igraph as ig
 import pybedtools
 import pymannkendall as mk
 from read_fasta import read_fasta
+warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 
 # Defining namedtuples

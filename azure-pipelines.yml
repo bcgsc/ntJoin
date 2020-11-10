@@ -19,8 +19,8 @@ jobs:
       sudo ln -s clang-format-8 /usr/bin/clang-format
       sudo ln -s clang-tidy-8 /usr/bin/clang-tidy
   - script: |
-      sudo HOMEBREW_NO_AUTO_UPDATE=1 /home/linuxbrew/.linuxbrew/bin/brew install python
-      sudo /home/linuxbrew/.linuxbrew/bin/pip3 install --upgrade setuptools \
+      sudo HOMEBREW_NO_AUTO_UPDATE=1 /home/linuxbrew/.linuxbrew/bin/brew install python@3.8
+      sudo /home/linuxbrew/.linuxbrew/opt/python@3.8/bin/pip3 install --upgrade setuptools \
       -U pip --no-cache-dir \
       pylint .
     displayName: Install Python packages
@@ -37,9 +37,10 @@ jobs:
   - script: make -C src check
     displayName: Test C++ executables
   - script: |
-      sudo /home/linuxbrew/.linuxbrew/bin/pip3 install pytest
+      sudo /home/linuxbrew/.linuxbrew/opt/python@3.8/bin/pip3 install pytest
       sudo HOMEBREW_NO_AUTO_UPDATE=1 /home/linuxbrew/.linuxbrew/bin/brew install samtools bedtools gnu-time
       export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH
+      export PATH="/home/linuxbrew/.linuxbrew/opt/python@3.8/bin:$PATH"
       echo $PATH
       cd tests
       pytest -vs ntjoin_test.py

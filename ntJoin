@@ -56,6 +56,9 @@ large=0
 # Cut the input contigs and putative misassemblies?
 no_cut=False
 
+# Log time for each step?
+time=False
+
 # Prefix for output files
 prefix=out.k$(k).w$(w).n$(n)
 
@@ -69,10 +72,14 @@ export TIMEFMT=time user=%U system=%S elapsed=%E cpu=%P memory=%M job=%J
 endif
 
 # Record run time and memory usage in a file using GNU time
+ifeq ($(time),True)
 ifneq ($(shell command -v gtime),)
-time=command gtime -v -o $@.time
+log_time=command gtime -v -o $@.time
 else
-time=command time -v -o $@.time
+log_time=command time -v -o $@.time
+endif
+else
+log_time=
 endif
 
 # Compress in parallel
@@ -103,12 +110,13 @@ help:
 	@echo "m			Minimum percentage of increasing/decreasing minimizer positions to orient contig [90]"
 	@echo "mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive, overrides 'm') [False]"
 	@echo "agp			If True, output AGP file describing output scaffolds [False]"
-	@echo "no_cut		If True, will not cut contigs at putative misassemblies [False]"
+	@echo "no_cut		    	If True, will not cut contigs at putative misassemblies [False]"
+	@echo "time		    	If True, will log the time for each step [False]"
 	@echo ""
 	@echo "Notes: "
 	@echo "	- Ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated"
 	@echo "	- Ensure all assembly files are in the current working directory"
-	@echo " - All input assembly files must be in single-line fasta format"
+	@echo "	- All input assembly files must be in single-line fasta format"
 	@echo ""
 
 assemble: check_params \
@@ -152,48 +160,48 @@ version:
 .SECONDARY:
 
 %.k$(k).w$(w).tsv: %
-	$(time) $(assemble_path)/src/indexlr --pos -k $(k) -w $(w) -t $(t) $< > $@
+	$(log_time) $(assemble_path)/src/indexlr --pos -k $(k) -w $(w) -t $(t) $< > $@
 
 %.fai: %
-	$(time) samtools faidx $<
+	$(log_time) samtools faidx $<
 
 %.fa.gz: %.fa
-	$(time) $(gzip) $<
+	$(log_time) $(gzip) $<
 	
 $(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa: $(target).k$(k).w$(w).tsv $(min_ref_targets)
 ifeq ($(mkt), True)
 ifeq ($(agp), True)
 ifeq ($(no_cut), True)
-	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
 	-r "$(reference_weights)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) --mkt --agp --no_cut $(min_ref_targets)
 else
-	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
 	-r "$(reference_weights)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) --mkt --agp $(min_ref_targets)
 endif
 else
 ifeq ($(no_cut), True)
-	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
 	-r "$(reference_weights)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) --mkt --no_cut $(min_ref_targets)
 else
-	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
 	-r "$(reference_weights)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) --mkt $(min_ref_targets)
 endif
 endif
 else
 ifeq ($(agp), True)
 ifeq ($(no_cut), True)
-	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
 	-r "$(reference_weights)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) -m $(m) --agp --no_cut $(min_ref_targets)
 else
-	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
 	-r "$(reference_weights)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) -m $(m) --agp $(min_ref_targets)
 endif
 else
 ifeq ($(no_cut), True)
-	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
 	-r "$(reference_weights)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) -m $(m) --no_cut $(min_ref_targets)
 else
-	$(time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
 	-r "$(reference_weights)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) -m $(m) $(min_ref_targets)
 endif
 endif
@@ -203,7 +211,7 @@ $(target).k$(k).w$(w).n$(n).unassigned.scaffolds.fa: $(target).k$(k).w$(w).n$(n)
 	touch $@
 
 %.all.scaffolds.fa: %.assigned.scaffolds.fa %.unassigned.scaffolds.fa
-	$(time) cat $^ > $@
+	$(log_time) cat $^ > $@
 
 %.fa.bam: %.fa
 	minimap2 -a -x asm5 -r100000 -t $(t) $(ref) $< |samtools view -b |samtools sort -o $@
