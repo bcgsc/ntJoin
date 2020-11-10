@@ -19,10 +19,11 @@
 #include <vector>
 
 const static std::string PROGNAME = "indexlr";
-const static std::string VERSION = "v1.1";
-const static size_t OUTPUT_PERIOD = 512;
+const static std::string VERSION = "v1.2";
+const static size_t OUTPUT_PERIOD_SHORT = 512;
+const static size_t OUTPUT_PERIOD_LONG = 2;
 const static size_t INITIAL_OUTPUT_STREAM_SIZE = 100;
-const static size_t QUEUE_SIZE = 128;
+const static size_t QUEUE_SIZE = 64;
 const static size_t MAX_THREADS = 5;
 
 static void
@@ -50,6 +51,7 @@ print_usage()
 	       "minimizer value).\n"
 	       "              If a combination of --pos, --strand, and --seq options are provided, "
 	       "they're appended in the --pos, --strand, --seq order after the minimizer value.\n"
+	       "  --long      Enable long mode which is more efficient for long sequences (e.g. long reads, contigs, reference).\n"
 	       "  -r repeat_bf_path  Use a Bloom filter to filter out repetitive minimizers.\n"
 	       "  -s solid_bf_path  Use a Bloom filter to only select solid minimizers.\n"
 	       "  -o FILE     Write output to FILE, default is stdout.\n"
@@ -72,14 +74,15 @@ main(int argc, char* argv[])
 	bool w_set = false;
 	bool k_set = false;
 	int with_id = 0, with_bx = 0, with_pos = 0, with_strand = 0, with_seq = 0;
-	std::unique_ptr<btllib::BloomFilter> repeat_bf, solid_bf;
+	std::unique_ptr<btllib::KmerBloomFilter> repeat_bf, solid_bf;
 	bool with_repeat = false, with_solid = false;
+	int long_mode = 0;
 	std::string outfile("-");
 	bool failed = false;
 	static const struct option longopts[] = {
 		{ "id", no_argument, &with_id, 1 },      { "bx", no_argument, &with_bx, 1 },
 		{ "pos", no_argument, &with_pos, 1 },    { "strand", no_argument, &with_strand, 1 },
-		{ "seq", no_argument, &with_seq, 1 },    { "help", no_argument, &help, 1 },
+		{ "seq", no_argument, &with_seq, 1 },    { "long", no_argument, &long_mode, 1 }, { "help", no_argument, &help, 1 },
 		{ "version", no_argument, &version, 1 }, { nullptr, 0, nullptr, 0 }
 	};
 	while ((c = getopt_long(argc, argv, "k:w:o:t:vr:s:", longopts, &optindex)) != -1) {
@@ -108,7 +111,7 @@ main(int argc, char* argv[])
 			std::cerr << "Loading repeat Bloom filter from " << optarg << std::endl;
 			try {
 				repeat_bf =
-				    std::unique_ptr<btllib::BloomFilter>(new btllib::KmerBloomFilter(optarg));
+				    std::unique_ptr<btllib::KmerBloomFilter>(new btllib::KmerBloomFilter(optarg));
 			} catch (const std::exception& e) {
 				std::cerr << e.what() << '\n';
 			}
@@ -120,7 +123,7 @@ main(int argc, char* argv[])
 			std::cerr << "Loading solid Bloom filter from " << optarg << std::endl;
 			try {
 				solid_bf =
-				    std::unique_ptr<btllib::BloomFilter>(new btllib::KmerBloomFilter(optarg));
+				    std::unique_ptr<btllib::KmerBloomFilter>(new btllib::KmerBloomFilter(optarg));
 			} catch (const std::exception& e) {
 				std::cerr << e.what() << '\n';
 			}
@@ -182,6 +185,9 @@ main(int argc, char* argv[])
 	if (with_seq) {
 		flags |= btllib::Indexlr::Flag::SEQ;
 	}
+	if (long_mode) {
+		flags |= btllib::Indexlr::Flag::LONG_MODE;
+	}
 
 	btllib::Indexlr::Record record;
 	FILE* out;
@@ -196,15 +202,15 @@ main(int argc, char* argv[])
 			flags |= btllib::Indexlr::Flag::FILTER_IN;
 			flags |= btllib::Indexlr::Flag::FILTER_OUT;
 			indexlr = std::unique_ptr<btllib::Indexlr>(
-			    new btllib::Indexlr(infile, k, w, flags, t, verbose, *solid_bf, *repeat_bf));
+			    new btllib::Indexlr(infile, k, w, flags, t, verbose, solid_bf->get_bloom_filter(), repeat_bf->get_bloom_filter()));
 		} else if (with_repeat) {
 			flags |= btllib::Indexlr::Flag::FILTER_OUT;
 			indexlr = std::unique_ptr<btllib::Indexlr>(
-			    new btllib::Indexlr(infile, k, w, flags, t, verbose, *repeat_bf));
+			    new btllib::Indexlr(infile, k, w, flags, t, verbose, repeat_bf->get_bloom_filter()));
 		} else if (with_solid) {
 			flags |= btllib::Indexlr::Flag::FILTER_IN;
 			indexlr = std::unique_ptr<btllib::Indexlr>(
-			    new btllib::Indexlr(infile, k, w, flags, t, verbose, *solid_bf));
+			    new btllib::Indexlr(infile, k, w, flags, t, verbose, solid_bf->get_bloom_filter()));
 		} else {
 			indexlr = std::unique_ptr<btllib::Indexlr>(
 			    new btllib::Indexlr(infile, k, w, flags, t, verbose));
@@ -213,6 +219,7 @@ main(int argc, char* argv[])
 		std::mutex output_queue_mutex;
 		std::condition_variable queue_empty, queue_full;
 		size_t max_seen_output_size = INITIAL_OUTPUT_STREAM_SIZE;
+		const size_t output_period = long_mode ? OUTPUT_PERIOD_LONG : OUTPUT_PERIOD_SHORT;
 		std::unique_ptr<std::thread> info_compiler(new std::thread([&]() {
 			std::stringstream ss;
 			while ((record = indexlr->get_minimizers())) {
@@ -240,7 +247,7 @@ main(int argc, char* argv[])
 					j++;
 				}
 				ss << '\n';
-				if (record.num % OUTPUT_PERIOD == OUTPUT_PERIOD - 1) {
+				if (record.num % output_period == output_period - 1) {
 					auto ss_str = ss.str();
 					max_seen_output_size = std::max(max_seen_output_size, ss_str.size());
 					std::unique_lock<std::mutex> lock(output_queue_mutex);

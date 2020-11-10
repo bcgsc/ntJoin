@@ -160,7 +160,7 @@ version:
 .SECONDARY:
 
 %.k$(k).w$(w).tsv: %
-	$(log_time) $(assemble_path)/src/indexlr --pos -k $(k) -w $(w) -t $(t) $< > $@
+	$(log_time) $(assemble_path)/src/indexlr --long --pos -k $(k) -w $(w) -t $(t) $< > $@
 
 %.fai: %
 	$(log_time) samtools faidx $<
