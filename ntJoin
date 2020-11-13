@@ -2,7 +2,7 @@
 
 # ntJoin: Scaffold assemblies using reference assemblies and minimizer graphs
 # Written by Lauren Coombe @lcoombe
-# ntJoin v1.0.3
+# ntJoin v1.0.4
 
 # Input files
 target=None
@@ -92,7 +92,7 @@ endif
 help:
 	@echo ""
 	@echo "ntJoin: Scaffolding assemblies using reference assemblies and minimizer graphs"
-	@echo "ntJoin v1.0.3"
+	@echo "ntJoin v1.0.4"
 	@echo "Usage: ntJoin assemble target=<target scaffolds> references='List of reference assemblies' reference_weights='List of weights per reference assembly'"
 	@echo ""
 	@echo "Options:"
@@ -152,7 +152,7 @@ ifeq ($(ref), None)
 endif
 
 version:
-	@echo "ntJoin v1.0.3"
+	@echo "ntJoin v1.0.4"
 	@echo "Written by Lauren Coombe (lcoombe@bcgsc.ca)"
 
 .PHONY: help all version analysis assemble check_params jupiter
