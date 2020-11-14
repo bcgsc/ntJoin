@@ -296,7 +296,9 @@ main(int argc, char* argv[])
 				if (to_write.empty()) {
 					break;
 				}
-				btllib::check_error(fwrite(to_write.c_str(), 1, to_write.size(), out) != to_write.size(), "Indexlr: fwrite failed.");
+				btllib::check_error(
+				    fwrite(to_write.c_str(), 1, to_write.size(), out) != to_write.size(),
+				    "Indexlr: fwrite failed.");
 			}
 		}));
 		info_compiler->join();
