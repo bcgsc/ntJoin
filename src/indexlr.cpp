@@ -1,5 +1,6 @@
 #include "btllib/indexlr.hpp"
 #include "btllib/bloom_filter.hpp"
+#include "btllib/status.hpp"
 
 #include <cassert>
 #include <condition_variable>
@@ -295,7 +296,7 @@ main(int argc, char* argv[])
 				if (to_write.empty()) {
 					break;
 				}
-				fwrite(to_write.c_str(), 1, to_write.size(), out);
+				btllib::check_error(fwrite(to_write.c_str(), 1, to_write.size(), out) != to_write.size(), "Indexlr: fwrite failed.");
 			}
 		}));
 		info_compiler->join();
