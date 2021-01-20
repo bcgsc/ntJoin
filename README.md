@@ -67,7 +67,7 @@ mkt			If True, use Mann-Kendall Test to predict contig orientation (computationa
 agp			If True, output AGP file describing output scaffolds [False]
 no_cut			If True, will not cut contigs at putative misassemblies [False]
 time		    	If True, will log the time for each step [False]
-reference_config	Config file with reference assemblies and reference weights as comma-separated values (See README for example)"
+reference_config	Config file with reference assemblies and reference weights as comma-separated values (See README for example)
                 	 This is optional, and will override the 'references' and 'reference_weights' variables if specified"
 
 Notes: 
@@ -90,14 +90,17 @@ Running `ntJoin help` prints the help documentation.
 ntJoin assemble target=my_scaffolds.fa target_weight=1 references='assembly_ref1.fa' reference_weights='2' k=32 w=500
 ```
 
-#### Using a reference config file (optional):
+#### Using a config file to specify references (optional):
 * Alternatively, the reference(s) and reference weight(s) can be specified in a comma-separated config file with one row per reference assembly/weight:
 ```
 reference_fasta1,reference_weight1
 reference_fasta2,reference_weight2
 ```
-* Then, the ntJoin command would use the variable `reference_config` instead of `references` and `reference_weights`
+* Then, the ntJoin command would use the file specified by `reference_config` for determining the reference(s) and reference weight(s) instead of `references` and `reference_weights`
   * If both the `reference_config` and the `references` variables are specified, `reference_config` will override the other variables.
+* Example config files can be found in the `tests` directory: `test_config_single.csv`, `test_config_multiple.csv`
+* **As with the typical ntJoin usage, ensure that all input assembly files are in or have soft-links to the current working directory, and do not use absolute/relative paths in the config file**
+
 ```
 ntJoin assemble target=my_scaffolds.fa target_weight=1 reference_config=config_file k=32 w=500
 ```
