@@ -143,7 +143,7 @@ def test_regions_fr_rf():
 
 def test_regions_fr_rf_config():
     "Testing ntJoin correcting misassemblies, joins in fwd-rev and rev-fwd, using config file"
-    paths = run_ntjoin_config("test_config_single", "scaf.misassembled.f-r.r-f.fa", "regions-fr-rf_test", 500, n=2)
+    paths = run_ntjoin_config("test_config_single.csv", "scaf.misassembled.f-r.r-f.fa", "regions-fr-rf_test", 500, n=2)
     assert len(paths) == 2
     assert paths[0] != paths[1]
     expected_paths = ["2_1n-1_2n-:0-2176 212N 1_1p-2_2p+:2017-4489", "1_1p-2_2p+:0-1617 198N 2_1n-1_2n-:2675-4379"]
@@ -158,13 +158,13 @@ def test_regions_3():
 
 def test_regions_3_config():
     "Testing ntJoin with target + 2 references, using config file"
-    paths = run_ntjoin_config("test_config_multiple", "scaf.f-f.fa", "f-f-f_test", n=1)
+    paths = run_ntjoin_config("test_config_multiple.csv", "scaf.f-f.fa", "f-f-f_test", n=1)
     assert len(paths) == 1
     assert paths.pop() == "ntJoin0\t1_f+:0-1981 20N 2_f+:0-2329"
 
 def test_regions_3_config_extra():
     "Testing ntJoin with target + 2 references, using config file, command having extra parameters"
-    paths = run_ntjoin_config_extra("test_config_multiple", "scaf.f-f.fa", "f-f-f_test", n=1)
+    paths = run_ntjoin_config_extra("test_config_multiple.csv", "scaf.f-f.fa", "f-f-f_test", n=1)
     assert len(paths) == 1
     assert paths.pop() == "ntJoin0\t1_f+:0-1981 20N 2_f+:0-2329"
 
