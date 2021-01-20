@@ -5,10 +5,10 @@ import subprocess
 import re
 
 
-def run_ntjoin(file1, file2, prefix, window=1000, n=2):
+def run_ntjoin(ref1, target, prefix, window=1000, n=2):
     "Run ntJoin with a pair of files"
     cmd = "../ntJoin assemble -B target={target} target_weight=1 references=\'{ref}\' reference_weights=\'2\' " \
-          "prefix={prefix} k=32 w={w} n={n}".format(target=file2, ref=file1, prefix=prefix, w=window, n=n)
+          "prefix={prefix} k=32 w={w} n={n}".format(target=target, ref=ref1, prefix=prefix, w=window, n=n)
     cmd_shlex = shlex.split(cmd)
     return_code = subprocess.call(cmd_shlex)
     assert return_code == 0
@@ -20,10 +20,10 @@ def run_ntjoin(file1, file2, prefix, window=1000, n=2):
                 return_paths.append(line.strip())
     return return_paths
 
-def run_ntjoin_nocut(file1, file2, prefix, window=1000, n=2):
+def run_ntjoin_nocut(ref1, target, prefix, window=1000, n=2):
     "Run ntJoin with a pair of files"
     cmd = "../ntJoin assemble -B target={target} target_weight=1 references=\'{ref}\' reference_weights=\'2\' " \
-          "prefix={prefix} k=32 w={w} n={n} no_cut=True".format(target=file2, ref=file1, prefix=prefix, w=window, n=n)
+          "prefix={prefix} k=32 w={w} n={n} no_cut=True".format(target=target, ref=ref1, prefix=prefix, w=window, n=n)
     cmd_shlex = shlex.split(cmd)
     return_code = subprocess.call(cmd_shlex)
     assert return_code == 0
@@ -35,10 +35,10 @@ def run_ntjoin_nocut(file1, file2, prefix, window=1000, n=2):
                 return_paths.append(line.strip())
     return return_paths
 
-def run_ntjoin_multiple(file1, file2, file3, prefix, window=1000, n=2):
+def run_ntjoin_multiple(ref1, ref2, target, prefix, window=1000, n=2):
     "Run ntJoin with a target and 2 references"
     cmd = "../ntJoin assemble -B target={target} target_weight=1 references=\'{ref1} {ref2}\' reference_weights=\'2 2\' " \
-          "prefix={prefix} k=32 w={w} n={n}".format(target=file3, ref1=file1, ref2=file2, prefix=prefix, w=window, n=n)
+          "prefix={prefix} k=32 w={w} n={n}".format(target=target, ref1=ref1, ref2=ref2, prefix=prefix, w=window, n=n)
     cmd_shlex = shlex.split(cmd)
     return_code = subprocess.call(cmd_shlex)
     assert return_code == 0
@@ -50,10 +50,10 @@ def run_ntjoin_multiple(file1, file2, file3, prefix, window=1000, n=2):
                 return_paths.append(line.strip())
     return return_paths
 
-def run_ntjoin_agp(file1, file2, prefix, window=1000, n=2):
+def run_ntjoin_agp(ref1, target, prefix, window=1000, n=2):
     "Run ntJoin with a pair of files"
     cmd = "../ntJoin assemble -B target={target} target_weight=1 references=\'{ref}\' reference_weights=\'2\' " \
-          "prefix={prefix} k=32 w={w} n={n} agp=True".format(target=file2, ref=file1, prefix=prefix, w=window, n=n)
+          "prefix={prefix} k=32 w={w} n={n} agp=True".format(target=target, ref=ref1, prefix=prefix, w=window, n=n)
     cmd_shlex = shlex.split(cmd)
     return_code = subprocess.call(cmd_shlex)
     assert return_code == 0
