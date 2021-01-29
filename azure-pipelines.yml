@@ -8,7 +8,7 @@ jobs:
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: "3.7"
+      versionSpec: "3.8"
       architecture: x64
   - script: |
       curl https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
@@ -22,7 +22,7 @@ jobs:
       sudo HOMEBREW_NO_AUTO_UPDATE=1 /home/linuxbrew/.linuxbrew/bin/brew install python@3.8
       sudo /home/linuxbrew/.linuxbrew/opt/python@3.8/bin/pip3 install --upgrade setuptools \
       -U pip --no-cache-dir \
-      pylint .
+      pylint pytest .
     displayName: Install Python packages
     env:
       HOMEBREW_NO_AUTO_UPDATE: 1
@@ -37,11 +37,13 @@ jobs:
   - script: make -C src check
     displayName: Test C++ executables
   - script: |
-      sudo /home/linuxbrew/.linuxbrew/opt/python@3.8/bin/pip3 install pytest
-      sudo HOMEBREW_NO_AUTO_UPDATE=1 /home/linuxbrew/.linuxbrew/bin/brew install samtools bedtools gnu-time
       export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH
+      export PATH="/home/linuxbrew/.linuxbrew/opt/python@3.8/libexec/bin:$PATH"
       export PATH="/home/linuxbrew/.linuxbrew/opt/python@3.8/bin:$PATH"
       echo $PATH
+      which python3
+      python3 --version
+      sudo HOMEBREW_NO_AUTO_UPDATE=1 /home/linuxbrew/.linuxbrew/bin/brew install samtools bedtools gnu-time
       cd tests
       pytest -vs ntjoin_test.py
     env:
