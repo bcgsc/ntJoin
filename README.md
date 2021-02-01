@@ -98,6 +98,7 @@ ntJoin assemble target=my_scaffolds.fa target_weight=1 references='assembly_ref1
 ### Parameter considerations
 
 * We recommend setting the reference weight(s) to be higher than the target weight
+* If you are using a reference-grade assembly as the reference, set `n=2`, otherwise use the default `n=1`
 
 ## Installation Instructions
 #### Installing ntJoin using Brew
