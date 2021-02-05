@@ -126,7 +126,7 @@ brew install brewsci/bio/ntjoin
 
 #### Installing ntJoin using Conda
 ```sh
-conda install -c bioconda -c conda-forge ntjoin pysam=0.16.0
+conda install -c bioconda -c conda-forge ntjoin=1.0.6
 ```
 
 #### Installing ntJoin from the source code
