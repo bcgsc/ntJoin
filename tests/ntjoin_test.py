@@ -4,11 +4,7 @@ import shlex
 import subprocess
 import re
 
-
-def run_ntjoin(file1, file2, prefix, window=1000, n=2):
-    "Run ntJoin with a pair of files"
-    cmd = "../ntJoin assemble -B target=%s target_weight=1 references=\'%s\' reference_weights=\'2\' " \
-          "prefix=%s k=32 w=%s n=%s" % (file2, file1, prefix, window, n)
+def launch_ntjoin(cmd, prefix):
     cmd_shlex = shlex.split(cmd)
     return_code = subprocess.call(cmd_shlex)
     assert return_code == 0
@@ -20,40 +16,31 @@ def run_ntjoin(file1, file2, prefix, window=1000, n=2):
                 return_paths.append(line.strip())
     return return_paths
 
-def run_ntjoin_nocut(file1, file2, prefix, window=1000, n=2):
+def run_ntjoin(ref1, target, prefix, window=1000, n=2):
     "Run ntJoin with a pair of files"
-    cmd = "../ntJoin assemble -B target=%s target_weight=1 references=\'%s\' reference_weights=\'2\' " \
-          "prefix=%s k=32 w=%s n=%s no_cut=True" % (file2, file1, prefix, window, n)
-    cmd_shlex = shlex.split(cmd)
-    return_code = subprocess.call(cmd_shlex)
-    assert return_code == 0
-    return_paths = []
-    with open(prefix + ".path", 'r') as paths:
-        for line in paths:
-            path_match = re.search(r'^ntJoin', line)
-            if path_match:
-                return_paths.append(line.strip())
+    cmd = "../ntJoin assemble -B target={target} target_weight=1 references=\'{ref}\' reference_weights=\'2\' " \
+          "prefix={prefix} k=32 w={w} n={n}".format(target=target, ref=ref1, prefix=prefix, w=window, n=n)
+    return_paths = launch_ntjoin(cmd, prefix)
     return return_paths
 
-def run_ntjoin_multiple(file1, file2, file3, prefix, window=1000, n=2):
+def run_ntjoin_nocut(ref1, target, prefix, window=1000, n=2):
+    "Run ntJoin with a pair of files"
+    cmd = "../ntJoin assemble -B target={target} target_weight=1 references=\'{ref}\' reference_weights=\'2\' " \
+          "prefix={prefix} k=32 w={w} n={n} no_cut=True".format(target=target, ref=ref1, prefix=prefix, w=window, n=n)
+    return_paths = launch_ntjoin(cmd, prefix)
+    return return_paths
+
+def run_ntjoin_multiple(ref1, ref2, target, prefix, window=1000, n=2):
     "Run ntJoin with a target and 2 references"
-    cmd = "../ntJoin assemble -B target=%s target_weight=1 references=\'%s %s\' reference_weights=\'2 2\' " \
-          "prefix=%s k=32 w=%s n=%s" % (file3, file1, file2, prefix, window, n)
-    cmd_shlex = shlex.split(cmd)
-    return_code = subprocess.call(cmd_shlex)
-    assert return_code == 0
-    return_paths = []
-    with open(prefix + ".path", 'r') as paths:
-        for line in paths:
-            path_match = re.search(r'^ntJoin', line)
-            if path_match:
-                return_paths.append(line.strip())
+    cmd = "../ntJoin assemble -B target={target} target_weight=1 references=\'{ref1} {ref2}\' reference_weights=\'2 2\' " \
+          "prefix={prefix} k=32 w={w} n={n}".format(target=target, ref1=ref1, ref2=ref2, prefix=prefix, w=window, n=n)
+    return_paths = launch_ntjoin(cmd, prefix)
     return return_paths
 
-def run_ntjoin_agp(file1, file2, prefix, window=1000, n=2):
+def run_ntjoin_agp(ref1, target, prefix, window=1000, n=2):
     "Run ntJoin with a pair of files"
-    cmd = "../ntJoin assemble -B target=%s target_weight=1 references=\'%s\' reference_weights=\'2\' " \
-          "prefix=%s k=32 w=%s n=%s agp=True" % (file2, file1, prefix, window, n)
+    cmd = "../ntJoin assemble -B target={target} target_weight=1 references=\'{ref}\' reference_weights=\'2\' " \
+          "prefix={prefix} k=32 w={w} n={n} agp=True".format(target=target, ref=ref1, prefix=prefix, w=window, n=n)
     cmd_shlex = shlex.split(cmd)
     return_code = subprocess.call(cmd_shlex)
     assert return_code == 0
@@ -62,6 +49,22 @@ def run_ntjoin_agp(file1, file2, prefix, window=1000, n=2):
         for line in agp:
             return_agp.append(line.strip())
     return return_agp
+
+def run_ntjoin_config(config_file, target, prefix, window=1000, n=2):
+    "Run ntJoin with a target and reference config file"
+    cmd = "../ntJoin assemble -B target={target} target_weight=1 " \
+          "reference_config={config} prefix={prefix} k=32 w={w} n={n}".format(target=target, config=config_file,
+                                                                              prefix=prefix, w=window, n=n)
+    return_paths = launch_ntjoin(cmd, prefix)
+    return return_paths
+
+def run_ntjoin_config_extra(config_file, target, prefix, window=1000, n=2):
+    "Run ntJoin with a target and reference config file, overriding reference and reference_weights variables"
+    cmd = "../ntJoin assemble -B target={target} target_weight=1 reference=na reference_weights=na " \
+          "reference_config={config} prefix={prefix} k=32 w={w} n={n}".format(target=target, config=config_file,
+                                                                              prefix=prefix, w=window, n=n)
+    return_paths = launch_ntjoin(cmd, prefix)
+    return return_paths
 
 # Following 4 tests to check for the expected PATHs given 2 pieces that should be merged
 #     together based on the reference in different orientations
@@ -138,9 +141,30 @@ def test_regions_fr_rf():
     assert paths.pop().split("\t")[1] in expected_paths
     assert paths.pop().split("\t")[1] in expected_paths
 
+def test_regions_fr_rf_config():
+    "Testing ntJoin correcting misassemblies, joins in fwd-rev and rev-fwd, using config file"
+    paths = run_ntjoin_config("test_config_single.csv", "scaf.misassembled.f-r.r-f.fa", "regions-fr-rf_test", 500, n=2)
+    assert len(paths) == 2
+    assert paths[0] != paths[1]
+    expected_paths = ["2_1n-1_2n-:0-2176 212N 1_1p-2_2p+:2017-4489", "1_1p-2_2p+:0-1617 198N 2_1n-1_2n-:2675-4379"]
+    assert paths.pop().split("\t")[1] in expected_paths
+    assert paths.pop().split("\t")[1] in expected_paths
+
 def test_regions_3():
     "Testing ntJoin with target + 2 references"
     paths = run_ntjoin_multiple("ref.fa", "scaf.f-f.copy.fa", "scaf.f-f.fa", "f-f-f_test", n=1)
+    assert len(paths) == 1
+    assert paths.pop() == "ntJoin0\t1_f+:0-1981 20N 2_f+:0-2329"
+
+def test_regions_3_config():
+    "Testing ntJoin with target + 2 references, using config file"
+    paths = run_ntjoin_config("test_config_multiple.csv", "scaf.f-f.fa", "f-f-f_test", n=1)
+    assert len(paths) == 1
+    assert paths.pop() == "ntJoin0\t1_f+:0-1981 20N 2_f+:0-2329"
+
+def test_regions_3_config_extra():
+    "Testing ntJoin with target + 2 references, using config file, command having extra parameters"
+    paths = run_ntjoin_config_extra("test_config_multiple.csv", "scaf.f-f.fa", "f-f-f_test", n=1)
     assert len(paths) == 1
     assert paths.pop() == "ntJoin0\t1_f+:0-1981 20N 2_f+:0-2329"
 

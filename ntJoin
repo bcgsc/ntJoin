@@ -7,12 +7,23 @@
 # Input files
 target=None
 references=None
-min_ref_targets=$(addsuffix .k$(k).w$(w).tsv, $(references))
-fai_ref_targets=$(addsuffix .fai, $(references))
+reference_config=None
 
 # List of edge weights
 reference_weights=None
 target_weight=1
+
+# Prepare targets
+ifneq ($(reference_config), None)
+references_list=$(shell cat $(reference_config) | awk -F"," '{print $$1}')
+reference_weights_list=$(shell cat $(reference_config) | awk -F"," '{print $$2}')
+else
+references_list=$(references)
+reference_weights_list=$(reference_weights)
+endif
+
+min_ref_targets=$(addsuffix .k$(k).w$(w).tsv, $(references_list))
+fai_ref_targets=$(addsuffix .fai, $(references_list))
 
 # Path to minimizer assemble code
 assemble_path=$(shell dirname $(realpath $(MAKEFILE_LIST)))
@@ -112,6 +123,8 @@ help:
 	@echo "agp			If True, output AGP file describing output scaffolds [False]"
 	@echo "no_cut		    	If True, will not cut contigs at putative misassemblies [False]"
 	@echo "time		    	If True, will log the time for each step [False]"
+	@echo "reference_config	Config file with reference assemblies and reference weights as comma-separated values (See README for example)"
+	@echo "			 This is optional, and will override the 'references' and 'reference_weights' variables if specified"
 	@echo ""
 	@echo "Notes: "
 	@echo "	- Ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated"
@@ -129,7 +142,7 @@ assemble: check_params \
 	$(target).k$(k).w$(w).n$(n).all.scaffolds.fa
 
 analysis: check_params_analysis \
-	$(addsuffix .bam.bai, $(references)) \
+	$(addsuffix .bam.bai, $(references_list)) \
 	$(target).bam.bai \
 	$(target).k$(k).w$(w).n$(n).all.scaffolds.fa.bam.bai
 
@@ -137,11 +150,17 @@ all: check_params assemble analysis
 
 check_params:
 ifeq ($(references), None)
+ifeq ($(reference_config), None)
 	$(error ERROR: Must set references)
 endif
+endif
+
 ifeq ($(reference_weights), None)
+ifeq ($(reference_config), None)
 	$(error ERROR: Must set reference_weights)
 endif
+endif
+
 ifeq ($(target), None)
 	$(error ERROR: Must set target)
 endif
@@ -173,36 +192,36 @@ ifeq ($(mkt), True)
 ifeq ($(agp), True)
 ifeq ($(no_cut), True)
 	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
-	-r "$(reference_weights)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) --mkt --agp --no_cut $(min_ref_targets)
+	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) --mkt --agp --no_cut $(min_ref_targets)
 else
 	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
-	-r "$(reference_weights)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) --mkt --agp $(min_ref_targets)
+	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) --mkt --agp $(min_ref_targets)
 endif
 else
 ifeq ($(no_cut), True)
 	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
-	-r "$(reference_weights)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) --mkt --no_cut $(min_ref_targets)
+	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) --mkt --no_cut $(min_ref_targets)
 else
 	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
-	-r "$(reference_weights)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) --mkt $(min_ref_targets)
+	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) --mkt $(min_ref_targets)
 endif
 endif
 else
 ifeq ($(agp), True)
 ifeq ($(no_cut), True)
 	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
-	-r "$(reference_weights)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) -m $(m) --agp --no_cut $(min_ref_targets)
+	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) -m $(m) --agp --no_cut $(min_ref_targets)
 else
 	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
-	-r "$(reference_weights)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) -m $(m) --agp $(min_ref_targets)
+	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) -m $(m) --agp $(min_ref_targets)
 endif
 else
 ifeq ($(no_cut), True)
 	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
-	-r "$(reference_weights)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) -m $(m) --no_cut $(min_ref_targets)
+	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) -m $(m) --no_cut $(min_ref_targets)
 else
 	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
-	-r "$(reference_weights)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) -m $(m) $(min_ref_targets)
+	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) -m $(m) $(min_ref_targets)
 endif
 endif
 endif
@@ -220,7 +239,7 @@ $(target).k$(k).w$(w).n$(n).unassigned.scaffolds.fa: $(target).k$(k).w$(w).n$(n)
 	samtools index $<
 
 # Run QUAST
-quast_$(prefix)/report.tsv: $(references) $(target) $(target).k$(k).w$(w).n$(n).all.scaffolds.fa
+quast_$(prefix)/report.tsv: $(references_list) $(target) $(target).k$(k).w$(w).n$(n).all.scaffolds.fa
 ifeq ($(large), 1)
 	quast -t $(t) -o quast_$(prefix) -r $(ref) --fast --scaffold-gap-max-size 100000 --split-scaffolds \
 	--large $^
