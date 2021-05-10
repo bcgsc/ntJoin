@@ -1,34 +1,36 @@
 # See https://docs.microsoft.com/azure/devops/pipelines/languages/python
 
-
 jobs:
-- job: RunsInContainer
-  container: # inline container specification
-    image: "linuxbrew/brew"
+- job:
+  displayName: ubuntu-16.04
+  pool:
+    vmImage: 'ubuntu-16.04'
+
   steps:
-  - task: UsePythonVersion@0
-    inputs:
-      versionSpec: "3.8"
-      architecture: x64
+  - script: echo "##vso[task.prependpath]$CONDA/bin"
+    displayName: Add conda to PATH
+
+  - script: conda create --yes --quiet --name ntjoin_CI
+    displayName: Create Anaconda environment
+
   - script: |
       curl https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-      sudo apt-add-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-8 main"
+      sudo apt-add-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-11 main"
       sudo apt-get update
-      sudo apt-get install -y --no-install-recommends clang-format-8 clang-tidy-8 build-essential libxml2-dev \
-      libglpk-dev libgmp3-dev libblas-dev liblapack-dev libarpack2-dev
-      sudo ln -s clang-format-8 /usr/bin/clang-format
-      sudo ln -s clang-tidy-8 /usr/bin/clang-tidy
+      sudo apt-get install -y --no-install-recommends clang-format-11 clang-tidy-11
+      sudo ln -s clang-format-11 /usr/bin/clang-format
+      sudo ln -s clang-tidy-11 /usr/bin/clang-tidy
+    displayName: Install clang-format and clang-tidy
   - script: |
-      sudo HOMEBREW_NO_AUTO_UPDATE=1 /home/linuxbrew/.linuxbrew/bin/brew install python@3.8
-      sudo /home/linuxbrew/.linuxbrew/opt/python@3.8/bin/pip3 install --upgrade setuptools \
-      -U pip --no-cache-dir \
-      pylint pytest .
-    displayName: Install Python packages
-    env:
-      HOMEBREW_NO_AUTO_UPDATE: 1
+      source activate ntjoin_CI
+      conda install --yes --quiet --name ntjoin_CI python pylint
+      conda install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda --file requirements.txt
+    displayName: Install Anaconda packages
   - script: |
+      source activate ntjoin_CI
       cd bin
       pylint ntjoin_assemble.py read_fasta.py
+      cd ..
     displayName: Run pylint
   - script: make -C src all
     displayName: Compile C++ executables
@@ -37,19 +39,12 @@ jobs:
   - script: make -C src check
     displayName: Test C++ executables
   - script: |
-      export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH
-      export PATH="/home/linuxbrew/.linuxbrew/opt/python@3.8/libexec/bin:$PATH"
-      export PATH="/home/linuxbrew/.linuxbrew/opt/python@3.8/bin:$PATH"
-      echo $PATH
-      which python3
-      python3 --version
-      sudo HOMEBREW_NO_AUTO_UPDATE=1 /home/linuxbrew/.linuxbrew/bin/brew install samtools bedtools gnu-time
+      source activate ntjoin_CI
+      conda install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda pytest bedtools samtools
       cd tests
       pytest -vs ntjoin_test.py
-    env:
-      HOMEBREW_NO_AUTO_UPDATE: 1
-    displayName: Testing minimizer graph code
-    
+    displayName: Run pytests
+
 - job: macOS_default_clang
   pool:
     vmImage: macOS-10.14
