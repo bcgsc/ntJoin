@@ -1,6 +1,7 @@
 [![Release](https://img.shields.io/github/release/bcgsc/ntJoin.svg)](https://github.com/bcgsc/ntJoin/releases)
 [![Issues](https://img.shields.io/github/issues/bcgsc/ntJoin.svg)](https://github.com/bcgsc/ntJoin/issues)
 [![Conda](https://img.shields.io/conda/dn/bioconda/ntjoin?label=Conda)](https://anaconda.org/bioconda/ntjoin)
+[![Published in Bioinformatics](https://img.shields.io/badge/Published%20in-Bioinformatics-blue.svg)](https://doi.org/10.1093/bioinformatics/btaa253)
 
 ![Logo](https://github.com/bcgsc/ntJoin/blob/master/ntjoin-logo.png)
 
