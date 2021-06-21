@@ -1,4 +1,4 @@
-CXXFLAGS=-O3 -Wall -Wextra -Werror -Wno-unknown-pragmas -std=c++11 -pthread -fopenmp -Ibtllib/include
+CXXFLAGS=-O3 -Wall -Wextra -Werror -Wno-unknown-pragmas -std=c++11 -pthread -Ibtllib/include
 
 all: indexlr
 
