@@ -8,6 +8,8 @@
 #ifndef BTLLIB_NTHASH_HPP
 #define BTLLIB_NTHASH_HPP
 
+#include "status.hpp"
+
 #include <cstdint>
 #include <limits>
 #include <string>
@@ -1256,41 +1258,43 @@ using SpacedSeed = std::vector<unsigned>;
 static std::vector<SpacedSeed>
 parse_seeds(const std::vector<std::string>& seed_strings);
 
-/**
- * Iterate over hash values for k-mers in a
- * given DNA sequence.
- *
- * This implementation uses ntHash
- * function to efficiently calculate
- * hash values for successive k-mers.
- */
 class NtHash
 {
 
 public:
   /**
    * Constructor.
-   * @param seq DNA sequence to be hashed
-   * @param seq_len length of seq
-   * @param k k-mer size
-   * @param hash_num number of hashes
+   * @param seq C string of DNA sequence to be hashed.
+   * @param seq_len Length of seq.
+   * @param hash_num Number of hashes to produce per k-mer.
+   * @param k K-mer size.
+   * @param pos Position in seq to start hashing from.
    */
   NtHash(const char* seq,
          size_t seq_len,
-         unsigned k,
          unsigned hash_num,
+         unsigned k,
          size_t pos = 0);
 
   /**
    * Constructor.
-   * @param seq DNA sequence to be hashed
-   * @param k k-mer size
-   * @param hash_num number of hashes
+   * @param seq String of DNA sequence to be hashed.
+   * @param hash_num Number of hashes to produce per k-mer.
+   * @param k K-mer size.
+   * @param pos Position in seq to start hashing from.
    */
-  NtHash(const std::string& seq, unsigned k, unsigned hash_num, size_t pos = 0);
+  NtHash(const std::string& seq, unsigned hash_num, unsigned k, size_t pos = 0);
 
   /**
-   * Calculate the next hash value
+   * Calculate the hash values of current k-mer and advance to the next k-mer.
+   * NtHash advances one nucleotide at a time until it finds a k-mer with valid
+   * characters (ACTG) and skips over those with invalid characters (non-ACTG,
+   * including N). This method must be called before hashes() is accessed, for
+   * the first and every subsequent hashed kmer. get_pos() may be called at any
+   * time to obtain the position of last hashed k-mer or the k-mer to be hashed
+   * if roll() has never been called on this NtHash object. It is important to
+   * note that the number of roll() calls is NOT necessarily equal to get_pos(),
+   * if there are N or invalid characters in the hashed sequence.
    * @return true on success and false otherwise
    */
   bool roll();
@@ -1300,10 +1304,17 @@ public:
 
   const uint64_t* hashes() const { return hashes_vector.data(); }
 
+  /**
+   * Get the position of last hashed k-mer or the k-mer to be hashed if roll()
+   * has never been called on this NtHash object.
+   */
   size_t get_pos() const { return pos; }
   bool forward() const { return forward_hash <= reverse_hash; }
-  unsigned get_k() const { return k; }
   unsigned get_hash_num() const { return hash_num; }
+  unsigned get_k() const { return k; }
+
+  uint64_t get_forward_hash() const { return forward_hash; }
+  uint64_t get_reverse_hash() const { return reverse_hash; }
 
 private:
   friend class SeedNtHash;
@@ -1313,8 +1324,8 @@ private:
 
   const char* seq;
   const size_t seq_len;
-  const unsigned k;
   const unsigned hash_num;
+  const unsigned k;
   size_t pos;
   bool initialized;
   std::vector<uint64_t> hashes_vector;
@@ -1328,36 +1339,43 @@ class SeedNtHash
 public:
   SeedNtHash(const char* seq,
              size_t seq_len,
-             unsigned k,
              const std::vector<SpacedSeed>& seeds,
              unsigned hash_num_per_seed,
+             unsigned k,
              size_t pos = 0);
   SeedNtHash(const std::string& seq,
-             unsigned k,
              const std::vector<SpacedSeed>& seeds,
              unsigned hash_num_per_seed,
+             unsigned k,
              size_t pos = 0);
   SeedNtHash(const char* seq,
              size_t seq_len,
-             unsigned k,
              const std::vector<std::string>& seeds,
              unsigned hash_num_per_seed,
+             unsigned k,
              size_t pos = 0);
   SeedNtHash(const std::string& seq,
-             unsigned k,
              const std::vector<std::string>& seeds,
              unsigned hash_num_per_seed,
+             unsigned k,
              size_t pos = 0);
+
+  /**
+   * Calculate the next hash value.
+   * @return true on success and false otherwise
+   */
+  bool roll();
 
   const uint64_t* hashes() const { return nthash.hashes(); }
 
   size_t get_pos() const { return nthash.get_pos(); }
   bool forward() const { return nthash.forward(); }
-  unsigned get_k() const { return nthash.get_k(); }
   unsigned get_hash_num() const { return nthash.get_hash_num(); }
   unsigned get_hash_num_per_seed() const { return hash_num_per_seed; }
+  unsigned get_k() const { return nthash.get_k(); }
 
-  bool roll();
+  uint64_t get_forward_hash() const { return nthash.get_forward_hash(); }
+  uint64_t get_reverse_hash() const { return nthash.get_reverse_hash(); }
 
 private:
   bool init();
@@ -1369,64 +1387,68 @@ private:
 
 inline NtHash::NtHash(const char* seq,
                       size_t seq_len,
-                      unsigned k,
                       unsigned hash_num,
+                      unsigned k,
                       size_t pos)
   : seq(seq)
   , seq_len(seq_len)
-  , k(k)
   , hash_num(hash_num)
+  , k(k)
   , pos(pos)
   , initialized(false)
 {
+  check_warning(hash_num >= k,
+                "NtHash: using " + std::to_string(hash_num) +
+                  " hash functions and k size of " + std::to_string(k) +
+                  ". Did you permute the parameters?");
   hashes_vector.resize(hash_num);
 }
 
 inline NtHash::NtHash(const std::string& seq,
-                      unsigned k,
                       unsigned hash_num,
+                      unsigned k,
                       size_t pos)
-  : NtHash(seq.c_str(), seq.size(), k, hash_num, pos)
+  : NtHash(seq.c_str(), seq.size(), hash_num, k, pos)
 {}
 
 inline SeedNtHash::SeedNtHash(const char* seq,
                               size_t seq_len,
-                              unsigned k,
                               const std::vector<SpacedSeed>& seeds,
                               unsigned hash_num_per_seed,
+                              unsigned k,
                               size_t pos)
-  : nthash(seq, seq_len, k, seeds.size() * hash_num_per_seed, pos)
+  : nthash(seq, seq_len, seeds.size() * hash_num_per_seed, k, pos)
   , hash_num_per_seed(hash_num_per_seed)
   , seeds(seeds)
 {}
 
 inline SeedNtHash::SeedNtHash(const std::string& seq,
-                              unsigned k,
                               const std::vector<SpacedSeed>& seeds,
                               unsigned hash_num_per_seed,
+                              unsigned k,
                               size_t pos)
-  : nthash(seq, k, seeds.size() * hash_num_per_seed, pos)
+  : nthash(seq, seeds.size() * hash_num_per_seed, k, pos)
   , hash_num_per_seed(hash_num_per_seed)
   , seeds(seeds)
 {}
 
 inline SeedNtHash::SeedNtHash(const char* seq,
                               size_t seq_len,
-                              unsigned k,
                               const std::vector<std::string>& seeds,
                               unsigned hash_num_per_seed,
+                              unsigned k,
                               size_t pos)
-  : nthash(seq, seq_len, k, seeds.size() * hash_num_per_seed, pos)
+  : nthash(seq, seq_len, seeds.size() * hash_num_per_seed, k, pos)
   , hash_num_per_seed(hash_num_per_seed)
   , seeds(parse_seeds(seeds))
 {}
 
 inline SeedNtHash::SeedNtHash(const std::string& seq,
-                              unsigned k,
                               const std::vector<std::string>& seeds,
                               unsigned hash_num_per_seed,
+                              unsigned k,
                               size_t pos)
-  : nthash(seq, k, seeds.size() * hash_num_per_seed, pos)
+  : nthash(seq, seeds.size() * hash_num_per_seed, k, pos)
   , hash_num_per_seed(hash_num_per_seed)
   , seeds(parse_seeds(seeds))
 {}

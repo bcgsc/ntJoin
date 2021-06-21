@@ -9,6 +9,63 @@
 package btllib;
 
 public class btllib {
+  public static SWIGTYPE_p_unsigned_char getBIT_MASKS() {
+    long cPtr = btllibJNI.BIT_MASKS_get();
+    return (cPtr == 0) ? null : new SWIGTYPE_p_unsigned_char(cPtr, false);
+  }
+
+  public static String getKMER_BLOOM_FILTER_MAGIC_HEADER() {
+    return btllibJNI.KMER_BLOOM_FILTER_MAGIC_HEADER_get();
+  }
+
+  public static String getSEED_BLOOM_FILTER_MAGIC_HEADER() {
+    return btllibJNI.SEED_BLOOM_FILTER_MAGIC_HEADER_get();
+  }
+
+  public static String getHASH_FN() {
+    return btllibJNI.HASH_FN_get();
+  }
+
+  public static long getMAX_HASH_VALUES() {
+    return btllibJNI.MAX_HASH_VALUES_get();
+  }
+
+  public static long getPLACEHOLDER_NEWLINES() {
+    return btllibJNI.PLACEHOLDER_NEWLINES_get();
+  }
+
+  public static long pop_cnt_byte(SWIGTYPE_p_uint8_t x) {
+    return btllibJNI.pop_cnt_byte(SWIGTYPE_p_uint8_t.getCPtr(x));
+  }
+
+  public static String getCOMPLEMENTS() {
+    return btllibJNI.COMPLEMENTS_get();
+  }
+
+  public static String getCAPITALS() {
+    return btllibJNI.CAPITALS_get();
+  }
+
+  public static void reverse_complement(SWIGTYPE_p_std__string seq) {
+    btllibJNI.reverse_complement(SWIGTYPE_p_std__string.getCPtr(seq));
+  }
+
+  public static String get_reverse_complement(String seq) {
+    return btllibJNI.get_reverse_complement(seq);
+  }
+
+  public static String getKMER_COUNTING_BLOOM_FILTER_MAGIC_HEADER() {
+    return btllibJNI.KMER_COUNTING_BLOOM_FILTER_MAGIC_HEADER_get();
+  }
+
+  public static void filter_hashed_kmer(Indexlr.Minimizer hk, boolean filter_in, boolean filter_out, BloomFilter filter_in_bf, BloomFilter filter_out_bf) {
+    btllibJNI.filter_hashed_kmer(Indexlr.Minimizer.getCPtr(hk), hk, filter_in, filter_out, BloomFilter.getCPtr(filter_in_bf), filter_in_bf, BloomFilter.getCPtr(filter_out_bf), filter_out_bf);
+  }
+
+  public static void calc_minimizer(SWIGTYPE_p_std__vectorT_btllib__Indexlr__Minimizer_t hashed_kmers_buffer, SWIGTYPE_p_p_btllib__Indexlr__Minimizer min_current, long idx, SWIGTYPE_p_ssize_t min_idx_left, SWIGTYPE_p_ssize_t min_idx_right, SWIGTYPE_p_ssize_t min_pos_prev, long w, SWIGTYPE_p_std__vectorT_btllib__Indexlr__Minimizer_t minimizers) {
+    btllibJNI.calc_minimizer(SWIGTYPE_p_std__vectorT_btllib__Indexlr__Minimizer_t.getCPtr(hashed_kmers_buffer), SWIGTYPE_p_p_btllib__Indexlr__Minimizer.getCPtr(min_current), idx, SWIGTYPE_p_ssize_t.getCPtr(min_idx_left), SWIGTYPE_p_ssize_t.getCPtr(min_idx_right), SWIGTYPE_p_ssize_t.getCPtr(min_pos_prev), w, SWIGTYPE_p_std__vectorT_btllib__Indexlr__Minimizer_t.getCPtr(minimizers));
+  }
+
   public static SWIGTYPE_p_uint8_t getCP_OFF() {
     return new SWIGTYPE_p_uint8_t(btllibJNI.CP_OFF_get(), true);
   }
@@ -315,6 +372,11 @@ public class btllib {
     return new SWIGTYPE_p_mode_t(btllibJNI.PIPE_PERMISSIONS_get(), true);
   }
 
+  public static Datatype getDATATYPES() {
+    long cPtr = btllibJNI.DATATYPES_get();
+    return (cPtr == 0) ? null : new Datatype(cPtr, false);
+  }
+
   public static SWIGTYPE_p_bool process_spawner_initialized() {
     return new SWIGTYPE_p_bool(btllibJNI.process_spawner_initialized(), false);
   }
@@ -385,28 +447,56 @@ public class btllib {
     return new DataStreamPipeline(btllibJNI.run_pipeline_cmd(cmd, op.swigValue(), pipe_fd), true);
   }
 
-  public static SWIGTYPE_p_std__vectorT_std__string_t split(String s, String delim) {
-    return new SWIGTYPE_p_std__vectorT_std__string_t(btllibJNI.split(s, delim), true);
+  public static void ignore_sigchld() {
+    btllibJNI.ignore_sigchld();
   }
 
-  public static void ltrim(SWIGTYPE_p_std__string s) {
-    btllibJNI.ltrim(SWIGTYPE_p_std__string.getCPtr(s));
+  public static void rm_pipes_on_death() {
+    btllibJNI.rm_pipes_on_death();
   }
 
-  public static void rtrim(SWIGTYPE_p_std__string s) {
-    btllibJNI.rtrim(SWIGTYPE_p_std__string.getCPtr(s));
+  public static void process_spawner_operation() {
+    btllibJNI.process_spawner_operation();
   }
 
-  public static void trim(SWIGTYPE_p_std__string s) {
-    btllibJNI.trim(SWIGTYPE_p_std__string.getCPtr(s));
+  public static String get_datatype_cmd(String path, Datatype datatype, DataStream.Operation op) {
+    return btllibJNI.get_datatype_cmd(path, Datatype.getCPtr(datatype), datatype, op.swigValue());
   }
 
-  public static boolean starts_with(String s, String prefix) {
-    return btllibJNI.starts_with(s, prefix);
+  public static SWIGTYPE_p_std__vectorT_std__string_t peel_datatype(String path, DataStream.Operation op) {
+    return new SWIGTYPE_p_std__vectorT_std__string_t(btllibJNI.peel_datatype(path, op.swigValue()), true);
   }
 
-  public static boolean ends_with(String s, String suffix) {
-    return btllibJNI.ends_with(s, suffix);
+  public static String form_string_cmd(SWIGTYPE_p_std__vectorT_std__string_t cmd_layers, DataStream.Operation op, String path) {
+    return btllibJNI.form_string_cmd(SWIGTYPE_p_std__vectorT_std__string_t.getCPtr(cmd_layers), op.swigValue(), path);
+  }
+
+  public static String extract_stdout_file(SWIGTYPE_p_std__vectorT_std__string_t args) {
+    return btllibJNI.extract_stdout_file(SWIGTYPE_p_std__vectorT_std__string_t.getCPtr(args));
+  }
+
+  public static void chain_read(long idx, long cmd_count, SWIGTYPE_p_p_char argv, int pipe_fd, SWIGTYPE_p_int input_fd, SWIGTYPE_p_int output_fd) {
+    btllibJNI.chain_read(idx, cmd_count, SWIGTYPE_p_p_char.getCPtr(argv), pipe_fd, SWIGTYPE_p_int.getCPtr(input_fd), SWIGTYPE_p_int.getCPtr(output_fd));
+  }
+
+  public static void chain_write(long idx, long cmd_count, SWIGTYPE_p_p_char argv, int pipe_fd, SWIGTYPE_p_int input_fd, SWIGTYPE_p_int output_fd, boolean append, String stdout_to_file) {
+    btllibJNI.chain_write(idx, cmd_count, SWIGTYPE_p_p_char.getCPtr(argv), pipe_fd, SWIGTYPE_p_int.getCPtr(input_fd), SWIGTYPE_p_int.getCPtr(output_fd), append, stdout_to_file);
+  }
+
+  public static String getPRINT_COLOR_INFO() {
+    return btllibJNI.PRINT_COLOR_INFO_get();
+  }
+
+  public static String getPRINT_COLOR_WARNING() {
+    return btllibJNI.PRINT_COLOR_WARNING_get();
+  }
+
+  public static String getPRINT_COLOR_ERROR() {
+    return btllibJNI.PRINT_COLOR_ERROR_get();
+  }
+
+  public static String getPRINT_COLOR_END() {
+    return btllibJNI.PRINT_COLOR_END_get();
   }
 
   public static String get_time() {
@@ -441,41 +531,28 @@ public class btllib {
     btllibJNI.check_stream(SWIGTYPE_p_std__ios.getCPtr(stream), name);
   }
 
-  public static String getKMER_COUNTING_BLOOM_FILTER_MAGIC_HEADER() {
-    return btllibJNI.KMER_COUNTING_BLOOM_FILTER_MAGIC_HEADER_get();
+  public static SWIGTYPE_p_std__vectorT_std__string_t split(String s, String delim) {
+    return new SWIGTYPE_p_std__vectorT_std__string_t(btllibJNI.split(s, delim), true);
   }
 
-  public static String getCOMPLEMENTS() {
-    return btllibJNI.COMPLEMENTS_get();
+  public static void ltrim(SWIGTYPE_p_std__string s) {
+    btllibJNI.ltrim(SWIGTYPE_p_std__string.getCPtr(s));
   }
 
-  public static String getCAPITALS() {
-    return btllibJNI.CAPITALS_get();
+  public static void rtrim(SWIGTYPE_p_std__string s) {
+    btllibJNI.rtrim(SWIGTYPE_p_std__string.getCPtr(s));
   }
 
-  public static void reverse_complement(SWIGTYPE_p_std__string seq) {
-    btllibJNI.reverse_complement(SWIGTYPE_p_std__string.getCPtr(seq));
+  public static void trim(SWIGTYPE_p_std__string s) {
+    btllibJNI.trim(SWIGTYPE_p_std__string.getCPtr(s));
   }
 
-  public static String get_reverse_complement(String seq) {
-    return btllibJNI.get_reverse_complement(seq);
+  public static boolean starts_with(String s, String prefix) {
+    return btllibJNI.starts_with(s, prefix);
   }
 
-  public static SWIGTYPE_p_unsigned_char getBIT_MASKS() {
-    long cPtr = btllibJNI.BIT_MASKS_get();
-    return (cPtr == 0) ? null : new SWIGTYPE_p_unsigned_char(cPtr, false);
-  }
-
-  public static String getKMER_BLOOM_FILTER_MAGIC_HEADER() {
-    return btllibJNI.KMER_BLOOM_FILTER_MAGIC_HEADER_get();
-  }
-
-  public static String getSEED_BLOOM_FILTER_MAGIC_HEADER() {
-    return btllibJNI.SEED_BLOOM_FILTER_MAGIC_HEADER_get();
-  }
-
-  public static long pop_cnt_byte(SWIGTYPE_p_uint8_t x) {
-    return btllibJNI.pop_cnt_byte(SWIGTYPE_p_uint8_t.getCPtr(x));
+  public static boolean ends_with(String s, String suffix) {
+    return btllibJNI.ends_with(s, suffix);
   }
 
 }

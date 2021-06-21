@@ -15,7 +15,10 @@ namespace btllib {
  * An example of writing a gzipped fastq file.
  */
 
-/** Write FASTA or FASTQ sequences to a file. Threadsafe. */
+/** Write FASTA or FASTQ sequences to a file. Capable of writing gzip (.gz),
+ * bzip2 (.bz2), xz (.xz), zip (.zip), 7zip (.7z), and lrzip (.lrz) files. Add
+ * the appropriate extension to the output filename to automatically compress.
+ * Threadsafe. */
 class SeqWriter
 {
 
@@ -26,16 +29,23 @@ public:
     FASTQ
   };
 
+  /**
+   * Construct a SeqWriter to write sequences to a given path.
+   *
+   * @param source_path Filepath to write to. Pass "-" to write to stdout.
+   * @param format Which format to write the output as.
+   * @param append Whether to append to the target file or write anew.
+   */
   SeqWriter(const std::string& sink_path,
             Format format = FASTA,
             bool append = false);
 
   void close();
 
-  void write(const std::string& name,
+  void write(const std::string& id,
              const std::string& comment,
              const std::string& seq,
-             const std::string& qual);
+             const std::string& qual = "");
 
 private:
   const std::string sink_path;
@@ -66,7 +76,7 @@ SeqWriter::close()
 }
 
 inline void
-SeqWriter::write(const std::string& name,
+SeqWriter::write(const std::string& id,
                  const std::string& comment,
                  const std::string& seq,
                  const std::string& qual)
@@ -76,22 +86,22 @@ SeqWriter::write(const std::string& name,
     if (!bool(COMPLEMENTS[(unsigned char)(c)])) {
       log_error(std::string("A sequence contains invalid IUPAC character: ") +
                 c);
-      std::exit(EXIT_FAILURE);
+      std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
     }
   }
 
   std::string output;
-  output.reserve(1 + name.size() + 1 + comment.size() + 1 + seq.size() + 3 +
+  output.reserve(1 + id.size() + 1 + comment.size() + 1 + seq.size() + 3 +
                  qual.size() + 1);
   output += headerchar;
-  if (!name.empty()) {
-    output += name;
+  if (!id.empty()) {
+    output += id;
   }
   if (!comment.empty()) {
     output += " ";
     output += comment;
-    output += '\n';
   }
+  output += '\n';
 
   output += seq;
   output += '\n';

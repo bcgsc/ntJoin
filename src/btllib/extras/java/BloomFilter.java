@@ -40,12 +40,16 @@ public class BloomFilter {
     this(btllibJNI.new_BloomFilter__SWIG_0(), true);
   }
 
+  public BloomFilter(long bytes, long hash_num, String hash_fn) {
+    this(btllibJNI.new_BloomFilter__SWIG_1(bytes, hash_num, hash_fn), true);
+  }
+
   public BloomFilter(long bytes, long hash_num) {
-    this(btllibJNI.new_BloomFilter__SWIG_1(bytes, hash_num), true);
+    this(btllibJNI.new_BloomFilter__SWIG_2(bytes, hash_num), true);
   }
 
   public BloomFilter(String path) {
-    this(btllibJNI.new_BloomFilter__SWIG_2(path), true);
+    this(btllibJNI.new_BloomFilter__SWIG_3(path), true);
   }
 
   public void insert(SWIGTYPE_p_uint64_t hashes) {
@@ -84,12 +88,16 @@ public class BloomFilter {
     return btllibJNI.BloomFilter_get_fpr(swigCPtr, this);
   }
 
-  public static SWIGTYPE_p_std__shared_ptrT_cpptoml__table_t parse_header(SWIGTYPE_p_std__ifstream file, String magic_string) {
-    return new SWIGTYPE_p_std__shared_ptrT_cpptoml__table_t(btllibJNI.BloomFilter_parse_header(SWIGTYPE_p_std__ifstream.getCPtr(file), magic_string), true);
+  public String get_hash_fn() {
+    return btllibJNI.BloomFilter_get_hash_fn(swigCPtr, this);
   }
 
-  public void write(String path) {
-    btllibJNI.BloomFilter_write(swigCPtr, this, path);
+  public void save(String path) {
+    btllibJNI.BloomFilter_save(swigCPtr, this, path);
+  }
+
+  public static SWIGTYPE_p_std__shared_ptrT_cpptoml__table_t parse_header(SWIGTYPE_p_std__ifstream file, String magic_string) {
+    return new SWIGTYPE_p_std__shared_ptrT_cpptoml__table_t(btllibJNI.BloomFilter_parse_header(SWIGTYPE_p_std__ifstream.getCPtr(file), magic_string), true);
   }
 
 }

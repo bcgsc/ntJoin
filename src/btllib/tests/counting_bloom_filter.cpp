@@ -23,7 +23,7 @@ main()
   assert(cbf.contains({ 1, 20, 100 }) == 0);
 
   auto filename = get_random_name(64);
-  cbf.write(filename);
+  cbf.save(filename);
 
   btllib::CountingBloomFilter8 cbf2(filename);
 

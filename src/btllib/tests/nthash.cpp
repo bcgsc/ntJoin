@@ -11,7 +11,7 @@ main()
 
   {
     std::cerr << "Testing single kmer hash values" << std::endl;
-    btllib::NtHash nthash(kmer, kmer.size(), 3);
+    btllib::NtHash nthash(kmer, 3, kmer.size());
 
     /* Hash values*/
     const std::vector<uint64_t> hashes = { 10434435546371013747U,
@@ -29,9 +29,9 @@ main()
 
   {
     std::cerr << "Testing base substitution" << std::endl;
-    btllib::NtHash nthash(kmer, kmer.size(), 3);
+    btllib::NtHash nthash(kmer, 3, kmer.size());
     std::string kmer_subbed = "ACGCGCACTGGACTGAGTCT";
-    btllib::NtHash nthash_subbed(kmer_subbed, kmer_subbed.size(), 3);
+    btllib::NtHash nthash_subbed(kmer_subbed, 3, kmer_subbed.size());
 
     nthash.roll();
     nthash.sub({ 3, 4 }, { 'C', 'G' });
@@ -49,8 +49,8 @@ main()
     /* Reverse complement of kmer*/
     std::string rc_kmer = "AGACTCAGTCCAGTGTACGT";
 
-    btllib::NtHash nthash(kmer, 20, 3);
-    btllib::NtHash nthash_rc(rc_kmer, 20, 3);
+    btllib::NtHash nthash(kmer, 3, 20);
+    btllib::NtHash nthash_rc(rc_kmer, 3, 20);
 
     nthash.roll();
     nthash_rc.roll();
@@ -64,7 +64,7 @@ main()
 
   {
     std::cerr << "Testing rolling hash values" << std::endl;
-    btllib::NtHash nthash(kmer, 18, 3);
+    btllib::NtHash nthash(kmer, 3, 18);
 
     /* 18-mers of kmer*/
     std::string kmer1 = "ACGTACACTGGACTGAGT";
@@ -72,9 +72,9 @@ main()
     std::string kmer3 = "GTACACTGGACTGAGTCT";
 
     std::vector<btllib::NtHash> nthash_vector = {
-      btllib::NtHash(kmer1, kmer1.size(), nthash.get_hash_num()),
-      btllib::NtHash(kmer2, kmer2.size(), nthash.get_hash_num()),
-      btllib::NtHash(kmer3, kmer3.size(), nthash.get_hash_num())
+      btllib::NtHash(kmer1, nthash.get_hash_num(), kmer1.size()),
+      btllib::NtHash(kmer2, nthash.get_hash_num(), kmer2.size()),
+      btllib::NtHash(kmer3, nthash.get_hash_num(), kmer3.size())
     };
 
     size_t i;
@@ -98,19 +98,19 @@ main()
     assert(kmerM1.size() == seeds[0].size());
     assert(kmerM1.size() == seeds[1].size());
 
-    btllib::SeedNtHash seed_nthash(kmer, kmer.size(), seeds, 2);
+    btllib::SeedNtHash seed_nthash(kmer, seeds, 2, kmer.size());
 
     std::vector<btllib::SeedNtHash> seed_nthash_vector = {
       btllib::SeedNtHash(kmerM1,
-                         seed_nthash.get_k(),
                          seeds,
-                         seed_nthash.get_hash_num_per_seed()),
+                         seed_nthash.get_hash_num_per_seed(),
+                         seed_nthash.get_k()),
       btllib::SeedNtHash(kmerM2,
-                         seed_nthash.get_k(),
                          seeds,
-                         seed_nthash.get_hash_num_per_seed()),
+                         seed_nthash.get_hash_num_per_seed(),
+                         seed_nthash.get_k()),
       btllib::SeedNtHash(
-        kmerM3, seed_nthash.get_k(), seeds, seed_nthash.get_hash_num_per_seed())
+        kmerM3, seeds, seed_nthash.get_hash_num_per_seed(), seed_nthash.get_k())
     };
     assert(seed_nthash.get_hash_num() == seeds.size() * 2);
     assert(seed_nthash.get_hash_num() == seed_nthash_vector[0].get_hash_num());
@@ -128,10 +128,10 @@ main()
 
   {
     std::cerr << "Testing RNA" << std::endl;
-    btllib::NtHash dna_nthash(kmer, 20, 3);
+    btllib::NtHash dna_nthash(kmer, 3, 20);
 
     std::string rna_kmer = "ACGUACACUGGACUGAGUCU";
-    btllib::NtHash rna_nthash(kmer, 20, 3);
+    btllib::NtHash rna_nthash(kmer, 3, 20);
 
     dna_nthash.roll();
     rna_nthash.roll();
