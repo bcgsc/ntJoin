@@ -11,8 +11,7 @@ main()
   btllib::Indexlr indexlr2("../tests/indexlr.fq",
                            100,
                            5,
-                           btllib::Indexlr::Flag::ID |
-                             btllib::Indexlr::Flag::BX |
+                           btllib::Indexlr::Flag::BX |
                              btllib::Indexlr::Flag::SEQ);
 
   std::ifstream correct_output_file("../tests/indexlr.fa.correct");

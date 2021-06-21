@@ -13,7 +13,7 @@ int
 main()
 {
   std::cerr << "Testing BloomFilter" << std::endl;
-  btllib::BloomFilter bf(1024 * 1024, 3);
+  btllib::BloomFilter bf(1024 * 1024, 3, "ntHash");
   bf.insert({ 1, 10, 100 });
   bf.insert({ 100, 200, 300 });
 
@@ -22,9 +22,10 @@ main()
   assert(!bf.contains({ 1, 20, 100 }));
 
   auto filename = get_random_name(64);
-  bf.write(filename);
+  bf.save(filename);
 
   btllib::BloomFilter bf2(filename);
+  assert(bf2.get_hash_fn() == "ntHash");
 
   assert(bf2.contains({ 1, 10, 100 }));
   assert(bf2.contains({ 100, 200, 300 }));

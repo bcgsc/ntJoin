@@ -5,7 +5,7 @@
 #include "nthash.hpp"
 #include "status.hpp"
 
-#include "vendor/cpptoml.hpp"
+#include "../external/cpptoml.hpp"
 
 #include <atomic>
 #include <climits>
@@ -18,20 +18,42 @@
 namespace btllib {
 
 static const char* const COUNTING_BLOOM_FILTER_MAGIC_HEADER =
-  "BTLCountingBloomFilter_v2";
+  "BTLCountingBloomFilter_v5";
 static const char* const KMER_COUNTING_BLOOM_FILTER_MAGIC_HEADER =
-  "BTLKmerCountingBloomFilter_v2";
+  "BTLKmerCountingBloomFilter_v5";
 
 template<typename T>
 class KmerCountingBloomFilter;
 
+/**
+ * Counting Bloom filter data structure. Provides CountingBloomFilter8,
+ * CountingBloomFilter16, and CountingBloomFilter32 classes with corresponding
+ * bit-size counters.
+ */
 template<typename T>
 class CountingBloomFilter
 {
 
 public:
+  /** Construct a dummy Kmer Bloom filter (e.g. as a default argument). */
   CountingBloomFilter() {}
-  CountingBloomFilter(size_t bytes, unsigned hash_num);
+
+  /**
+   * Construct an empty Counting Bloom filter of given size.
+   *
+   * @param bytes Filter size in bytes.
+   * @param hash_num Number of hash values per element.
+   * @param hash_fn Name of the hash function used. Used for metadata. Optional.
+   */
+  CountingBloomFilter(size_t bytes,
+                      unsigned hash_num,
+                      std::string hash_fn = "");
+
+  /**
+   * Load a Counting Bloom filter from a file.
+   *
+   * @param path Filepath to load from.
+   */
   explicit CountingBloomFilter(const std::string& path);
 
   ~CountingBloomFilter() { delete[] array; }
@@ -42,26 +64,62 @@ public:
   CountingBloomFilter& operator=(const CountingBloomFilter&) = delete;
   CountingBloomFilter& operator=(CountingBloomFilter&&) = delete;
 
+  /**
+   * Insert an element's hash values.
+   *
+   * @param hashes Integer array of hash values. Array size should equal the
+   * hash_num argument used when the Bloom filter was constructed.
+   */
   void insert(const uint64_t* hashes);
+
+  /**
+   * Insert an element's hash values.
+   *
+   * @param hashes Integer vector of hash values.
+   */
   void insert(const std::vector<uint64_t>& hashes) { insert(hashes.data()); }
 
+  /**
+   * Check for the presence of an element's hash values.
+   *
+   * @param hashes Integer array of hash values. Array size should equal the
+   * hash_num argument used when the Bloom filter was constructed.
+   *
+   * @return The count of the queried element.
+   */
   T contains(const uint64_t* hashes) const;
+
+  /**
+   * Check for the presence of an element's hash values.
+   *
+   * @param hashes Integer vector of hash values.
+   *
+   * @return The count of the queried element.
+   */
   T contains(const std::vector<uint64_t>& hashes) const
   {
     return contains(hashes.data());
   }
 
+  /** Get filter size in bytes. */
   size_t get_bytes() const { return bytes; }
+  /** Get population count, i.e. the number of counters >0 in the filter. */
   uint64_t get_pop_cnt() const;
+  /** Get the fraction of the filter occupied by >1 counters. */
   double get_occupancy() const;
+  /** Get the number of hash values per element. */
   unsigned get_hash_num() const { return hash_num; }
+  /** Get the query false positive rate. */
   double get_fpr() const;
+  /** Get the name of the hash function used. */
+  const std::string& get_hash_fn() const { return hash_fn; }
 
   /**
-   * Write bloom filter data to a file
-   * @param path output filepath
+   * Save the Bloom filter to a file that can be loaded in the future.
+   *
+   * @param path Filepath to store filter at.
    */
-  void write(const std::string& path);
+  void save(const std::string& path);
 
 private:
   friend class KmerCountingBloomFilter<T>;
@@ -70,14 +128,36 @@ private:
   size_t bytes = 0;
   size_t array_size = 0;
   unsigned hash_num = 0;
+  std::string hash_fn;
 };
 
+/**
+ * Counting Bloom filter data structure that stores k-mers. Provides
+ * KmerCountingBloomFilter8, KmerCountingBloomFilter16, and
+ * KmerCountingBloomFilter32 classes with corresponding bit-size counters.
+ */
 template<typename T>
 class KmerCountingBloomFilter
 {
 
 public:
+  /** Construct a dummy Kmer Bloom filter (e.g. as a default argument). */
+  KmerCountingBloomFilter() {}
+
+  /**
+   * Construct an empty Kmer Counting Bloom filter of given size.
+   *
+   * @param bytes Filter size in bytes.
+   * @param hash_num Number of hash values per element.
+   * @param k K-mer size.
+   */
   KmerCountingBloomFilter(size_t bytes, unsigned hash_num, unsigned k);
+
+  /**
+   * Load a Kmer Counting Bloom filter from a file.
+   *
+   * @param path Filepath to load from.
+   */
   explicit KmerCountingBloomFilter(const std::string& path);
 
   KmerCountingBloomFilter(const KmerCountingBloomFilter&) = delete;
@@ -86,36 +166,119 @@ public:
   KmerCountingBloomFilter& operator=(const KmerCountingBloomFilter&) = delete;
   KmerCountingBloomFilter& operator=(KmerCountingBloomFilter&&) = delete;
 
+  /**
+   * Insert a sequence's k-mers into the filter.
+   *
+   * @param seq Sequence to k-merize.
+   * @param seq_len Length of seq.
+   */
   void insert(const char* seq, size_t seq_len);
+
+  /**
+   * Insert a sequence's k-mers into the filter.
+   *
+   * @param seq Sequence to k-merize.
+   */
   void insert(const std::string& seq) { insert(seq.c_str(), seq.size()); }
 
+  /**
+   * Insert an element's hash values.
+   *
+   * @param hashes Integer array of hash values. Array size should equal the
+   * hash_num argument used when the Bloom filter was constructed.
+   */
+  void insert(const uint64_t* hashes) { counting_bloom_filter.insert(hashes); }
+
+  /**
+   * Insert an element's hash values.
+   *
+   * @param hashes Integer vector of hash values.
+   */
+  void insert(const std::vector<uint64_t>& hashes)
+  {
+    counting_bloom_filter.insert(hashes.data());
+  }
+
+  /**
+   * Query the presence of k-mers of a sequence.
+   *
+   * @param seq Sequence to k-merize.
+   * @param seq_len Length of seq.
+   *
+   * @return The sum of counters of seq's k-mers found in the filter.
+   */
   uint64_t contains(const char* seq, size_t seq_len) const;
+
+  /**
+   * Query the presence of k-mers of a sequence.
+   *
+   * @param seq Sequence to k-merize.
+   *
+   * @return The sum of counters of seq's k-mers found in the filter.
+   */
   uint64_t contains(const std::string& seq) const
   {
     return contains(seq.c_str(), seq.size());
   }
 
+  /**
+   * Check for the presence of an element's hash values.
+   *
+   * @param hashes Integer array of hash values. Array size should equal the
+   * hash_num argument used when the Bloom filter was constructed.
+   *
+   * @return The count of the queried element.
+   */
   T contains(const uint64_t* hashes) const
   {
-    counting_bloom_filter.contains(hashes);
+    return counting_bloom_filter.contains(hashes);
   }
+
+  /**
+   * Check for the presence of an element's hash values.
+   *
+   * @param hashes Integer vector of hash values.
+   *
+   * @return The count of the queried element.
+   */
   T contains(const std::vector<uint64_t>& hashes) const
   {
-    counting_bloom_filter.contains(hashes);
+    return counting_bloom_filter.contains(hashes);
   }
 
+  /** Get filter size in bytes. */
   size_t get_bytes() const { return counting_bloom_filter.get_bytes(); }
+  /** Get population count, i.e. the number of counters >0 in the filter. */
   uint64_t get_pop_cnt() const { return counting_bloom_filter.get_pop_cnt(); }
+  /** Get the fraction of the filter occupied by >0 counters. */
   double get_occupancy() const { return counting_bloom_filter.get_occupancy(); }
+  /** Get the number of hash values per element. */
   unsigned get_hash_num() const { return counting_bloom_filter.get_hash_num(); }
+  /** Get the query false positive rate. */
   double get_fpr() const { return counting_bloom_filter.get_fpr(); }
+  /** Get the k-mer size used. */
   unsigned get_k() const { return k; }
+  /** Get the name of the hash function used. */
+  const std::string& get_hash_fn() const
+  {
+    return counting_bloom_filter.get_hash_fn();
+  }
+  /** Get a reference to the underlying vanilla Counting Bloom filter. */
+  CountingBloomFilter<T>& get_counting_bloom_filter()
+  {
+    return counting_bloom_filter;
+  }
 
-  void write(const std::string& path);
+  /**
+   * Save the Bloom filter to a file that can be loaded in the future.
+   *
+   * @param path Filepath to store filter at.
+   */
+  void save(const std::string& path);
 
 private:
   CountingBloomFilter<T> counting_bloom_filter;
-  unsigned k;
+  unsigned k = 0;
 };
 
 using CountingBloomFilter8 = CountingBloomFilter<uint8_t>;
@@ -128,10 +291,13 @@ using KmerCountingBloomFilter32 = KmerCountingBloomFilter<uint32_t>;
 
 template<typename T>
 inline CountingBloomFilter<T>::CountingBloomFilter(size_t bytes,
-                                                   unsigned hash_num)
-  : bytes(std::ceil(bytes / sizeof(uint64_t)) * sizeof(uint64_t))
+                                                   unsigned hash_num,
+                                                   std::string hash_fn)
+  : bytes(
+      size_t(std::ceil(double(bytes) / sizeof(uint64_t)) * sizeof(uint64_t)))
   , array_size(get_bytes() / sizeof(array[0]))
   , hash_num(hash_num)
+  , hash_fn(std::move(hash_fn))
 {
   check_warning(sizeof(uint8_t) != sizeof(std::atomic<uint8_t>),
                 "Atomic primitives take extra memory. CountingBloomFilter will "
@@ -189,7 +355,7 @@ inline uint64_t
 CountingBloomFilter<T>::get_pop_cnt() const
 {
   uint64_t pop_cnt = 0;
-#pragma omp parallel for reduction(+ : pop_cnt)
+#pragma omp parallel for default(none) reduction(+ : pop_cnt)
   for (size_t i = 0; i < array_size; ++i) {
     if (array[i] > 0) {
       ++pop_cnt;
@@ -225,6 +391,9 @@ inline CountingBloomFilter<T>::CountingBloomFilter(const std::string& path)
                 "have less than " +
                   std::to_string(bytes) + " for bit array.");
   array_size = bytes / sizeof(array[0]);
+  if (table->contains("hash_fn")) {
+    hash_fn = *(table->get_as<std::string>("hash_fn"));
+  }
   hash_num = *table->get_as<decltype(hash_num)>("hash_num");
   check_error(
     sizeof(array[0]) * CHAR_BIT != *table->get_as<size_t>("counter_bits"),
@@ -238,7 +407,7 @@ inline CountingBloomFilter<T>::CountingBloomFilter(const std::string& path)
 
 template<typename T>
 inline void
-CountingBloomFilter<T>::write(const std::string& path)
+CountingBloomFilter<T>::save(const std::string& path)
 {
   std::ofstream file(path.c_str(), std::ios::out | std::ios::binary);
 
@@ -253,9 +422,18 @@ CountingBloomFilter<T>::write(const std::string& path)
   auto header = cpptoml::make_table();
   header->insert("bytes", get_bytes());
   header->insert("hash_num", get_hash_num());
+  if (!hash_fn.empty()) {
+    header->insert("hash_fn", hash_fn);
+  }
   header->insert("counter_bits", size_t(sizeof(array[0]) * CHAR_BIT));
   root->insert(COUNTING_BLOOM_FILTER_MAGIC_HEADER, header);
   file << *root << "[HeaderEnd]\n";
+  for (unsigned i = 0; i < PLACEHOLDER_NEWLINES; i++) {
+    if (i == 1) {
+      file << "  <binary data>";
+    }
+    file << '\n';
+  }
 
   file.write((char*)array, array_size * sizeof(array[0]));
 }
@@ -264,7 +442,7 @@ template<typename T>
 inline KmerCountingBloomFilter<T>::KmerCountingBloomFilter(size_t bytes,
                                                            unsigned hash_num,
                                                            unsigned k)
-  : counting_bloom_filter(bytes, hash_num)
+  : counting_bloom_filter(bytes, hash_num, HASH_FN)
   , k(k)
 {}
 
@@ -272,7 +450,7 @@ template<typename T>
 inline void
 KmerCountingBloomFilter<T>::insert(const char* seq, size_t seq_len)
 {
-  NtHash nthash(seq, seq_len, get_k(), get_hash_num());
+  NtHash nthash(seq, seq_len, get_hash_num(), get_k());
   while (nthash.roll()) {
     counting_bloom_filter.insert(nthash.hashes());
   }
@@ -283,7 +461,7 @@ inline uint64_t
 KmerCountingBloomFilter<T>::contains(const char* seq, size_t seq_len) const
 {
   uint64_t count = 0;
-  NtHash nthash(seq, seq_len, get_k(), get_hash_num());
+  NtHash nthash(seq, seq_len, get_hash_num(), get_k());
   while (nthash.roll()) {
     count += counting_bloom_filter.contains(nthash.hashes());
   }
@@ -301,13 +479,20 @@ inline KmerCountingBloomFilter<T>::KmerCountingBloomFilter(
   counting_bloom_filter.bytes =
     *table->get_as<decltype(counting_bloom_filter.bytes)>("bytes");
   check_warning(sizeof(uint8_t) != sizeof(std::atomic<uint8_t>),
-                "Atomic primitives take extra memory. CountingBloomFilter will "
+                "KmerCountingBloomFilter: Atomic primitives take extra memory. "
+                "KmerCountingBloomFilter will "
                 "have less than " +
                   std::to_string(get_bytes()) + " for bit array.");
   counting_bloom_filter.array_size =
     get_bytes() / sizeof(counting_bloom_filter.array[0]);
   counting_bloom_filter.hash_num =
     *table->get_as<decltype(counting_bloom_filter.hash_num)>("hash_num");
+  const std::string loaded_hash_fn = *(table->get_as<std::string>("hash_fn"));
+  check_error(
+    loaded_hash_fn != HASH_FN,
+    "KmerCountingBloomFilter: loaded hash function (" + loaded_hash_fn +
+      ") is different from the one used by default (" + HASH_FN + ").");
+  counting_bloom_filter.hash_fn = loaded_hash_fn;
   k = *table->get_as<decltype(k)>("k");
   check_error(sizeof(T) * CHAR_BIT != *table->get_as<size_t>("counter_bits"),
               "CountingBloomFilter" + std::to_string(sizeof(T) * CHAR_BIT) +
@@ -323,7 +508,7 @@ inline KmerCountingBloomFilter<T>::KmerCountingBloomFilter(
 
 template<typename T>
 inline void
-KmerCountingBloomFilter<T>::write(const std::string& path)
+KmerCountingBloomFilter<T>::save(const std::string& path)
 {
   std::ofstream file(path.c_str(), std::ios::out | std::ios::binary);
 
@@ -337,12 +522,19 @@ KmerCountingBloomFilter<T>::write(const std::string& path)
       and output to ostream */
   auto header = cpptoml::make_table();
   header->insert("bytes", get_bytes());
+  header->insert("hash_fn", get_hash_fn());
   header->insert("hash_num", get_hash_num());
   header->insert("counter_bits",
                  size_t(sizeof(counting_bloom_filter.array[0]) * CHAR_BIT));
   header->insert("k", k);
   root->insert(KMER_COUNTING_BLOOM_FILTER_MAGIC_HEADER, header);
   file << *root << "[HeaderEnd]\n";
+  for (unsigned i = 0; i < PLACEHOLDER_NEWLINES; i++) {
+    if (i == 1) {
+      file << "  <binary data>";
+    }
+    file << '\n';
+  }
 
   file.write((char*)counting_bloom_filter.array,
              counting_bloom_filter.array_size *

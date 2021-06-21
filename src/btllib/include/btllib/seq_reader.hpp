@@ -28,7 +28,9 @@ namespace btllib {
  * An example of reading a gzipped fastq file.
  */
 
-/** Read a FASTA, FASTQ, SAM, or GFA2 file. Threadsafe. */
+/** Read a FASTA, FASTQ, SAM, or GFA2 file. Capable of reading gzip (.gz),
+ * bzip2 (.bz2), xz (.xz), zip (.zip), 7zip (.7z), lrzip (.lrz), BAM (.bam) and
+ * CRAM (.cram), and URL (http://, https://, ftp://) files. Threadsafe. */
 class SeqReader
 {
 public:
@@ -38,20 +40,28 @@ public:
    */
   struct Flag
   {
-    /** Fold lower-case characters to upper-case. */
-    static const unsigned FOLD_CASE = 0;
-    static const unsigned NO_FOLD_CASE = 1;
+    /** Fold all nucleotides into upper case. */
+    static const unsigned FOLD_CASE = 1;
     /** Trim masked (lower case) characters from the ends of
      * sequences. */
-    static const unsigned NO_TRIM_MASKED = 0;
     static const unsigned TRIM_MASKED = 2;
+    /** Optimizes performance for short sequences (approx. <=5kbp) */
+    static const unsigned SHORT_MODE = 4;
+    /** Optimizes performance for long sequences (approx. >5kbp) */
+    static const unsigned LONG_MODE = 8;
   };
 
+  /**
+   * Construct a SeqReader to read sequences from a given path.
+   *
+   * @param source_path Filepath to read from. Pass "-" to read from stdin.
+   * @param flags Modifier flags. Specifiying either short or long mode flag is
+   * mandatory; other flags are optional.
+   * @param threads Maximum number of helper threads to use. Must be at least 1.
+   */
   SeqReader(const std::string& source_path,
-            unsigned flags = 0,
-            unsigned threads = 3,
-            size_t buffer_size = 32,
-            size_t block_size = 32);
+            unsigned flags,
+            unsigned threads = 3);
 
   SeqReader(const SeqReader&) = delete;
   SeqReader(SeqReader&&) = delete;
@@ -63,8 +73,10 @@ public:
 
   void close() noexcept;
 
-  bool fold_case() const { return bool(~flags & Flag::NO_FOLD_CASE); }
+  bool fold_case() const { return bool(flags & Flag::FOLD_CASE); }
   bool trim_masked() const { return bool(flags & Flag::TRIM_MASKED); }
+  bool short_mode() const { return bool(flags & Flag::SHORT_MODE); }
+  bool long_mode() const { return bool(flags & Flag::LONG_MODE); }
 
   enum class Format
   {
@@ -81,7 +93,7 @@ public:
   struct Record
   {
     size_t num = -1;
-    std::string name;
+    std::string id;
     std::string comment;
     std::string seq;
     std::string qual;
@@ -94,16 +106,58 @@ public:
 
   static const size_t MAX_SIMULTANEOUS_SEQREADERS = 256;
 
+  /** For range-based for loop only. */
+  class RecordIterator
+  {
+  public:
+    void operator++() { record = reader.read(); }
+    bool operator!=(const RecordIterator& i)
+    {
+      return bool(record) || bool(i.record);
+    }
+    Record operator*() { return std::move(record); }
+    // For wrappers
+    Record next()
+    {
+      auto val = operator*();
+      operator++();
+      return val;
+    }
+
+  private:
+    friend SeqReader;
+
+    RecordIterator(SeqReader& reader, bool end)
+      : reader(reader)
+    {
+      if (!end) {
+        operator++();
+      }
+    }
+
+    SeqReader& reader;
+    Record record;
+  };
+
+  RecordIterator begin() { return RecordIterator(*this, false); }
+  RecordIterator end() { return RecordIterator(*this, true); }
+
 private:
   const std::string& source_path;
   DataSource source;
   const unsigned flags;
   const unsigned threads;
   Format format = Format::UNDETERMINED; // Format of the source file
-  bool closed = false;
+  std::atomic<bool> closed{ false };
 
   static const size_t DETERMINE_FORMAT_CHARS = 2048;
   static const size_t BUFFER_SIZE = DETERMINE_FORMAT_CHARS;
+
+  static const size_t SHORT_MODE_BUFFER_SIZE = 32;
+  static const size_t SHORT_MODE_BLOCK_SIZE = 32;
+
+  static const size_t LONG_MODE_BUFFER_SIZE = 4;
+  static const size_t LONG_MODE_BLOCK_SIZE = 1;
 
   std::vector<char> buffer;
   size_t buffer_start = 0;
@@ -129,6 +183,7 @@ private:
   const size_t block_size;
   OrderQueueSPMC<RecordCString> cstring_queue;
   OrderQueueMPMC<Record> output_queue;
+  size_t dummy_block_num = 0;
 
   // I am crying at this code, but until C++17 compliant compilers are
   // widespread, this cannot be a static inline variable
@@ -197,6 +252,10 @@ private:
   struct read_gfa2_file;
   /// @endcond
 
+  inline void write_cstring_records(
+    OrderQueueSPMC<RecordCString>::Block& records,
+    size_t& counter);
+
   template<typename F>
   void read_from_buffer(F f,
                         OrderQueueSPMC<RecordCString>::Block& records,
@@ -217,21 +276,23 @@ private:
 
 inline SeqReader::SeqReader(const std::string& source_path,
                             const unsigned flags,
-                            const unsigned threads,
-                            const size_t buffer_size,
-                            const size_t block_size)
+                            const unsigned threads)
   : source_path(source_path)
   , source(source_path)
   , flags(flags)
   , threads(threads)
   , buffer(std::vector<char>(BUFFER_SIZE))
   , reader_end(false)
-  , buffer_size(buffer_size)
-  , block_size(block_size)
+  , buffer_size(short_mode() ? SHORT_MODE_BUFFER_SIZE : LONG_MODE_BUFFER_SIZE)
+  , block_size(short_mode() ? SHORT_MODE_BLOCK_SIZE : LONG_MODE_BLOCK_SIZE)
   , cstring_queue(buffer_size, block_size)
   , output_queue(buffer_size, block_size)
   , id(++last_id())
 {
+  check_error(!short_mode() && !long_mode(),
+              "SeqReader: no mode selected, either short or long mode flag "
+              "must be provided.");
+  check_error(threads == 0, "SeqReader: Number of helper threads cannot be 0.");
   start_processor();
   {
     std::unique_lock<std::mutex> lock(format_mutex);
@@ -248,9 +309,9 @@ inline SeqReader::~SeqReader()
 inline void
 SeqReader::close() noexcept
 {
-  if (!closed) {
+  bool closed_expected = false;
+  if (closed.compare_exchange_strong(closed_expected, true)) {
     try {
-      closed = true;
       reader_end = true;
       output_queue.close();
       for (auto& pt : processor_threads) {
@@ -261,7 +322,7 @@ SeqReader::close() noexcept
       source.close();
     } catch (const std::system_error& e) {
       log_error("SeqReader thread join failure: " + std::string(e.what()));
-      std::exit(EXIT_FAILURE);
+      std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
     }
   }
 }
@@ -323,7 +384,7 @@ SeqReader::is_fasta_buffer()
       case IN_SEQ:
         if (c == '\n') {
           state = IN_HEADER_1;
-        } else if (!bool(COMPLEMENTS[c])) {
+        } else if (c != '\r' && !bool(COMPLEMENTS[c])) {
           return false;
         }
         break;
@@ -367,7 +428,7 @@ SeqReader::is_fastq_buffer()
       case IN_SEQ:
         if (c == '\n') {
           state = IN_PLUS_1;
-        } else if (!bool(COMPLEMENTS[c])) {
+        } else if (c != '\r' && !bool(COMPLEMENTS[c])) {
           return false;
         }
         break;
@@ -386,7 +447,7 @@ SeqReader::is_fastq_buffer()
       case IN_QUAL:
         if (c == '\n') {
           state = IN_HEADER_1;
-        } else if (c < '!' || c > '~') {
+        } else if (c != '\r' && (c < '!' || c > '~')) {
           return false;
         }
         break;
@@ -596,7 +657,7 @@ SeqReader::determine_format()
   } else {
     format = Format::INVALID;
     log_error(std::string(source_path) + " source file is in invalid format!");
-    std::exit(EXIT_FAILURE);
+    std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
   }
 }
 
@@ -767,7 +828,7 @@ struct SeqReader::read_fasta_buffer
       }
       default: {
         log_error("SeqReader has entered an invalid state.");
-        std::exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
       }
     }
     return false;
@@ -812,7 +873,7 @@ struct SeqReader::read_fastq_buffer
       }
       default: {
         log_error("SeqReader has entered an invalid state.");
-        std::exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
       }
     }
     return false;
@@ -868,7 +929,7 @@ struct SeqReader::read_fasta_transition
       }
       default: {
         log_error("SeqReader has entered an invalid state.");
-        std::exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
       }
     }
   }
@@ -902,7 +963,7 @@ struct SeqReader::read_fastq_transition
       }
       default: {
         log_error("SeqReader has entered an invalid state.");
-        std::exit(EXIT_FAILURE);
+        std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
       }
     }
   }
@@ -969,6 +1030,21 @@ struct SeqReader::read_gfa2_file
 };
 /// @endcond
 
+inline void
+SeqReader::write_cstring_records(OrderQueueSPMC<RecordCString>::Block& records,
+                                 size_t& counter)
+{
+  records.count++;
+  if (records.count == block_size) {
+    records.current = 0;
+    records.num = counter++;
+    cstring_queue.write(records);
+    records.num = 0;
+    records.current = 0;
+    records.count = 0;
+  }
+}
+
 template<typename F>
 inline void
 SeqReader::read_from_buffer(F f,
@@ -983,15 +1059,7 @@ SeqReader::read_from_buffer(F f,
     if (!f(*this) || reader_record->seq.empty()) {
       break;
     }
-    records.count++;
-    if (records.count == block_size) {
-      records.current = 0;
-      records.num = counter++;
-      cstring_queue.write(records);
-      records.num = 0;
-      records.current = 0;
-      records.count = 0;
-    }
+    write_cstring_records(records, counter);
   }
 }
 
@@ -1008,15 +1076,7 @@ SeqReader::read_transition(F f,
       reader_record = &(records.data[records.count]);
       f(*this);
       if (!reader_record->seq.empty()) {
-        records.count++;
-        if (records.count == block_size) {
-          records.current = 0;
-          records.num = counter++;
-          cstring_queue.write(records);
-          records.num = 0;
-          records.current = 0;
-          records.count = 0;
-        }
+        write_cstring_records(records, counter);
       }
     }
   }
@@ -1034,15 +1094,7 @@ SeqReader::read_from_file(F f,
     if (reader_record->seq.empty()) {
       break;
     }
-    records.count++;
-    if (records.count == block_size) {
-      records.current = 0;
-      records.num = counter++;
-      cstring_queue.write(records);
-      records.num = 0;
-      records.current = 0;
-      records.count = 0;
-    }
+    write_cstring_records(records, counter);
   }
 }
 
@@ -1095,6 +1147,9 @@ SeqReader::start_reader()
       cstring_queue.write(records);
     }
     for (unsigned i = 0; i < threads; i++) {
+      if (i == 0) {
+        dummy_block_num = counter;
+      }
       decltype(cstring_queue)::Block dummy(block_size);
       dummy.num = counter++;
       dummy.current = 0;
@@ -1119,14 +1174,15 @@ SeqReader::start_processor()
             records_out.data[i].seq = std::string(
               records_in.data[i].seq, records_in.data[i].seq.size());
             auto& seq = records_out.data[i].seq;
-            if (!seq.empty() && seq.back() == '\n') {
+            while (!seq.empty() && (seq.back() == '\r' || seq.back() == '\n')) {
               seq.pop_back();
             }
 
             records_out.data[i].qual = std::string(
               records_in.data[i].qual, records_in.data[i].qual.size());
             auto& qual = records_out.data[i].qual;
-            if (!qual.empty() && qual.back() == '\n') {
+            while (!qual.empty() &&
+                   (qual.back() == '\r' || qual.back() == '\n')) {
               qual.pop_back();
             }
 
@@ -1141,18 +1197,18 @@ SeqReader::start_processor()
                 break;
               }
             }
-            size_t name_start =
+            size_t id_start =
               (format == Format::FASTA || format == Format::FASTQ) ? 1 : 0;
 
             if (first_whitespace == nullptr) {
-              records_out.data[i].name =
-                std::string(records_in.data[i].header + name_start,
-                            records_in.data[i].header.size() - name_start);
+              records_out.data[i].id =
+                std::string(records_in.data[i].header + id_start,
+                            records_in.data[i].header.size() - id_start);
               records_out.data[i].comment = "";
             } else {
-              records_out.data[i].name = std::string(
-                records_in.data[i].header + name_start,
-                first_whitespace - records_in.data[i].header - name_start);
+              records_out.data[i].id = std::string(
+                records_in.data[i].header + id_start,
+                first_whitespace - records_in.data[i].header - id_start);
               records_out.data[i].comment = std::string(
                 last_whitespace + 1,
                 records_in.data[i].header.size() -
@@ -1160,12 +1216,13 @@ SeqReader::start_processor()
             }
             records_in.data[i].header.clear();
 
-            auto& name = records_out.data[i].name;
+            auto& id = records_out.data[i].id;
             auto& comment = records_out.data[i].comment;
-            if (!name.empty() && name.back() == '\n') {
-              name.pop_back();
+            while (!id.empty() && (id.back() == '\r' || id.back() == '\n')) {
+              id.pop_back();
             }
-            if (!comment.empty() && comment.back() == '\n') {
+            while (!comment.empty() &&
+                   (comment.back() == '\r' || comment.back() == '\n')) {
               comment.pop_back();
             }
 
@@ -1193,7 +1250,7 @@ SeqReader::start_processor()
                   log_error(std::string("A sequence contains invalid "
                                         "IUPAC character: ") +
                             old);
-                  std::exit(EXIT_FAILURE);
+                  std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
                 }
               }
             }
@@ -1203,7 +1260,9 @@ SeqReader::start_processor()
           records_out.current = records_in.current;
           records_out.num = records_in.num;
           if (records_out.count == 0) {
-            output_queue.write(records_out);
+            if (records_out.num == dummy_block_num) {
+              output_queue.write(records_out);
+            }
             break;
           }
           output_queue.write(records_out);

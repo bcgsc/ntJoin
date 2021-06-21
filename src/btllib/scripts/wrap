@@ -44,7 +44,7 @@ done
 ln -sf $PWD/include extras/java/
 cd extras/java
 swig -java -package btllib -c++ -Iinclude btllib.i
-rm include
+rm -f include
 
 # Add java files to meson build
 java_files=$(find . -maxdepth 1 -iname "*.java" | sed "s~\(.*\)~'\1'~" | tr '\n' , | sed 's~.$~~')
@@ -92,5 +92,5 @@ done
 
 ln -sf $PWD/include extras/python/
 cd extras/python
-swig -python -py3 -builtin -c++ -Iinclude btllib.i
-rm include
+swig -python -py3 -fastproxy -fastdispatch -builtin -c++ -Iinclude btllib.i
+rm -f include

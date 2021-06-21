@@ -20,7 +20,7 @@
 #include <vector>
 
 const static std::string PROGNAME = "indexlr";
-const static std::string VERSION = "v1.2";
+const static std::string VERSION = "v1.3";
 const static size_t OUTPUT_PERIOD_SHORT = 512;
 const static size_t OUTPUT_PERIOD_LONG = 2;
 const static size_t INITIAL_OUTPUT_STREAM_SIZE = 100;
@@ -181,8 +181,8 @@ main(int argc, char* argv[])
 	}
 
 	unsigned flags = 0;
-	if (with_id) {
-		flags |= btllib::Indexlr::Flag::ID;
+	if (with_bx && !with_id) {
+		flags |= btllib::Indexlr::Flag::NO_ID;
 	}
 	if (with_bx) {
 		flags |= btllib::Indexlr::Flag::BX;
@@ -192,6 +192,8 @@ main(int argc, char* argv[])
 	}
 	if (long_mode) {
 		flags |= btllib::Indexlr::Flag::LONG_MODE;
+	} else {
+		flags |= btllib::Indexlr::Flag::SHORT_MODE;
 	}
 
 	btllib::Indexlr::Record record;
@@ -276,7 +278,9 @@ main(int argc, char* argv[])
 			}
 			{
 				std::unique_lock<std::mutex> lock(output_queue_mutex);
-				output_queue.push(ss.str());
+				if (!ss.str().empty()) {
+					output_queue.push(ss.str());
+				}
 				output_queue.push(std::string());
 				queue_empty.notify_one();
 			}

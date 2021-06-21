@@ -103,9 +103,12 @@ public:
 
   void close()
   {
-    closed = true;
-    for (auto& slot : this->slots) {
-      slot.occupancy_changed.notify_all();
+    bool closed_expected = false;
+    if (closed.compare_exchange_strong(closed_expected, true)) {
+      for (auto& slot : this->slots) {
+        std::unique_lock<std::mutex> busy_lock(slot.busy);
+        slot.occupancy_changed.notify_all();
+      }
     }
   }
 
@@ -189,7 +192,7 @@ protected:
     }                                                                          \
                                                                                \
   private:                                                                     \
-    MEMBERS; /* NOLINT */                                                      \
+    MEMBERS /* NOLINT */                                                       \
   };
 
 ORDER_QUEUE_XPXC(SPSC, , , , notify_one, , , , notify_one, )
@@ -211,7 +214,7 @@ ORDER_QUEUE_XPXC(SPMC,
                  ,
                  read_lock.unlock(),
                  notify_one,
-                 std::mutex read_mutex)
+                 std::mutex read_mutex;)
 ORDER_QUEUE_XPXC(MPMC,
                  ,
                  &&(num - target.last_tenant <= this->queue_size),
@@ -221,7 +224,7 @@ ORDER_QUEUE_XPXC(MPMC,
                  ,
                  read_lock.unlock(),
                  notify_all,
-                 std::mutex read_mutex)
+                 std::mutex read_mutex;)
 
 #undef ORDER_QUEUE_XPXC
 

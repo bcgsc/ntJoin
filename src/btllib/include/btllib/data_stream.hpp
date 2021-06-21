@@ -31,6 +31,33 @@ static const int PIPE_WRITE_END = 1;
 static const int COMM_BUFFER_SIZE = 1024;
 static const mode_t PIPE_PERMISSIONS = 0666;
 
+struct Datatype
+{
+  std::vector<std::string> prefixes;
+  std::vector<std::string> suffixes;
+  std::vector<std::string> cmds_check_existence;
+  std::vector<std::string> read_cmds;
+  std::vector<std::string> write_cmds;
+  std::vector<std::string> append_cmds;
+};
+
+// clang-format off
+static const Datatype DATATYPES[] {
+  { { "http://", "https://", "ftp://" }, {}, { "command -v wget" }, { "wget -O-" }, { "" }, { "" } },
+  { {}, { ".url" }, { "command -v wget" }, { "wget -O- -i" }, { "" }, { "" } },
+  { {}, { ".ar" }, { "command -v ar" }, { "ar -p" }, { "" }, { "" } },
+  { {}, { ".tar" }, { "command -v tar" }, { "tar -xOf" }, { "" }, { "" } },
+  { {}, { ".tgz" }, { "command -v tar" }, { "tar -zxOf" }, { "" }, { "" } },
+  { {}, { ".gz", ".z" }, { "command -v pigz", "command -v gzip" }, { "pigz -dc", "gzip -dc" }, { "pigz >", "gzip >" }, { "pigz >>", "gzip >>" } },
+  { {}, { ".bz2" }, { "command -v bzip2" }, { "bunzip2 -dc" }, { "bzip2 >" }, { "bzip2 >>" } },
+  { {}, { ".xz" }, { "command -v xz" }, { "unxz -dc" }, { "xz -T0 >" }, { "xz -T0 >>" } },
+  { {}, { ".7z" }, { "command -v 7z" }, { "7z -so e" }, { "7z -si a" }, { "7z -si a" } },
+  { {}, { ".zip" }, { "command -v zip" }, { "unzip -p" }, { "" }, { "" } },
+  { {}, { ".lrz" }, { "command -v lrzip" }, { "lrzip -q -d -o -" }, { "lrzip -q >" }, { "" } },
+  { {}, { ".bam", ".cram" }, { "command -v samtools" }, { "samtools view -h" }, { "samtools -Sb - >" }, { "samtools -Sb - >>" } },
+};
+// clang-format on
+
 using PipeId = unsigned long;
 class DataStreamPipeline;
 
@@ -38,7 +65,7 @@ class DataStreamPipeline;
 inline bool& process_spawner_initialized() { static bool var; return var; }
 inline int* process_spawner_parent2child_fd() { static int var[2]; return var; }
 inline int* process_spawner_child2parent_fd() { static int var[2]; return var; }
-inline std::mutex& process_spawner_comm_mutex() { static std::mutex var; return var; };
+inline std::mutex& process_spawner_comm_mutex() { static std::mutex var; return var; }
 inline PipeId new_pipe_id() { static PipeId last_pipe_id = 0; return last_pipe_id++; }
 inline std::map<std::string, DataStreamPipeline>& pipeline_map() { static std::map<std::string, DataStreamPipeline> var; return var; }
 // clang-format on
@@ -97,7 +124,7 @@ check_children_failures()
         std::cerr << "PID " << pid << " exited with code " << status
                   << std::endl;
       }
-      std::exit(EXIT_FAILURE);
+      std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
     }
   }
 }
@@ -112,7 +139,7 @@ end_child()
       unlink(fname.c_str());
     }
   }
-  std::exit(EXIT_SUCCESS);
+  std::exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe)
 }
 
 static inline void
@@ -196,75 +223,85 @@ inline DataStream::DataStream(const std::string& path, Operation op)
   : streampath(path)
   , op(op)
 {
-  std::unique_lock<std::mutex> lock(process_spawner_comm_mutex());
+  if (path == "-") {
+    pipepath = "-";
+    if (op == READ) {
+      file = stdin;
+    } else {
+      file = stdout;
+    }
+  } else {
+    std::unique_lock<std::mutex> lock(process_spawner_comm_mutex());
 
-  write_to_child(&op, sizeof(op));
+    write_to_child(&op, sizeof(op));
 
-  size_t pathlen = path.size() + 1;
-  check_error(pathlen > COMM_BUFFER_SIZE,
-              "Stream path length too large for the buffer.");
-  write_to_child(&pathlen, sizeof(pathlen));
-  write_to_child(path.c_str(), pathlen);
+    size_t pathlen = path.size() + 1;
+    check_error(pathlen > COMM_BUFFER_SIZE,
+                "Stream path length too large for the buffer.");
+    write_to_child(&pathlen, sizeof(pathlen));
+    write_to_child(path.c_str(), pathlen);
 
-  char buf[COMM_BUFFER_SIZE];
-  read_from_child(&pathlen, sizeof(pathlen));
-  read_from_child(buf, pathlen);
-  pipepath = buf;
+    char buf[COMM_BUFFER_SIZE];
+    read_from_child(&pathlen, sizeof(pathlen));
+    read_from_child(buf, pathlen);
+    pipepath = buf;
 
-  char confirmation = 0;
-  if (op != READ) {
-    read_from_child(&confirmation, sizeof(confirmation));
+    char confirmation = 0;
+    if (op != READ) {
+      read_from_child(&confirmation, sizeof(confirmation));
+    }
+    int pipe_fd =
+      open(pipepath.c_str(), (op == READ ? O_RDONLY : O_WRONLY) | O_NONBLOCK);
+    write_to_child(&confirmation, sizeof(confirmation));
+
+    if (op == READ) {
+      read_from_child(&confirmation, sizeof(confirmation));
+    }
+    fcntl(pipe_fd, F_SETFL, fcntl(pipe_fd, F_GETFL) & ~O_NONBLOCK);
+    file = fdopen(pipe_fd, op == READ ? "r" : "w");
   }
-  int pipe_fd =
-    open(pipepath.c_str(), (op == READ ? O_RDONLY : O_WRONLY) | O_NONBLOCK);
-  write_to_child(&confirmation, sizeof(confirmation));
-
-  if (op == READ) {
-    read_from_child(&confirmation, sizeof(confirmation));
-  }
-  fcntl(pipe_fd, F_SETFL, fcntl(pipe_fd, F_GETFL) & ~O_NONBLOCK);
-  file = fdopen(pipe_fd, op == READ ? "r" : "w");
 }
 
 inline void
 DataStream::close()
 {
   if (!closed) {
-    std::unique_lock<std::mutex> lock(process_spawner_comm_mutex());
+    if (streampath != "-") {
+      std::unique_lock<std::mutex> lock(process_spawner_comm_mutex());
 
-    char confirmation = 0;
-    if (op == READ) {
-      op = CLOSE;
-      if (file != stdin) {
-        write_to_child(&op, sizeof(op));
+      char confirmation = 0;
+      if (op == READ) {
+        op = CLOSE;
+        if (file != stdin) {
+          write_to_child(&op, sizeof(op));
 
-        size_t pathlen = pipepath.size() + 1;
-        check_error(pathlen > COMM_BUFFER_SIZE,
-                    "Stream path length too large for the buffer.");
-        write_to_child(&pathlen, sizeof(pathlen));
-        write_to_child(pipepath.c_str(), pathlen);
+          size_t pathlen = pipepath.size() + 1;
+          check_error(pathlen > COMM_BUFFER_SIZE,
+                      "Stream path length too large for the buffer.");
+          write_to_child(&pathlen, sizeof(pathlen));
+          write_to_child(pipepath.c_str(), pathlen);
 
-        read_from_child(&confirmation, sizeof(confirmation));
+          read_from_child(&confirmation, sizeof(confirmation));
 
-        std::fclose(file);
-      }
-    } else if (op == WRITE || op == APPEND) {
-      op = CLOSE;
-      if (file != stdout) {
-        std::fclose(file);
+          std::fclose(file);
+        }
+      } else if (op == WRITE || op == APPEND) {
+        op = CLOSE;
+        if (file != stdout) {
+          std::fclose(file);
 
-        write_to_child(&op, sizeof(op));
+          write_to_child(&op, sizeof(op));
 
-        size_t pathlen = pipepath.size() + 1;
-        check_error(pathlen > COMM_BUFFER_SIZE,
-                    "Stream path length too large for the buffer.");
-        write_to_child(&pathlen, sizeof(pathlen));
-        write_to_child(pipepath.c_str(), pathlen);
+          size_t pathlen = pipepath.size() + 1;
+          check_error(pathlen > COMM_BUFFER_SIZE,
+                      "Stream path length too large for the buffer.");
+          write_to_child(&pathlen, sizeof(pathlen));
+          write_to_child(pipepath.c_str(), pathlen);
 
-        read_from_child(&confirmation, sizeof(confirmation));
+          read_from_child(&confirmation, sizeof(confirmation));
+        }
       }
     }
-
     closed = true;
   }
 }
@@ -323,6 +360,110 @@ get_pipeline_cmd(const std::string& path, DataStream::Operation op);
 static inline DataStreamPipeline
 run_pipeline_cmd(const std::string& cmd, DataStream::Operation op, int pipe_fd);
 
+static inline void
+ignore_sigchld()
+{
+  struct sigaction action; // NOLINT
+  action.sa_handler = [](const int sig) { (void)sig; };
+  sigemptyset(&action.sa_mask);
+  action.sa_flags = SA_RESTART;
+  sigaction(SIGCHLD, &action, nullptr);
+}
+
+static inline void
+rm_pipes_on_death()
+{
+  struct sigaction action; // NOLINT
+  action.sa_handler = [](const int sig) {
+    (void)sig;
+    for (PipeId last_id = new_pipe_id(), id = 0; id < last_id; id++) {
+      const auto fname = get_pipepath(id);
+      if (access(fname.c_str(), F_OK) != -1) {
+        unlink(fname.c_str());
+      }
+    }
+    std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
+  };
+  sigemptyset(&action.sa_mask);
+  action.sa_flags = SA_RESTART;
+  sigaction(SIGHUP, &action, nullptr);
+  sigaction(SIGQUIT, &action, nullptr);
+  sigaction(SIGILL, &action, nullptr);
+  sigaction(SIGABRT, &action, nullptr);
+  sigaction(SIGBUS, &action, nullptr);
+  sigaction(SIGSEGV, &action, nullptr);
+  sigaction(SIGPIPE, &action, nullptr);
+  sigaction(SIGTERM, &action, nullptr);
+}
+
+static inline void
+process_spawner_operation()
+{
+  DataStream::Operation op;
+  std::string pipepath;
+  int pipe_fd;
+  char buf[COMM_BUFFER_SIZE];
+  size_t pathlen;
+  DataStreamPipeline pipeline;
+  char confirmation = 0;
+  for (;;) {
+    read_from_parent(&op, sizeof(op));
+
+    read_from_parent(&pathlen, sizeof(pathlen));
+    read_from_parent(buf, pathlen);
+
+    switch (op) {
+      case DataStream::Operation::READ:
+      case DataStream::Operation::WRITE:
+      case DataStream::Operation::APPEND:
+        pipepath = get_pipepath(new_pipe_id());
+        if (access(pipepath.c_str(), F_OK) != -1) {
+          unlink(pipepath.c_str());
+        }
+        mkfifo(pipepath.c_str(), PIPE_PERMISSIONS);
+
+        pathlen = pipepath.size() + 1;
+        check_error(pathlen > COMM_BUFFER_SIZE,
+                    "Stream path length too large for the buffer.");
+        write_to_parent(&pathlen, sizeof(pathlen));
+        write_to_parent(pipepath.c_str(), pathlen);
+
+        if (op == DataStream::Operation::READ) {
+          read_from_parent(&confirmation, sizeof(confirmation));
+        }
+        pipe_fd =
+          open(pipepath.c_str(),
+               (op == DataStream::Operation::READ ? O_WRONLY : O_RDONLY) |
+                 O_NONBLOCK | O_CLOEXEC);
+        if (op != DataStream::Operation::READ) {
+          write_to_parent(&confirmation, sizeof(confirmation));
+          read_from_parent(&confirmation, sizeof(confirmation));
+        }
+
+        unlink(pipepath.c_str());
+
+        if (op == DataStream::Operation::READ) {
+          write_to_parent(&confirmation, sizeof(confirmation));
+        }
+        fcntl(pipe_fd, F_SETFL, fcntl(pipe_fd, F_GETFL) & ~O_NONBLOCK);
+        pipeline = run_pipeline_cmd(get_pipeline_cmd(buf, op), op, pipe_fd);
+        close(pipe_fd);
+
+        pipeline_map()[pipepath] = pipeline;
+        break;
+      case DataStream::Operation::CLOSE:
+        pipeline = pipeline_map()[std::string(buf)];
+        pipeline.finish();
+        pipeline_map().erase(std::string(buf));
+        write_to_parent(&confirmation, sizeof(confirmation));
+        break;
+      default:
+        log_error("Invalid stream operation.");
+        std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
+    }
+  }
+}
+
 static inline bool
 process_spawner_init()
 {
@@ -344,101 +485,10 @@ process_spawner_init()
       close(process_spawner_parent2child_fd()[PIPE_WRITE_END]);
       close(process_spawner_child2parent_fd()[PIPE_READ_END]);
 
-      {
-        struct sigaction action; // NOLINT
-        action.sa_handler = [](const int sig) { (void)sig; };
-        sigemptyset(&action.sa_mask);
-        action.sa_flags = SA_RESTART;
-        sigaction(SIGCHLD, &action, nullptr);
-      }
+      ignore_sigchld();
+      rm_pipes_on_death();
 
-      {
-        struct sigaction action; // NOLINT
-        action.sa_handler = [](const int sig) {
-          (void)sig;
-          for (PipeId last_id = new_pipe_id(), id = 0; id < last_id; id++) {
-            const auto fname = get_pipepath(id);
-            if (access(fname.c_str(), F_OK) != -1) {
-              unlink(fname.c_str());
-            }
-          }
-          std::exit(EXIT_FAILURE);
-        };
-        sigemptyset(&action.sa_mask);
-        action.sa_flags = SA_RESTART;
-        sigaction(SIGHUP, &action, nullptr);
-        sigaction(SIGQUIT, &action, nullptr);
-        sigaction(SIGILL, &action, nullptr);
-        sigaction(SIGABRT, &action, nullptr);
-        sigaction(SIGBUS, &action, nullptr);
-        sigaction(SIGSEGV, &action, nullptr);
-        sigaction(SIGPIPE, &action, nullptr);
-        sigaction(SIGTERM, &action, nullptr);
-      }
-
-      DataStream::Operation op;
-      std::string pipepath;
-      int pipe_fd;
-      char buf[COMM_BUFFER_SIZE];
-      size_t pathlen;
-      DataStreamPipeline pipeline;
-      char confirmation = 0;
-      for (;;) {
-        read_from_parent(&op, sizeof(op));
-
-        read_from_parent(&pathlen, sizeof(pathlen));
-        read_from_parent(buf, pathlen);
-
-        switch (op) {
-          case DataStream::Operation::READ:
-          case DataStream::Operation::WRITE:
-          case DataStream::Operation::APPEND:
-            pipepath = get_pipepath(new_pipe_id());
-            if (access(pipepath.c_str(), F_OK) != -1) {
-              unlink(pipepath.c_str());
-            }
-            mkfifo(pipepath.c_str(), PIPE_PERMISSIONS);
-
-            pathlen = pipepath.size() + 1;
-            check_error(pathlen > COMM_BUFFER_SIZE,
-                        "Stream path length too large for the buffer.");
-            write_to_parent(&pathlen, sizeof(pathlen));
-            write_to_parent(pipepath.c_str(), pathlen);
-
-            if (op == DataStream::Operation::READ) {
-              read_from_parent(&confirmation, sizeof(confirmation));
-            }
-            pipe_fd =
-              open(pipepath.c_str(),
-                   (op == DataStream::Operation::READ ? O_WRONLY : O_RDONLY) |
-                     O_NONBLOCK | O_CLOEXEC);
-            if (op != DataStream::Operation::READ) {
-              write_to_parent(&confirmation, sizeof(confirmation));
-              read_from_parent(&confirmation, sizeof(confirmation));
-            }
-
-            unlink(pipepath.c_str());
-
-            if (op == DataStream::Operation::READ) {
-              write_to_parent(&confirmation, sizeof(confirmation));
-            }
-            fcntl(pipe_fd, F_SETFL, fcntl(pipe_fd, F_GETFL) & ~O_NONBLOCK);
-            pipeline = run_pipeline_cmd(get_pipeline_cmd(buf, op), op, pipe_fd);
-            close(pipe_fd);
-
-            pipeline_map()[pipepath] = pipeline;
-            break;
-          case DataStream::Operation::CLOSE:
-            pipeline = pipeline_map()[std::string(buf)];
-            pipeline.finish();
-            pipeline_map().erase(std::string(buf));
-            write_to_parent(&confirmation, sizeof(confirmation));
-            break;
-          default:
-            log_error("Invalid stream operation.");
-            std::exit(EXIT_FAILURE);
-        }
-      }
+      process_spawner_operation();
     }
     close(process_spawner_parent2child_fd()[PIPE_READ_END]);
     close(process_spawner_child2parent_fd()[PIPE_WRITE_END]);
@@ -447,33 +497,64 @@ process_spawner_init()
 }
 
 static inline std::string
-get_pipeline_cmd(const std::string& path, DataStream::Operation op)
+get_datatype_cmd(const std::string& path,
+                 const Datatype& datatype,
+                 DataStream::Operation op)
 {
-  struct Datatype
-  {
-    std::vector<std::string> prefixes;
-    std::vector<std::string> suffixes;
-    std::vector<std::string> cmds_check_existence;
-    std::vector<std::string> read_cmds;
-    std::vector<std::string> write_cmds;
-    std::vector<std::string> append_cmds;
-  };
+  bool found_cmd = false;
+  int cmd_idx = 0;
+  for (const auto& existence_cmd : datatype.cmds_check_existence) {
+    pid_t pid = fork();
+    if (pid == 0) {
+      int null_fd = open("/dev/null", O_WRONLY, 0);
+      dup2(null_fd, STDOUT_FILENO);
+      dup2(null_fd, STDERR_FILENO);
+      close(null_fd);
 
-  // clang-format off
-  static const Datatype DATATYPES[] {
-    { { "http://", "https://", "ftp://" }, {}, { "command -v wget" }, { "wget -O-" }, { "" }, { "" } },
-    { {}, { ".url" }, { "command -v wget" }, { "wget -O- -i" }, { "" }, { "" } },
-    { {}, { ".ar" }, { "command -v ar" }, { "ar -p" }, { "" }, { "" } },
-    { {}, { ".tar" }, { "command -v tar" }, { "tar -xOf" }, { "" }, { "" } },
-    { {}, { ".tgz" }, { "command -v tar" }, { "tar -zxOf" }, { "" }, { "" } },
-    { {}, { ".gz", ".z" }, { "command -v pigz", "command -v gzip" }, { "pigz -dc", "gzip -dc" }, { "pigz >", "gzip >" }, { "pigz >>", "gzip >>" } },
-    { {}, { ".bz2" }, { "command -v bzip2" }, { "bunzip2 -dc" }, { "bzip2 >" }, { "bzip2 >>" } },
-    { {}, { ".xz" }, { "command -v xz" }, { "unxz -dc" }, { "xz -T0 >" }, { "xz -T0 >>" } },
-    { {}, { ".7z" }, { "command -v 7z" }, { "7z -so e" }, { "7z -si a" }, { "7z -si a" } },
-    { {}, { ".zip" }, { "command -v zip" }, { "unzip -p" }, { "" }, { "" } },
-    { {}, { ".bam", ".cram" }, { "command -v samtools" }, { "samtools view -h" }, { "samtools -Sb - >" }, { "samtools -Sb - >>" } },
-  };
-  // clang-format on
+      execlp("sh", "sh", "-c", existence_cmd.c_str(), NULL);
+      log_error("exec failed: sh -c \"" + existence_cmd + "\'");
+      std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
+    } else {
+      check_error(pid == -1, "Error on fork.");
+      int status;
+      check_error(waitpid(pid, &status, 0) != pid, "waitpid error.");
+      if (!(WIFSIGNALED(status)) &&
+          ((WIFEXITED(status)) && (WEXITSTATUS(status) == 0))) { // NOLINT
+        found_cmd = true;
+        break;
+      }
+    }
+    cmd_idx++;
+  }
+
+  check_error(!found_cmd,
+              "Filetype recognized for '" + path +
+                "', but no tool available to work with it.");
+
+  std::string cmd;
+  switch (op) {
+    case DataStream::Operation::READ:
+      cmd = datatype.read_cmds[cmd_idx];
+      break;
+    case DataStream::Operation::WRITE:
+      cmd = datatype.write_cmds[cmd_idx];
+      break;
+    case DataStream::Operation::APPEND:
+      cmd = datatype.append_cmds[cmd_idx];
+      break;
+    default:
+      log_error("Invalid operation");
+      std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
+  }
+  check_error(cmd.empty(),
+              "Filetype recognized for '" + path +
+                "', but no tool available to work with it.");
+  return cmd;
+}
+
+static inline std::vector<std::string>
+peel_datatype(const std::string& path, DataStream::Operation op)
+{
   std::string default_cmd = "cat";
   if (op == DataStream::Operation::WRITE) {
     default_cmd += " >";
@@ -505,58 +586,7 @@ get_pipeline_cmd(const std::string& path, DataStream::Operation op)
 
       if (this_datatype) {
         found_datatype = true;
-        bool found_cmd = false;
-        int cmd_idx = 0;
-        for (const auto& existence_cmd : datatype.cmds_check_existence) {
-          pid_t pid = fork();
-          if (pid == 0) {
-            int null_fd = open("/dev/null", O_WRONLY, 0);
-            dup2(null_fd, STDOUT_FILENO);
-            dup2(null_fd, STDERR_FILENO);
-            close(null_fd);
-
-            execlp("sh", "sh", "-c", existence_cmd.c_str(), NULL);
-            log_error("exec failed: sh -c \"" + existence_cmd + "\'");
-            std::exit(EXIT_FAILURE);
-          } else {
-            check_error(pid == -1, "Error on fork.");
-            int status;
-            check_error(waitpid(pid, &status, 0) != pid, "waitpid error.");
-            if (!(WIFSIGNALED(status)) &&
-                ((WIFEXITED(status)) && (WEXITSTATUS(status) == 0))) { // NOLINT
-              found_cmd = true;
-              break;
-            }
-          }
-          cmd_idx++;
-        }
-
-        if (found_cmd) {
-          std::string cmd;
-          switch (op) {
-            case DataStream::Operation::READ:
-              cmd = datatype.read_cmds[cmd_idx];
-              break;
-            case DataStream::Operation::WRITE:
-              cmd = datatype.write_cmds[cmd_idx];
-              break;
-            case DataStream::Operation::APPEND:
-              cmd = datatype.append_cmds[cmd_idx];
-              break;
-            default:
-              log_error("Invalid operation");
-              std::exit(EXIT_FAILURE);
-          }
-          if (cmd.empty()) {
-            log_warning("Filetype recognized for '" + path_trimmed +
-                        "', but no tool available to work with it.");
-          } else {
-            cmd_layers.push_back(cmd);
-          }
-        } else {
-          log_warning("Filetype recognized for '" + path_trimmed +
-                      "', but no tool available to work with it.");
-        }
+        cmd_layers.push_back(get_datatype_cmd(path_trimmed, datatype, op));
         path_trimmed.erase(0, trim_start);
         path_trimmed.erase(path_trimmed.size() - trim_end);
       }
@@ -573,6 +603,14 @@ get_pipeline_cmd(const std::string& path, DataStream::Operation op)
     std::reverse(cmd_layers.begin(), cmd_layers.end());
   }
 
+  return cmd_layers;
+}
+
+static inline std::string
+form_string_cmd(std::vector<std::string>& cmd_layers,
+                DataStream::Operation op,
+                const std::string& path)
+{
   std::string result_cmd;
   for (size_t i = 0; i < cmd_layers.size(); i++) {
     auto& cmd = cmd_layers[i];
@@ -580,7 +618,13 @@ get_pipeline_cmd(const std::string& path, DataStream::Operation op)
         op == DataStream::Operation::APPEND) {
       if (i == cmd_layers.size() - 1) {
         if (cmd.back() == '>') {
-          cmd += path;
+          if (path == "-") {
+            while (cmd.back() == '>' || cmd.back() == ' ') {
+              cmd.pop_back();
+            }
+          } else {
+            cmd += path;
+          }
         } else {
           cmd += " ";
           cmd += path;
@@ -612,7 +656,112 @@ get_pipeline_cmd(const std::string& path, DataStream::Operation op)
               (op == DataStream::Operation::READ ? "Error loading from "
                                                  : "Error saving to ") +
                 path);
+
+  check_error(result_cmd == "cat" || result_cmd == "cat -",
+              "Attempting to create a pipeline on stdin or stdout which is a "
+              "redundant operation.");
+
   return result_cmd;
+}
+
+static inline std::string
+get_pipeline_cmd(const std::string& path, DataStream::Operation op)
+{
+  auto cmd_layers = peel_datatype(path, op);
+  return form_string_cmd(cmd_layers, op, path);
+}
+
+static inline std::string
+extract_stdout_file(std::vector<std::string>& args)
+{
+  std::string file;
+  std::vector<std::string>::iterator it;
+  for (it = args.begin(); it != args.end(); ++it) {
+    if (it->at(0) == '>') {
+      if (it->at(1) == '>') {
+        file = it->substr(2);
+      } else {
+        file = it->substr(1);
+      }
+      break;
+    }
+  }
+  if (it != args.end()) {
+    args.erase(it);
+  }
+  return file;
+}
+
+static inline void
+chain_read(size_t idx,
+           size_t cmd_count,
+           char* const* argv,
+           int pipe_fd,
+           int input_fd[2],
+           int output_fd[2])
+{
+  if (idx == 0) {
+    dup2(pipe_fd, STDOUT_FILENO);
+    close(pipe_fd);
+  } else {
+    dup2(output_fd[PIPE_WRITE_END], STDOUT_FILENO);
+    close(output_fd[PIPE_READ_END]);
+    close(output_fd[PIPE_WRITE_END]);
+  }
+
+  if (idx < cmd_count - 1) {
+    dup2(input_fd[PIPE_READ_END], STDIN_FILENO);
+    close(input_fd[PIPE_READ_END]);
+    close(input_fd[PIPE_WRITE_END]);
+  }
+
+  execvp(argv[0], argv + 1);
+  std::string argv_print;
+  for (int i = 0; argv[i] != nullptr; i++) {
+    argv_print += " " + std::string(argv[i]);
+  }
+  log_error("exec failed: " + argv_print);
+  std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
+}
+
+static inline void
+chain_write(size_t idx,
+            size_t cmd_count,
+            char* const* argv,
+            int pipe_fd,
+            int input_fd[2],
+            int output_fd[2],
+            bool append,
+            const std::string& stdout_to_file)
+{
+  if (idx == cmd_count - 1) {
+    dup2(pipe_fd, STDIN_FILENO);
+    close(pipe_fd);
+  } else {
+    dup2(input_fd[PIPE_READ_END], STDIN_FILENO);
+    close(input_fd[PIPE_READ_END]);
+    close(input_fd[PIPE_WRITE_END]);
+  }
+
+  if (!stdout_to_file.empty()) {
+    int outfd = open(stdout_to_file.c_str(),
+                     O_WRONLY | O_CREAT | (append ? O_APPEND : 0),
+                     S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+    dup2(outfd, STDOUT_FILENO);
+    close(outfd);
+  } else if (idx > 0) {
+    dup2(output_fd[PIPE_WRITE_END], STDOUT_FILENO);
+    close(output_fd[PIPE_READ_END]);
+    close(output_fd[PIPE_WRITE_END]);
+  }
+
+  execvp(argv[0], argv + 1);
+  std::string argv_print = argv[0];
+  for (int i = 1; argv[i] != nullptr; i++) {
+    argv_print += " " + std::string(argv[i]);
+  }
+  log_error("exec failed: " + argv_print);
+  exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
 }
 
 static inline DataStreamPipeline
@@ -631,22 +780,12 @@ run_pipeline_cmd(const std::string& cmd, DataStream::Operation op, int pipe_fd)
   output_fd[PIPE_READ_END] = -1;
   output_fd[PIPE_WRITE_END] = -1;
 
-  size_t i = 0;
+  size_t idx = 0;
   for (const auto& individual_cmd : individual_cmds) {
     auto args = split(individual_cmd, " ");
     std::for_each(args.begin(), args.end(), trim);
 
-    std::string stdout_to_file;
-    decltype(args)::iterator it;
-    for (it = args.begin(); it != args.end(); ++it) {
-      if (it->front() == '>') {
-        stdout_to_file = it->substr(1);
-        break;
-      }
-    }
-    if (it != args.end()) {
-      args.erase(it);
-    }
+    std::string stdout_to_file = extract_stdout_file(args);
 
     char* const* argv = new char*[args.size() + 2];
     ((char*&)(argv[0])) = (char*)(args[0].c_str());
@@ -655,7 +794,7 @@ run_pipeline_cmd(const std::string& cmd, DataStream::Operation op, int pipe_fd)
     }
     ((char*&)(argv[args.size() + 1])) = nullptr;
 
-    if (i < individual_cmds.size() - 1) {
+    if (idx < individual_cmds.size() - 1) {
       check_error(pipe(input_fd) == -1, "Error opening a pipe.");
       fcntl(input_fd[PIPE_READ_END], F_SETFD, FD_CLOEXEC);
       fcntl(input_fd[PIPE_WRITE_END], F_SETFD, FD_CLOEXEC);
@@ -664,59 +803,17 @@ run_pipeline_cmd(const std::string& cmd, DataStream::Operation op, int pipe_fd)
     pid_t pid = fork();
     if (pid == 0) {
       if (op == DataStream::Operation::READ) {
-        if (i == 0) {
-          dup2(pipe_fd, STDOUT_FILENO);
-          close(pipe_fd);
-        } else {
-          dup2(output_fd[PIPE_WRITE_END], STDOUT_FILENO);
-          close(output_fd[PIPE_READ_END]);
-          close(output_fd[PIPE_WRITE_END]);
-        }
-
-        if (i < individual_cmds.size() - 1) {
-          dup2(input_fd[PIPE_READ_END], STDIN_FILENO);
-          close(input_fd[PIPE_READ_END]);
-          close(input_fd[PIPE_WRITE_END]);
-        }
-
-        execvp(argv[0], argv + 1);
-        std::string argv_print;
-        for (int i = 0; argv[i] != nullptr; i++) {
-          argv_print += " " + std::string(argv[i]);
-        }
-        log_error("exec failed: " + argv_print);
-        std::exit(EXIT_FAILURE);
+        chain_read(
+          idx, individual_cmds.size(), argv, pipe_fd, input_fd, output_fd);
       } else {
-        if (i == individual_cmds.size() - 1) {
-          dup2(pipe_fd, STDIN_FILENO);
-          close(pipe_fd);
-        } else {
-          dup2(input_fd[PIPE_READ_END], STDIN_FILENO);
-          close(input_fd[PIPE_READ_END]);
-          close(input_fd[PIPE_WRITE_END]);
-        }
-
-        if (!stdout_to_file.empty()) {
-          int outfd =
-            open(stdout_to_file.c_str(),
-                 O_WRONLY | O_CREAT |
-                   (op == DataStream::Operation::APPEND ? O_APPEND : 0),
-                 S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
-          dup2(outfd, STDOUT_FILENO);
-          close(outfd);
-        } else if (i > 0) {
-          dup2(output_fd[PIPE_WRITE_END], STDOUT_FILENO);
-          close(output_fd[PIPE_READ_END]);
-          close(output_fd[PIPE_WRITE_END]);
-        }
-
-        execvp(argv[0], argv + 1);
-        std::string argv_print = argv[0];
-        for (int i = 1; argv[i] != nullptr; i++) {
-          argv_print += " " + std::string(argv[i]);
-        }
-        log_error("exec failed: " + argv_print);
-        exit(EXIT_FAILURE);
+        chain_write(idx,
+                    individual_cmds.size(),
+                    argv,
+                    pipe_fd,
+                    input_fd,
+                    output_fd,
+                    op == DataStream::Operation::APPEND,
+                    stdout_to_file);
       }
     }
     check_error(pid == -1, "Error on fork.");
@@ -725,17 +822,17 @@ run_pipeline_cmd(const std::string& cmd, DataStream::Operation op, int pipe_fd)
 
     pids.push_back(pid);
 
-    if (i > 0) {
+    if (idx > 0) {
       close(output_fd[PIPE_READ_END]);
       close(output_fd[PIPE_WRITE_END]);
     }
 
-    if (i < individual_cmds.size() - 1) {
+    if (idx < individual_cmds.size() - 1) {
       output_fd[PIPE_READ_END] = input_fd[PIPE_READ_END];
       output_fd[PIPE_WRITE_END] = input_fd[PIPE_WRITE_END];
     }
 
-    i++;
+    idx++;
   }
 
   return DataStreamPipeline(op == DataStream::Operation::READ
