@@ -8,18 +8,18 @@
 
 package btllib;
 
-public class SWIGTYPE_p_p_char {
+public class SWIGTYPE_p_std__vectorT_btllib__IORedirection_t {
   private transient long swigCPtr;
 
-  protected SWIGTYPE_p_p_char(long cPtr, @SuppressWarnings("unused") boolean futureUse) {
+  protected SWIGTYPE_p_std__vectorT_btllib__IORedirection_t(long cPtr, @SuppressWarnings("unused") boolean futureUse) {
     swigCPtr = cPtr;
   }
 
-  protected SWIGTYPE_p_p_char() {
+  protected SWIGTYPE_p_std__vectorT_btllib__IORedirection_t() {
     swigCPtr = 0;
   }
 
-  protected static long getCPtr(SWIGTYPE_p_p_char obj) {
+  protected static long getCPtr(SWIGTYPE_p_std__vectorT_btllib__IORedirection_t obj) {
     return (obj == null) ? 0 : obj.swigCPtr;
   }
 }

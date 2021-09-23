@@ -144,23 +144,27 @@ check_error(bool condition, const std::string& msg)
   }
 }
 
-inline void
-check_stream(const std::ios& stream, const std::string& name)
+inline std::string
+get_strerror()
 {
-  if (!stream.good()) {
-    static const size_t BUFLEN = 1024;
-    char buf[BUFLEN];
-
+  static const size_t BUFLEN = 1024;
+  char buf[BUFLEN];
 // POSIX and GNU implementation of strerror_r differ, even in function signature
 // and so we need to check which one is used
 #if __APPLE__ ||                                                               \
   ((_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600) && !_GNU_SOURCE)
-    strerror_r(errno, buf, BUFLEN);
-    log_error("'" + name + "' stream error: " + std::string(buf));
+  strerror_r(errno, buf, BUFLEN);
+  return buf;
 #else
-    char* msg = strerror_r(errno, buf, BUFLEN);
-    log_error("'" + name + "' stream error: " + std::string(msg));
+  return strerror_r(errno, buf, BUFLEN);
 #endif
+}
+
+inline void
+check_stream(const std::ios& stream, const std::string& name)
+{
+  if (!stream.good()) {
+    log_error("'" + name + "' stream error: " + get_strerror());
     std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
   }
 }

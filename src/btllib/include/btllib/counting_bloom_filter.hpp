@@ -101,6 +101,28 @@ public:
     return contains(hashes.data());
   }
 
+  /**
+   * Check for the presence of an element's hash values and insert if missing.
+   *
+   * @param hashes Integer array of hash values. Array size should equal the
+   * hash_num argument used when the Bloom filter was constructed.
+   *
+   * @return The count of the queried element before insertion.
+   */
+  T contains_insert(const uint64_t* hashes);
+
+  /**
+   * Check for the presence of an element's hash values and insert if missing.
+   *
+   * @param hashes Integer vector of hash values.
+   *
+   * @return The count of the queried element before insertion.
+   */
+  T contains_insert(const std::vector<uint64_t>& hashes)
+  {
+    return contains_insert(hashes.data());
+  }
+
   /** Get filter size in bytes. */
   size_t get_bytes() const { return bytes; }
   /** Get population count, i.e. the number of counters >0 in the filter. */
@@ -246,6 +268,53 @@ public:
     return counting_bloom_filter.contains(hashes);
   }
 
+  /**
+   * Check for the presence of sequence k-mers and insert if missing.
+   *
+   * @param hashes Integer array of hash values. Array size should equal the
+   * hash_num argument used when the Bloom filter was constructed.
+   *
+   * @return The count of the queried element before insertion.
+   */
+  T contains_insert(const char* seq, size_t seq_len);
+
+  /**
+   * Check for the presence of sequence k-mers and insert if missing.
+   *
+   * @param hashes Integer vector of hash values.
+   *
+   * @return The count of the queried element before insertion.
+   */
+  T contains_insert(const std::string& seq)
+  {
+    return contains_insert(seq.c_str(), seq.size());
+  }
+
+  /**
+   * Check for the presence of an element's hash values and insert if missing.
+   *
+   * @param hashes Integer array of hash values. Array size should equal the
+   * hash_num argument used when the Bloom filter was constructed.
+   *
+   * @return The count of the queried element before insertion.
+   */
+  T contains_insert(const uint64_t* hashes)
+  {
+    return counting_bloom_filter.contains_insert(hashes);
+  }
+
+  /**
+   * Check for the presence of an element's hash values and insert if missing.
+   *
+   * @param hashes Integer vector of hash values.
+   *
+   * @return The count of the queried element before insertion.
+   */
+  T contains_insert(const std::vector<uint64_t>& hashes)
+  {
+    return counting_bloom_filter.contains_insert(hashes.data());
+  }
+
   /** Get filter size in bytes. */
   size_t get_bytes() const { return counting_bloom_filter.get_bytes(); }
   /** Get population count, i.e. the number of counters >0 in the filter. */
@@ -348,6 +417,15 @@ CountingBloomFilter<T>::contains(const uint64_t* hashes) const
     }
   }
   return min;
+}
+
+template<typename T>
+inline T
+CountingBloomFilter<T>::contains_insert(const uint64_t* hashes)
+{
+  const auto prev_count = contains(hashes);
+  insert(hashes);
+  return prev_count;
 }
 
 template<typename T>
@@ -466,6 +544,15 @@ KmerCountingBloomFilter<T>::contains(const char* seq, size_t seq_len) const
     count += counting_bloom_filter.contains(nthash.hashes());
   }
   return count;
+}
+
+template<typename T>
+inline T
+KmerCountingBloomFilter<T>::contains_insert(const char* seq, size_t seq_len)
+{
+  const auto prev_count = contains(seq, seq_len);
+  insert(seq, seq_len);
+  return prev_count;
 }
 
 template<typename T>

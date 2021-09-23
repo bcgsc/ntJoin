@@ -9,7 +9,7 @@ set -e
 
 cd "${MESON_SOURCE_ROOT}"
 
-files=$(find tests -type f | grep "\(.*\.cpp$\)\|\(.*\.cxx$\)")
+files=$(find tests -type f | grep "\(.*\.h$\)\|\(.*\.hpp$\)\|\(.*\.cpp$\)\|\(.*\.cxx$\)")
 for file in $files; do
   echo -n "$(realpath $file) "
 done

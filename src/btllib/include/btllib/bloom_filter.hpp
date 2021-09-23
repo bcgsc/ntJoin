@@ -17,7 +17,7 @@
 
 namespace btllib {
 
-static const unsigned char BIT_MASKS[CHAR_BIT] = {
+static const uint8_t BIT_MASKS[CHAR_BIT] = {
   // NOLINT
   0x01, 0x02, 0x04, 0x08, // NOLINT
   0x10, 0x20, 0x40, 0x80  // NOLINT
@@ -108,6 +108,28 @@ public:
   bool contains(const std::vector<uint64_t>& hashes) const
   {
     return contains(hashes.data());
+  }
+
+  /**
+   * Check for the presence of an element's hash values and insert if missing.
+   *
+   * @param hashes Integer array of hash values. Array size should equal the
+   * hash_num argument used when the Bloom filter was constructed.
+   *
+   * @return True if present before insertion, false otherwise.
+   */
+  bool contains_insert(const uint64_t* hashes);
+
+  /**
+   * Check for the presence of an element's hash values and insert if missing.
+   *
+   * @param hashes Integer vector of hash values.
+   *
+   * @return True if present before insertion, false otherwise.
+   */
+  bool contains_insert(const std::vector<uint64_t>& hashes)
+  {
+    return contains_insert(hashes.data());
   }
 
   /** Get filter size in bytes. */
@@ -255,6 +277,53 @@ public:
   bool contains(const std::vector<uint64_t>& hashes) const
   {
     return bloom_filter.contains(hashes);
+  }
+
+  /**
+   * Query the presence of k-mers of a sequence and insert if missing.
+   *
+   * @param seq Sequence to k-merize.
+   * @param seq_len Length of seq.
+   *
+   * @return The number of seq's k-mers found in the filter before insertion.
+   */
+  unsigned contains_insert(const char* seq, size_t seq_len);
+
+  /**
+   * Query the presence of k-mers of a sequence and insert if missing.
+   *
+   * @param seq Sequence to k-merize.
+   *
+   * @return The number of seq's k-mers found in the filter before insertion.
+   */
+  unsigned contains_insert(const std::string& seq)
+  {
+    return contains_insert(seq.c_str(), seq.size());
+  }
+
+  /**
+   * Check for the presence of an element's hash values and insert if missing.
+   *
+   * @param hashes Integer array of hash values. Array size should equal the
+   * hash_num argument used when the Bloom filter was constructed.
+   *
+   * @return True if present before insertion, false otherwise.
+   */
+  bool contains_insert(const uint64_t* hashes)
+  {
+    return bloom_filter.contains_insert(hashes);
+  }
+
+  /**
+   * Check for the presence of an element's hash values and insert if missing.
+   *
+   * @param hashes Integer vector of hash values.
+   *
+   * @return True if present before insertion, false otherwise.
+   */
+  bool contains_insert(const std::vector<uint64_t>& hashes)
+  {
+    return bloom_filter.contains_insert(hashes);
   }
 
   /** Get filter size in bytes. */
@@ -407,6 +476,62 @@ public:
     return kmer_bloom_filter.contains(hashes);
   }
 
+  /**
+   * Query the presence of spaced seed k-mers of a sequence and insert if
+   * missing.
+   *
+   * @param seq Sequence to k-merize.
+   * @param seq_len Length of seq.
+   *
+   * @return A vector indicating which seeds had a hit for every k-mer before
+   * insertion. The indices of the outer vector are indices of seq k-mers. The
+   * indices of inner vector are indices of spaced seeds hit for that k-mer.
+   */
+  std::vector<std::vector<unsigned>> contains_insert(const char* seq,
+                                                     size_t seq_len);
+
+  /**
+   * Query the presence of spaced seed k-mers of a sequence and insert if
+   * missing.
+   *
+   * @param seq Sequence to k-merize.
+   *
+   * @return A vector indicating which seeds had a hit for every k-mer before
+   * insertion. The indices of the outer vector are indices of seq k-mers. The
+   * indices of inner vector are indices of spaced seeds hit for that k-mer.
+   */
+  std::vector<std::vector<unsigned>> contains_insert(const std::string& seq)
+  {
+    return contains_insert(seq.c_str(), seq.size());
+  }
+
+  /**
+   * Check for the presence of an element's hash values and insert if missing. A
+   * single spaced seed is an element here.
+   *
+   * @param hashes Integer array of hash values. Array size should equal the
+   * hash_num_per_seed argument used when the Bloom filter was constructed.
+   *
+   * @return True if present before insertion, false otherwise.
+   */
+  bool contains_insert(const uint64_t* hashes)
+  {
+    return kmer_bloom_filter.contains_insert(hashes);
+  }
+
+  /**
+   * Check for the presence of an element's hash values and insert if missing. A
+   * single spaced seed is an element here.
+   *
+   * @param hashes Integer vector of hash values.
+   *
+   * @return True if present before insertion, false otherwise.
+   */
+  bool contains_insert(const std::vector<uint64_t>& hashes)
+  {
+    return kmer_bloom_filter.contains_insert(hashes);
+  }
+
   /** Get filter size in bytes. */
   size_t get_bytes() const { return kmer_bloom_filter.get_bytes(); }
   /** Get population count, i.e. the number of 1 bits in the filter. */
@@ -500,6 +625,19 @@ BloomFilter::contains(const uint64_t* hashes) const
     }
   }
   return true;
+}
+
+inline bool
+BloomFilter::contains_insert(const uint64_t* hashes)
+{
+  uint8_t found = 1;
+  for (unsigned i = 0; i < hash_num; ++i) {
+    const auto normalized = hashes[i] % array_bits;
+    const auto bitpos = normalized % CHAR_BIT;
+    const auto mask = BIT_MASKS[bitpos];
+    found &= ((array[normalized / CHAR_BIT].fetch_or(mask) >> bitpos) & 1);
+  }
+  return bool(found);
 }
 
 inline uint64_t
@@ -650,6 +788,19 @@ KmerBloomFilter::contains(const char* seq, size_t seq_len) const
   return count;
 }
 
+inline unsigned
+KmerBloomFilter::contains_insert(const char* seq, size_t seq_len)
+{
+  unsigned count = 0;
+  NtHash nthash(seq, seq_len, get_hash_num(), get_k());
+  while (nthash.roll()) {
+    if (bloom_filter.contains_insert(nthash.hashes())) {
+      count++;
+    }
+  }
+  return count;
+}
+
 inline KmerBloomFilter::KmerBloomFilter(const std::string& path)
 {
   std::ifstream file(path);
@@ -750,6 +901,24 @@ SeedBloomFilter::contains(const char* seq, size_t seq_len) const
     hit_seeds.emplace_back();
     for (size_t s = 0; s < seeds.size(); s++) {
       if (kmer_bloom_filter.bloom_filter.contains(
+            nthash.hashes() + s * get_hash_num_per_seed())) {
+        hit_seeds.back().push_back(s);
+      }
+    }
+  }
+  return hit_seeds;
+}
+
+inline std::vector<std::vector<unsigned>>
+SeedBloomFilter::contains_insert(const char* seq, size_t seq_len)
+{
+  std::vector<std::vector<unsigned>> hit_seeds;
+  SeedNtHash nthash(
+    seq, seq_len, parsed_seeds, get_hash_num_per_seed(), get_k());
+  while (nthash.roll()) {
+    hit_seeds.emplace_back();
+    for (size_t s = 0; s < seeds.size(); s++) {
+      if (kmer_bloom_filter.bloom_filter.contains_insert(
             nthash.hashes() + s * get_hash_num_per_seed())) {
         hit_seeds.back().push_back(s);
       }

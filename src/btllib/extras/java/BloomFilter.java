@@ -68,6 +68,14 @@ public class BloomFilter {
     return btllibJNI.BloomFilter_contains__SWIG_1(swigCPtr, this, SWIGTYPE_p_std__vectorT_uint64_t_t.getCPtr(hashes));
   }
 
+  public boolean contains_insert(SWIGTYPE_p_uint64_t hashes) {
+    return btllibJNI.BloomFilter_contains_insert__SWIG_0(swigCPtr, this, SWIGTYPE_p_uint64_t.getCPtr(hashes));
+  }
+
+  public boolean contains_insert(SWIGTYPE_p_std__vectorT_uint64_t_t hashes) {
+    return btllibJNI.BloomFilter_contains_insert__SWIG_1(swigCPtr, this, SWIGTYPE_p_std__vectorT_uint64_t_t.getCPtr(hashes));
+  }
+
   public long get_bytes() {
     return btllibJNI.BloomFilter_get_bytes(swigCPtr, this);
   }

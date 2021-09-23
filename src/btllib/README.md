@@ -60,7 +60,7 @@ Before making a pull request, make sure to run `ninja complete` to make sure the
 
 Credits
 ---
-- Author: [Vladimir Nikolic](https://github.com/schutzekatze)
+- Author: [Vladimir Nikolic](https://github.com/vlad0x00)
 - Components:
   - [Hamid Mohamadi](https://github.com/mohamadi) for [ntHash](https://github.com/bcgsc/ntHash)
   - [Justin Chu](https://github.com/JustinChu) for [MIBloomFilter](https://github.com/bcgsc/btl_bloomfilter)
