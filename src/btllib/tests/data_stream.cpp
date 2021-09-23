@@ -19,7 +19,7 @@ main()
 
   std::cerr << "Test .gz write" << std::endl;
   btllib::DataSink gz_sink(gz_filename, false);
-  fwrite(txt, strlen(txt), 1, gz_sink);
+  TEST_ASSERT_EQ(fwrite(txt, 1, strlen(txt), gz_sink), strlen(txt));
   gz_sink.close();
 
   std::cerr << "Test .gz read" << std::endl;
@@ -35,7 +35,7 @@ main()
 
   std::cerr << "Test .xz write" << std::endl;
   btllib::DataSink xz_sink(xz_filename, false);
-  fwrite(txt, strlen(txt), 1, xz_sink);
+  TEST_ASSERT_EQ(fwrite(txt, 1, strlen(txt), xz_sink), strlen(txt));
   xz_sink.close();
 
   std::cerr << "Test .xz read" << std::endl;
@@ -51,7 +51,7 @@ main()
 
   std::cerr << "Test .lrz write" << std::endl;
   btllib::DataSink lrz_sink(lrz_filename, false);
-  fwrite(txt, strlen(txt), 1, lrz_sink);
+  TEST_ASSERT_EQ(fwrite(txt, 1, strlen(txt), lrz_sink), strlen(txt));
   lrz_sink.close();
 
   std::cerr << "Test .lrz read" << std::endl;

@@ -4,6 +4,7 @@
 #include "cstring.hpp"
 #include "process_pipeline.hpp"
 #include "seq.hpp"
+#include "status.hpp"
 
 #include <cstdio>
 #include <memory>
@@ -172,10 +173,12 @@ SeqReaderSamModule::read_buffer(ReaderType& reader, RecordType& record)
   samtools_process =
     std::unique_ptr<ProcessPipeline>(new ProcessPipeline("samtools fastq"));
   loader_thread = std::unique_ptr<std::thread>(new std::thread([&]() {
-    fwrite(reader.buffer.data.data() + reader.buffer.start,
-           1,
-           reader.buffer.end - reader.buffer.start,
-           samtools_process->in);
+    check_error(fwrite(reader.buffer.data.data() + reader.buffer.start,
+                       1,
+                       reader.buffer.end - reader.buffer.start,
+                       samtools_process->in) !=
+                  reader.buffer.end - reader.buffer.start,
+                "SeqReader SAM module: fwrite failed.");
     reader.buffer.start = reader.buffer.end;
     if (std::ferror(reader.source) == 0 && std::feof(reader.source) == 0) {
       const auto p = std::fgetc(reader.source);
@@ -186,7 +189,9 @@ SeqReaderSamModule::read_buffer(ReaderType& reader, RecordType& record)
           const size_t bufsize = LOADER_BLOCK_SIZE;
           char buf[bufsize];
           size_t bytes_read = fread(buf, 1, bufsize, reader.source);
-          fwrite(buf, 1, bytes_read, samtools_process->in);
+          check_error(fwrite(buf, 1, bytes_read, samtools_process->in) !=
+                        bytes_read,
+                      "SeqReader SAM module: fwrite failed.");
         }
       }
     }
