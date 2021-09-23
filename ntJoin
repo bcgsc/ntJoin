@@ -129,7 +129,6 @@ help:
 	@echo "Notes: "
 	@echo "	- Ensure the lists of reference assemblies and weights are in the same order, and that both are space-separated"
 	@echo "	- Ensure all assembly files are in the current working directory"
-	@echo "	- All input assembly files must be in single-line fasta format"
 	@echo ""
 
 assemble: check_params \
