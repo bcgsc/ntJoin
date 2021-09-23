@@ -1,5 +1,6 @@
 #include "btllib/indexlr.hpp"
 #include "btllib/bloom_filter.hpp"
+#include "helpers.hpp"
 
 #include <fstream>
 #include <sstream>
@@ -78,14 +79,14 @@ main()
               << correct_output << "\n\nActual:\n\n"
               << ss.str() << "\n\n";
   }
-  assert(ss.str() == correct_output);
+  TEST_ASSERT_EQ(ss.str(), correct_output);
 
   if (ss2.str() != correct_output2) {
     std::cerr << "Correct:\n\n"
               << correct_output2 << "\n\nActual:\n\n"
               << ss2.str() << "\n\n";
   }
-  assert(ss2.str() == correct_output2);
+  TEST_ASSERT_EQ(ss2.str(), correct_output2);
 
   std::cerr << "Testing with Bloom filters" << std::endl;
   btllib::BloomFilter filter_in_bf(1024 * 1024 * 32, 1);
@@ -122,11 +123,11 @@ main()
           break;
         }
       }
-      assert(found);
+      TEST_ASSERT(found);
       mins_found++;
     }
   }
-  assert(mins_found >= filter_in_hashes.size());
+  TEST_ASSERT_GE(mins_found, filter_in_hashes.size());
 
   btllib::Indexlr indexlr4("../tests/indexlr.fq",
                            100,
@@ -139,12 +140,12 @@ main()
   while ((record = indexlr4.get_minimizers())) {
     for (const auto& min : record.minimizers) {
       for (const auto h : filter_out_hashes) {
-        assert(min.min_hash != h);
+        TEST_ASSERT_NE(min.min_hash, h);
       }
       mins_found++;
     }
   }
-  assert(mins_found >= filter_in_hashes.size());
+  TEST_ASSERT_GE(mins_found, filter_in_hashes.size());
 
   btllib::Indexlr indexlr5("../tests/indexlr.fq",
                            100,
@@ -165,14 +166,14 @@ main()
           break;
         }
       }
-      assert(found);
+      TEST_ASSERT(found);
       for (const auto h : filter_out_hashes) {
-        assert(min.min_hash != h);
+        TEST_ASSERT_NE(min.min_hash, h);
       }
       mins_found++;
     }
   }
-  assert(mins_found >= filter_in_hashes.size());
+  TEST_ASSERT_GE(mins_found, filter_in_hashes.size());
 
   return 0;
 }

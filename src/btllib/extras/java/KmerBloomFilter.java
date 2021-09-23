@@ -80,6 +80,22 @@ public class KmerBloomFilter {
     return btllibJNI.KmerBloomFilter_contains__SWIG_3(swigCPtr, this, SWIGTYPE_p_std__vectorT_uint64_t_t.getCPtr(hashes));
   }
 
+  public long contains_insert(String seq, long seq_len) {
+    return btllibJNI.KmerBloomFilter_contains_insert__SWIG_0(swigCPtr, this, seq, seq_len);
+  }
+
+  public long contains_insert(String seq) {
+    return btllibJNI.KmerBloomFilter_contains_insert__SWIG_1(swigCPtr, this, seq);
+  }
+
+  public boolean contains_insert(SWIGTYPE_p_uint64_t hashes) {
+    return btllibJNI.KmerBloomFilter_contains_insert__SWIG_2(swigCPtr, this, SWIGTYPE_p_uint64_t.getCPtr(hashes));
+  }
+
+  public boolean contains_insert(SWIGTYPE_p_std__vectorT_uint64_t_t hashes) {
+    return btllibJNI.KmerBloomFilter_contains_insert__SWIG_3(swigCPtr, this, SWIGTYPE_p_std__vectorT_uint64_t_t.getCPtr(hashes));
+  }
+
   public long get_bytes() {
     return btllibJNI.KmerBloomFilter_get_bytes(swigCPtr, this);
   }

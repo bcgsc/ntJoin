@@ -374,7 +374,7 @@ inline std::string
 Indexlr::extract_barcode(const std::string& id, const std::string& comment)
 {
   const static std::string BARCODE_PREFIX = "BX:Z:";
-  if (starts_with(comment, BARCODE_PREFIX)) {
+  if (startswith(comment, BARCODE_PREFIX)) {
     const auto space_pos = comment.find(' ');
     if (space_pos != std::string::npos) {
       return comment.substr(BARCODE_PREFIX.size(),

@@ -29,21 +29,21 @@ main()
 
     btllib::SeqReader reader_fasta(random_filename,
                                    btllib::SeqReader::Flag::SHORT_MODE);
-    assert(reader_fasta.get_format() == btllib::SeqReader::Format::FASTA);
+    TEST_ASSERT_EQ(reader_fasta.get_format(), btllib::SeqReader::Format::FASTA);
 
     size_t i;
     btllib::SeqReader::Record record;
 
     i = 0;
     while ((record = reader_fasta.read())) {
-      assert(record.id == ids[i]);
-      assert(record.comment == comments[i]);
-      assert(record.seq == seqs[i]);
-      assert(record.qual.empty());
+      TEST_ASSERT_EQ(record.id, ids[i]);
+      TEST_ASSERT_EQ(record.comment, comments[i]);
+      TEST_ASSERT_EQ(record.seq, seqs[i]);
+      TEST_ASSERT(record.qual.empty());
 
       i++;
     }
-    assert(i == 2);
+    TEST_ASSERT_EQ(i, 2);
 
     reader_fasta.close();
     std::remove(random_filename.c_str());
@@ -59,18 +59,18 @@ main()
 
     btllib::SeqReader reader_fastq(random_filename,
                                    btllib::SeqReader::Flag::SHORT_MODE);
-    assert(reader_fastq.get_format() == btllib::SeqReader::Format::FASTQ);
+    TEST_ASSERT_EQ(reader_fastq.get_format(), btllib::SeqReader::Format::FASTQ);
 
     i = 0;
     while ((record = reader_fastq.read())) {
-      assert(record.id == ids[i]);
-      assert(record.comment == comments[i]);
-      assert(record.seq == seqs[i]);
-      assert(record.qual == quals[i]);
+      TEST_ASSERT_EQ(record.id, ids[i]);
+      TEST_ASSERT_EQ(record.comment, comments[i]);
+      TEST_ASSERT_EQ(record.seq, seqs[i]);
+      TEST_ASSERT_EQ(record.qual, quals[i]);
 
       i++;
     }
-    assert(i == 2);
+    TEST_ASSERT_EQ(i, 2);
 
     reader_fastq.close();
     std::remove(random_filename.c_str());
@@ -105,12 +105,12 @@ main()
     btllib::SeqReader random_reader(random_filename,
                                     btllib::SeqReader::Flag::LONG_MODE);
     for (i = 0; (record = random_reader.read()); i++) {
-      assert(record.id == generated_ids[i]);
-      assert(record.comment == generated_comments[i]);
-      assert(record.seq == generated_seqs[i]);
-      assert(record.qual == generated_quals[i]);
+      TEST_ASSERT_EQ(record.id, generated_ids[i]);
+      TEST_ASSERT_EQ(record.comment, generated_comments[i]);
+      TEST_ASSERT_EQ(record.seq, generated_seqs[i]);
+      TEST_ASSERT_EQ(record.qual, generated_quals[i]);
     }
-    assert(i == 500);
+    TEST_ASSERT_EQ(i, 500);
 
     random_reader.close();
     std::remove(random_filename.c_str());
@@ -169,12 +169,12 @@ main()
     std::sort(parallel_quals.begin(), parallel_quals.end());
 
     for (i = 0; i < parallel_ids.size(); i++) {
-      assert(parallel_ids[i] == generated_ids[i]);
-      assert(parallel_comments[i] == generated_comments[i]);
-      assert(parallel_seqs[i] == generated_seqs[i]);
-      assert(parallel_quals[i] == generated_quals[i]);
+      TEST_ASSERT_EQ(parallel_ids[i], generated_ids[i]);
+      TEST_ASSERT_EQ(parallel_comments[i], generated_comments[i]);
+      TEST_ASSERT_EQ(parallel_seqs[i], generated_seqs[i]);
+      TEST_ASSERT_EQ(parallel_quals[i], generated_quals[i]);
     }
-    assert(i == 500);
+    TEST_ASSERT_EQ(i, 500);
 
     std::remove(random_filename2.c_str());
   }

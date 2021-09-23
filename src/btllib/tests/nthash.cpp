@@ -1,6 +1,6 @@
 #include "btllib/nthash.hpp"
+#include "helpers.hpp"
 
-#include <cassert>
 #include <iostream>
 #include <string>
 
@@ -19,12 +19,12 @@ main()
                                            8061578976118370557U };
 
     nthash.roll();
-    assert(nthash.get_hash_num() == hashes.size());
+    TEST_ASSERT_EQ(nthash.get_hash_num(), hashes.size());
     size_t i;
     for (i = 0; i < nthash.get_hash_num(); ++i) {
-      assert(nthash.hashes()[i] == hashes[i]);
+      TEST_ASSERT_EQ(nthash.hashes()[i], hashes[i]);
     }
-    assert(i == 3);
+    TEST_ASSERT_EQ(i, 3);
   }
 
   {
@@ -36,12 +36,12 @@ main()
     nthash.roll();
     nthash.sub({ 3, 4 }, { 'C', 'G' });
     nthash_subbed.roll();
-    assert(nthash.get_hash_num() == nthash_subbed.get_hash_num());
+    TEST_ASSERT_EQ(nthash.get_hash_num(), nthash_subbed.get_hash_num());
     size_t i;
     for (i = 0; i < nthash.get_hash_num(); ++i) {
-      assert(nthash.hashes()[i] == nthash_subbed.hashes()[i]);
+      TEST_ASSERT_EQ(nthash.hashes()[i], nthash_subbed.hashes()[i]);
     }
-    assert(i == 3);
+    TEST_ASSERT_EQ(i, 3);
   }
 
   {
@@ -54,12 +54,12 @@ main()
 
     nthash.roll();
     nthash_rc.roll();
-    assert(nthash.get_hash_num() == nthash_rc.get_hash_num());
+    TEST_ASSERT_EQ(nthash.get_hash_num(), nthash_rc.get_hash_num());
     size_t i;
     for (i = 0; i < nthash.get_hash_num(); ++i) {
-      assert(nthash.hashes()[i] == nthash_rc.hashes()[i]);
+      TEST_ASSERT_EQ(nthash.hashes()[i], nthash_rc.hashes()[i]);
     }
-    assert(i == 3);
+    TEST_ASSERT_EQ(i, 3);
   }
 
   {
@@ -80,10 +80,10 @@ main()
     size_t i;
     for (i = 0; nthash.roll() && nthash_vector[i].roll(); ++i) {
       for (size_t j = 0; j < nthash.get_hash_num(); ++j) {
-        assert(nthash.hashes()[j] == nthash_vector[i].hashes()[j]);
+        TEST_ASSERT_EQ(nthash.hashes()[j], nthash_vector[i].hashes()[j]);
       }
     }
-    assert(i == 3);
+    TEST_ASSERT_EQ(i, 3);
   }
 
   {
@@ -95,8 +95,8 @@ main()
     std::string kmerM1 = "ACGTACACTTGACTGAGTCT";
     std::string kmerM2 = "ACGTACACTGTACTGAGTCT";
     std::string kmerM3 = "ACGTACACTGCACTGAGTCT";
-    assert(kmerM1.size() == seeds[0].size());
-    assert(kmerM1.size() == seeds[1].size());
+    TEST_ASSERT_EQ(kmerM1.size(), seeds[0].size());
+    TEST_ASSERT_EQ(kmerM1.size(), seeds[1].size());
 
     btllib::SeedNtHash seed_nthash(kmer, seeds, 2, kmer.size());
 
@@ -112,18 +112,20 @@ main()
       btllib::SeedNtHash(
         kmerM3, seeds, seed_nthash.get_hash_num_per_seed(), seed_nthash.get_k())
     };
-    assert(seed_nthash.get_hash_num() == seeds.size() * 2);
-    assert(seed_nthash.get_hash_num() == seed_nthash_vector[0].get_hash_num());
+    TEST_ASSERT_EQ(seed_nthash.get_hash_num(), seeds.size() * 2);
+    TEST_ASSERT_EQ(seed_nthash.get_hash_num(),
+                   seed_nthash_vector[0].get_hash_num());
 
     seed_nthash.roll();
     size_t i;
     for (i = 0; i < seed_nthash_vector.size() && seed_nthash_vector[i].roll();
          i++) {
       for (size_t j = 0; j < seed_nthash.get_hash_num(); j++) {
-        assert(seed_nthash.hashes()[j] == seed_nthash_vector[i].hashes()[j]);
+        TEST_ASSERT_EQ(seed_nthash.hashes()[j],
+                       seed_nthash_vector[i].hashes()[j]);
       }
     }
-    assert(i == 3);
+    TEST_ASSERT_EQ(i, 3);
   }
 
   {
@@ -137,9 +139,9 @@ main()
     rna_nthash.roll();
     size_t i;
     for (i = 0; i < dna_nthash.get_hash_num(); ++i) {
-      assert(dna_nthash.hashes()[i] == rna_nthash.hashes()[i]);
+      TEST_ASSERT_EQ(dna_nthash.hashes()[i], rna_nthash.hashes()[i]);
     }
-    assert(i == 3);
+    TEST_ASSERT_EQ(i, 3);
   }
 
   return 0;
