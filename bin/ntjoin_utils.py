@@ -4,7 +4,7 @@ ntJoin: Scaffolding assemblies using reference assemblies and minimizer graphs
 Written by Lauren Coombe (@lcoombe)
 """
 
-from datetime import datetime
+import datetime
 from collections import namedtuple
 import sys
 
@@ -144,4 +144,3 @@ class OverlapRegion:
                 j += 1
 
         return return_regions
-    
