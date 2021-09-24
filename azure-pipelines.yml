@@ -27,7 +27,7 @@ jobs:
   - script: |
       source activate ntjoin_CI
       cd bin
-      pylint ntjoin_assemble.py read_fasta.py
+      pylint ntjoin_assemble.py read_fasta.py ntjoin_utils.py
       cd ..
     displayName: Run pylint
   - script: make -C src all
