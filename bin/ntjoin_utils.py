@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-ntJoin: Scaffolding assemblies using reference assemblies and minimizer graphs
+ntJoin helper functions
 Written by Lauren Coombe (@lcoombe)
 """
 
