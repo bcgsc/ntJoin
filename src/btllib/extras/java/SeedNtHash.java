@@ -72,9 +72,9 @@ public class SeedNtHash {
     return btllibJNI.SeedNtHash_roll(swigCPtr, this);
   }
 
-  public SWIGTYPE_p_uint64_t hashes() {
+  public SWIGTYPE_p_unsigned_long_long hashes() {
     long cPtr = btllibJNI.SeedNtHash_hashes(swigCPtr, this);
-    return (cPtr == 0) ? null : new SWIGTYPE_p_uint64_t(cPtr, false);
+    return (cPtr == 0) ? null : new SWIGTYPE_p_unsigned_long_long(cPtr, false);
   }
 
   public long get_pos() {
@@ -97,12 +97,12 @@ public class SeedNtHash {
     return btllibJNI.SeedNtHash_get_k(swigCPtr, this);
   }
 
-  public SWIGTYPE_p_uint64_t get_forward_hash() {
-    return new SWIGTYPE_p_uint64_t(btllibJNI.SeedNtHash_get_forward_hash(swigCPtr, this), true);
+  public java.math.BigInteger get_forward_hash() {
+    return btllibJNI.SeedNtHash_get_forward_hash(swigCPtr, this);
   }
 
-  public SWIGTYPE_p_uint64_t get_reverse_hash() {
-    return new SWIGTYPE_p_uint64_t(btllibJNI.SeedNtHash_get_reverse_hash(swigCPtr, this), true);
+  public java.math.BigInteger get_reverse_hash() {
+    return btllibJNI.SeedNtHash_get_reverse_hash(swigCPtr, this);
   }
 
 }

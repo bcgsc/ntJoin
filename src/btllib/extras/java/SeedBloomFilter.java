@@ -56,12 +56,12 @@ public class SeedBloomFilter {
     btllibJNI.SeedBloomFilter_insert__SWIG_1(swigCPtr, this, seq);
   }
 
-  public void insert(SWIGTYPE_p_uint64_t hashes) {
-    btllibJNI.SeedBloomFilter_insert__SWIG_2(swigCPtr, this, SWIGTYPE_p_uint64_t.getCPtr(hashes));
+  public void insert(SWIGTYPE_p_unsigned_long_long hashes) {
+    btllibJNI.SeedBloomFilter_insert__SWIG_2(swigCPtr, this, SWIGTYPE_p_unsigned_long_long.getCPtr(hashes));
   }
 
-  public void insert(SWIGTYPE_p_std__vectorT_uint64_t_t hashes) {
-    btllibJNI.SeedBloomFilter_insert__SWIG_3(swigCPtr, this, SWIGTYPE_p_std__vectorT_uint64_t_t.getCPtr(hashes));
+  public void insert(SWIGTYPE_p_std__vectorT_unsigned_long_long_t hashes) {
+    btllibJNI.SeedBloomFilter_insert__SWIG_3(swigCPtr, this, SWIGTYPE_p_std__vectorT_unsigned_long_long_t.getCPtr(hashes));
   }
 
   public SWIGTYPE_p_std__vectorT_std__vectorT_unsigned_int_t_t contains(String seq, long seq_len) {
@@ -72,12 +72,12 @@ public class SeedBloomFilter {
     return new SWIGTYPE_p_std__vectorT_std__vectorT_unsigned_int_t_t(btllibJNI.SeedBloomFilter_contains__SWIG_1(swigCPtr, this, seq), true);
   }
 
-  public boolean contains(SWIGTYPE_p_uint64_t hashes) {
-    return btllibJNI.SeedBloomFilter_contains__SWIG_2(swigCPtr, this, SWIGTYPE_p_uint64_t.getCPtr(hashes));
+  public boolean contains(SWIGTYPE_p_unsigned_long_long hashes) {
+    return btllibJNI.SeedBloomFilter_contains__SWIG_2(swigCPtr, this, SWIGTYPE_p_unsigned_long_long.getCPtr(hashes));
   }
 
-  public boolean contains(SWIGTYPE_p_std__vectorT_uint64_t_t hashes) {
-    return btllibJNI.SeedBloomFilter_contains__SWIG_3(swigCPtr, this, SWIGTYPE_p_std__vectorT_uint64_t_t.getCPtr(hashes));
+  public boolean contains(SWIGTYPE_p_std__vectorT_unsigned_long_long_t hashes) {
+    return btllibJNI.SeedBloomFilter_contains__SWIG_3(swigCPtr, this, SWIGTYPE_p_std__vectorT_unsigned_long_long_t.getCPtr(hashes));
   }
 
   public SWIGTYPE_p_std__vectorT_std__vectorT_unsigned_int_t_t contains_insert(String seq, long seq_len) {
@@ -88,20 +88,20 @@ public class SeedBloomFilter {
     return new SWIGTYPE_p_std__vectorT_std__vectorT_unsigned_int_t_t(btllibJNI.SeedBloomFilter_contains_insert__SWIG_1(swigCPtr, this, seq), true);
   }
 
-  public boolean contains_insert(SWIGTYPE_p_uint64_t hashes) {
-    return btllibJNI.SeedBloomFilter_contains_insert__SWIG_2(swigCPtr, this, SWIGTYPE_p_uint64_t.getCPtr(hashes));
+  public boolean contains_insert(SWIGTYPE_p_unsigned_long_long hashes) {
+    return btllibJNI.SeedBloomFilter_contains_insert__SWIG_2(swigCPtr, this, SWIGTYPE_p_unsigned_long_long.getCPtr(hashes));
   }
 
-  public boolean contains_insert(SWIGTYPE_p_std__vectorT_uint64_t_t hashes) {
-    return btllibJNI.SeedBloomFilter_contains_insert__SWIG_3(swigCPtr, this, SWIGTYPE_p_std__vectorT_uint64_t_t.getCPtr(hashes));
+  public boolean contains_insert(SWIGTYPE_p_std__vectorT_unsigned_long_long_t hashes) {
+    return btllibJNI.SeedBloomFilter_contains_insert__SWIG_3(swigCPtr, this, SWIGTYPE_p_std__vectorT_unsigned_long_long_t.getCPtr(hashes));
   }
 
   public long get_bytes() {
     return btllibJNI.SeedBloomFilter_get_bytes(swigCPtr, this);
   }
 
-  public SWIGTYPE_p_uint64_t get_pop_cnt() {
-    return new SWIGTYPE_p_uint64_t(btllibJNI.SeedBloomFilter_get_pop_cnt(swigCPtr, this), true);
+  public java.math.BigInteger get_pop_cnt() {
+    return btllibJNI.SeedBloomFilter_get_pop_cnt(swigCPtr, this);
   }
 
   public double get_occupancy() {

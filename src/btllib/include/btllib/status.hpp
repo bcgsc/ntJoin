@@ -147,16 +147,16 @@ check_error(bool condition, const std::string& msg)
 inline std::string
 get_strerror()
 {
-  static const size_t BUFLEN = 1024;
-  char buf[BUFLEN];
+  static const size_t buflen = 1024;
+  char buf[buflen];
 // POSIX and GNU implementation of strerror_r differ, even in function signature
 // and so we need to check which one is used
 #if __APPLE__ ||                                                               \
   ((_POSIX_C_SOURCE >= 200112L || _XOPEN_SOURCE >= 600) && !_GNU_SOURCE)
-  strerror_r(errno, buf, BUFLEN);
+  strerror_r(errno, buf, buflen);
   return buf;
 #else
-  return strerror_r(errno, buf, BUFLEN);
+  return strerror_r(errno, buf, buflen);
 #endif
 }
 

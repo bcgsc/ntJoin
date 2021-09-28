@@ -5,6 +5,7 @@
 #include "util.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cerrno>
 #include <csignal>
@@ -17,6 +18,7 @@
 #include <mutex>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <tuple>
 #include <vector>
 
@@ -110,10 +112,14 @@ template<DirectedFd fd>
 static inline bool
 read_from(void* buf, const size_t n)
 {
-  size_t so_far = 0, ret;
-  while (so_far < n) {
-    ret = read(fd()[PIPE_READ_END], (uint8_t*)(buf) + so_far, n - so_far);
+  ssize_t so_far = 0, ret;
+  while (so_far < ssize_t(n)) {
+    ret =
+      read(fd()[PIPE_READ_END], (uint8_t*)(buf) + so_far, ssize_t(n) - so_far);
     if (ret <= 0) {
+      if (ret < 0 && errno == EINTR) {
+        continue;
+      }
       return false;
     }
     so_far += ret;
@@ -123,12 +129,16 @@ read_from(void* buf, const size_t n)
 
 template<DirectedFd fd>
 static inline bool
-write_to(const void* buf, size_t count)
+write_to(const void* buf, size_t n)
 {
-  size_t so_far = 0, ret;
-  while (so_far < count) {
-    ret = write(fd()[PIPE_WRITE_END], (uint8_t*)(buf) + so_far, count - so_far);
+  ssize_t so_far = 0, ret;
+  while (so_far < ssize_t(n)) {
+    ret = write(
+      fd()[PIPE_WRITE_END], (uint8_t*)(buf) + so_far, ssize_t(n) - so_far);
     if (ret <= 0) {
+      if (ret < 0 && errno == EINTR) {
+        continue;
+      }
       return false;
     }
     so_far += ret;
@@ -283,21 +293,25 @@ open_comm_pipes(
       len = pipepath.size() + 1;
       check_error(len > COMM_BUFFER_SIZE,
                   "Pipe path length too large for the buffer.");
-      write_to_user(&len, sizeof(len));
-      write_to_user(pipepath.c_str(), len);
+      check_error(!write_to_user(&len, sizeof(len)) ||
+                    !write_to_user(pipepath.c_str(), len),
+                  "Process pipeline: Communication failure.");
 
       if (i > 0) {
-        read_from_user(&confirmation, sizeof(confirmation));
+        check_error(!read_from_user(&confirmation, sizeof(confirmation)),
+                    "Process pipeline: Communication failure.");
       }
 
       pipe_fd = open(pipepath.c_str(), flags[i] | O_NONBLOCK | O_CLOEXEC);
       check_error(pipe_fd < 0,
                   "Process pipeline: opening comm pipe failed: " +
                     get_strerror());
-      write_to_user(&confirmation, sizeof(confirmation));
+      check_error(!write_to_user(&confirmation, sizeof(confirmation)),
+                  "Process pipeline: Communication failure.");
 
       if (i == 0) {
-        read_from_user(&confirmation, sizeof(confirmation));
+        check_error(!read_from_user(&confirmation, sizeof(confirmation)),
+                    "Process pipeline: Communication failure.");
       }
 
       unlink(pipepath.c_str());
@@ -307,10 +321,12 @@ open_comm_pipes(
                   "Process pipeline: fcntl error: " + get_strerror());
       check_error(fcntl(pipe_fd, F_SETFL, status_flags & ~O_NONBLOCK) == -1,
                   "Process pipeline: fcntl error: " + get_strerror());
-      write_to_user(&confirmation, sizeof(confirmation));
+      check_error(!write_to_user(&confirmation, sizeof(confirmation)),
+                  "Process pipeline: Communication failure.");
     } else {
       len = 0;
-      write_to_user(&len, sizeof(len));
+      check_error(!write_to_user(&len, sizeof(len)),
+                  "Process pipeline: Communication failure.");
     }
   }
 }
@@ -373,35 +389,14 @@ rm_pipes()
   }
 }
 
-static inline void
-rm_pipes_on_death()
-{
-  struct sigaction action; // NOLINT
-  action.sa_handler = [](const int sig) {
-    (void)sig;
-    rm_pipes();
-    std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
-  };
-  sigemptyset(&action.sa_mask);
-  action.sa_flags = SA_RESTART;
-  sigaction(SIGHUP, &action, nullptr);
-  sigaction(SIGQUIT, &action, nullptr);
-  sigaction(SIGILL, &action, nullptr);
-  sigaction(SIGABRT, &action, nullptr);
-  sigaction(SIGBUS, &action, nullptr);
-  sigaction(SIGSEGV, &action, nullptr);
-  sigaction(SIGPIPE, &action, nullptr);
-  sigaction(SIGTERM, &action, nullptr);
-}
-
-static inline void
-check_process_status(const int status,
-                     const pid_t pid,
-                     const std::string& cmd = "")
+static inline bool
+check_child_failure(const int status,
+                    const pid_t pid,
+                    const std::string& cmd = "")
 {
   if (status != 0) {
     if (WIFSIGNALED(status) && WTERMSIG(status) == SIGPIPE) {
-      return;
+      return false;
     }
     std::stringstream ss;
     ss << "A helper process has finished unsuccessfully:\n";
@@ -417,33 +412,55 @@ check_process_status(const int status,
       ss << "exited with code " << status;
     }
     log_error(ss.str());
-    std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
+    return true;
   }
+  return false;
 }
 
-static inline void
+static inline bool
 check_children_failures()
 {
   // Checks if any children have failed so the caller can be a disappointed
   // parent.
   int status;
   pid_t pid;
+  bool failed = false;
   while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
-    check_process_status(status, pid);
+    failed = check_child_failure(status, pid) || failed;
   }
+  return failed;
 }
 
 static inline void
-handle_sigchld()
+install_signal_handlers_spawner()
 {
   struct sigaction action; // NOLINT
+  action.sa_flags = SA_RESTART;
+  sigemptyset(&action.sa_mask);
+
   action.sa_handler = [](const int sig) {
     (void)sig;
-    check_children_failures();
+    if (check_children_failures()) {
+      rm_pipes();
+      std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
+    }
+  };
+  sigaction(SIGCHLD, &action, nullptr);
+
+  action.sa_handler = [](const int sig) {
+    (void)sig;
+    rm_pipes();
+    std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
   };
   sigemptyset(&action.sa_mask);
-  action.sa_flags = SA_RESTART;
-  sigaction(SIGCHLD, &action, nullptr);
+  sigaction(SIGHUP, &action, nullptr);
+  sigaction(SIGQUIT, &action, nullptr);
+  sigaction(SIGILL, &action, nullptr);
+  sigaction(SIGABRT, &action, nullptr);
+  sigaction(SIGBUS, &action, nullptr);
+  sigaction(SIGSEGV, &action, nullptr);
+  sigaction(SIGPIPE, &action, nullptr);
+  sigaction(SIGTERM, &action, nullptr);
 }
 
 /// @cond HIDDEN_SYMBOLS
@@ -476,21 +493,15 @@ ProcessPipelineInternal::end()
       const auto ret = waitpid(cmd.second, &status, 0);
       check_error((ret == -1) && (errno != ECHILD),
                   "Process pipeline: waitpid failed: " + get_strerror());
-      if (ret != -1) {
-        check_process_status(status, cmd.second, cmd.first);
+      if (ret != -1 && check_child_failure(status, cmd.second, cmd.first)) {
+        std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
       }
     }
-    check_children_failures();
+    if (check_children_failures()) {
+      std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
+    }
     ended = true;
   }
-}
-
-static inline void
-end_spawner()
-{
-  check_children_failures();
-  rm_pipes();
-  std::exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe)
 }
 
 static inline void
@@ -516,20 +527,20 @@ open_redirection_files(const IORedirection& redirection,
                        int& out_fd,
                        int& err_fd)
 {
-  static const int OPEN_READ_FLAGS = O_RDONLY;
-  static const int OPEN_WRITE_FLAGS = O_WRONLY | O_CREAT;
+  static const int open_read_flags = O_RDONLY;
+  static const int open_write_flags = O_WRONLY | O_CREAT;
 
   if (!redirection.in.empty()) {
-    in_fd = open(redirection.in.c_str(), OPEN_READ_FLAGS, OPEN_MODE);
+    in_fd = open(redirection.in.c_str(), open_read_flags, OPEN_MODE);
   }
   if (!redirection.out.empty()) {
     out_fd = open(redirection.out.c_str(),
-                  OPEN_WRITE_FLAGS | (redirection.out_append ? O_APPEND : 0),
+                  open_write_flags | (redirection.out_append ? O_APPEND : 0),
                   OPEN_MODE);
   }
   if (!redirection.err.empty()) {
     err_fd = open(redirection.err.c_str(),
-                  OPEN_WRITE_FLAGS | (redirection.err_append ? O_APPEND : 0),
+                  open_write_flags | (redirection.err_append ? O_APPEND : 0),
                   OPEN_MODE);
   }
 }
@@ -540,8 +551,8 @@ run_cmd()
   char buf[COMM_BUFFER_SIZE];
   size_t len;
 
-  read_from_user(&len, sizeof(len));
-  read_from_user(buf, len);
+  check_error(!read_from_user(&len, sizeof(len)) || !read_from_user(buf, len),
+              "Process pipeline: Communication failure.");
 
   auto individual_cmds = split(buf, "|");
   check_error(individual_cmds.empty(), "Process spawner: Invalid command.");
@@ -580,7 +591,8 @@ run_cmd()
 
   ProcessPipelineInternal pipeline;
   pipeline.id = new_pipeline_id();
-  write_to_user(&pipeline.id, sizeof(pipeline.id));
+  check_error(!write_to_user(&pipeline.id, sizeof(pipeline.id)),
+              "Process pipeline: Communication failure.");
 
   const auto last_idx = ssize_t(individual_cmds.size() - 1);
   for (ssize_t idx = last_idx; idx >= 0; idx--) {
@@ -612,7 +624,7 @@ run_cmd()
                   "Process pipeline: fcntl error: " + get_strerror());
     }
 
-    pid_t pid = fork();
+    const pid_t pid = fork();
     if (pid == 0) {
       int in_fd = chainpipe_in_fd[PIPE_READ_END];
       int out_fd = chainpipe_out_fd[PIPE_WRITE_END];
@@ -661,11 +673,13 @@ end_cmd()
   PipelineId pipeline_id;
   char confirmation = 0;
 
-  read_from_user(&pipeline_id, sizeof(pipeline_id));
+  check_error(!read_from_user(&pipeline_id, sizeof(pipeline_id)),
+              "Process pipeline: Communication failure.");
   pipeline = pipeline_map()[pipeline_id];
   pipeline.end();
   pipeline_map().erase(pipeline_id);
-  write_to_user(&confirmation, sizeof(confirmation));
+  check_error(!write_to_user(&confirmation, sizeof(confirmation)),
+              "Process pipeline: Communication failure.");
 }
 
 static inline void
@@ -673,17 +687,20 @@ process_spawner_operation()
 {
   ProcessPipeline::Operation op;
   for (;;) {
-    read_from_user(&op, sizeof(op));
-    switch (op) {
-      case ProcessPipeline::Operation::RUN:
-        run_cmd();
-        break;
-      case ProcessPipeline::Operation::END:
-        end_cmd();
-        break;
-      default:
-        log_error("Pipeline process: Invalid pipeline operation.");
-        std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
+    if (read_from_user(&op, sizeof(op))) {
+      switch (op) {
+        case ProcessPipeline::Operation::RUN:
+          run_cmd();
+          break;
+        case ProcessPipeline::Operation::END:
+          end_cmd();
+          break;
+        default:
+          log_error("Pipeline process: Invalid pipeline operation.");
+          std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
+      }
+    } else {
+      break;
     }
   }
 }
@@ -710,6 +727,23 @@ set_pipepath_prefix()
   }
 }
 
+static inline std::array<int, 2>
+start_watchdog()
+{
+  std::array<int, 2> watchdog_pipe{ -1, -1 };
+  check_error(pipe(watchdog_pipe.data()) == -1,
+              "Process pipeline: Error opening a pipe.");
+  (new std::thread([watchdog_pipe]() {
+    char dummy;
+    if (read(watchdog_pipe[PIPE_READ_END], &dummy, sizeof(dummy)) <= 0) {
+      log_error("Process pipeline: Spawner process failed.");
+      std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
+    }
+  }))
+    ->detach();
+  return watchdog_pipe;
+}
+
 static inline bool
 process_spawner_init()
 {
@@ -726,21 +760,32 @@ process_spawner_init()
 
     set_pipepath_prefix();
 
+    const auto watchdog_pipe = start_watchdog();
+
     const pid_t pid = fork();
     if (pid == 0) {
       check_error(close(process_spawner_user2spawner_fd()[PIPE_WRITE_END]) != 0,
                   "Process pipeline: Pipe close error: " + get_strerror());
       check_error(close(process_spawner_spawner2user_fd()[PIPE_READ_END]) != 0,
                   "Process pipeline: Pipe close error: " + get_strerror());
+      check_error(close(watchdog_pipe[PIPE_READ_END]) != 0,
+                  "Process pipeline: Pipe close error: " + get_strerror());
 
-      handle_sigchld();
-      rm_pipes_on_death();
+      install_signal_handlers_spawner();
 
       process_spawner_operation();
+
+      if (check_children_failures()) {
+        rm_pipes();
+        std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
+      }
+      std::exit(EXIT_SUCCESS); // NOLINT(concurrency-mt-unsafe)
     }
     check_error(close(process_spawner_user2spawner_fd()[PIPE_READ_END]) != 0,
                 "Process pipeline: Pipe close error: " + get_strerror());
     check_error(close(process_spawner_spawner2user_fd()[PIPE_WRITE_END]) != 0,
+                "Process pipeline: Pipe close error: " + get_strerror());
+    check_error(close(watchdog_pipe[PIPE_WRITE_END]) != 0,
                 "Process pipeline: Pipe close error: " + get_strerror());
 
     process_spawner_initialized() = true;
@@ -753,14 +798,16 @@ inline ProcessPipeline::ProcessPipeline(const std::string& cmd)
   std::unique_lock<std::mutex> lock(process_spawner_comm_mutex());
 
   const ProcessPipeline::Operation op = ProcessPipeline::Operation::RUN;
-  write_to_spawner(&op, sizeof(op));
+  check_error(!write_to_spawner(&op, sizeof(op)),
+              "Process pipeline: Communication failure.");
 
   size_t len = cmd.size() + 1;
 
   check_error(len > COMM_BUFFER_SIZE,
-              "Stream path length too large for the buffer.");
-  write_to_spawner(&len, sizeof(len));
-  write_to_spawner(cmd.c_str(), len);
+              "Process pipeline: Stream path length too large for the buffer.");
+  check_error(!write_to_spawner(&len, sizeof(len)) ||
+                !write_to_spawner(cmd.c_str(), len),
+              "Process pipeline: Communication failure.");
 
   char buf[COMM_BUFFER_SIZE];
   char confirmation = 0;
@@ -769,22 +816,27 @@ inline ProcessPipeline::ProcessPipeline(const std::string& cmd)
   const int flags[] = { O_WRONLY, O_RDONLY };
   const char* modes[] = { "w", "r" };
   for (size_t i = 0; i < 2; i++) {
-    read_from_spawner(&len, sizeof(len));
+    check_error(!read_from_spawner(&len, sizeof(len)),
+                "Process pipeline: Communication failure.");
     if (len > 0) {
-      read_from_spawner(buf, len);
+      check_error(!read_from_spawner(buf, len),
+                  "Process pipeline: Communication failure.");
 
       if (i == 0) {
-        read_from_spawner(&confirmation, sizeof(confirmation));
+        check_error(!read_from_spawner(&confirmation, sizeof(confirmation)),
+                    "Process pipeline: Communication failure.");
       }
 
       const int pipe_fd = open(buf, flags[i] | O_NONBLOCK);
       check_error(pipe_fd < 0,
                   "Process pipeline: opening comm pipe failed: " +
                     get_strerror());
-      write_to_spawner(&confirmation, sizeof(confirmation));
+      check_error(!write_to_spawner(&confirmation, sizeof(confirmation)),
+                  "Process pipeline: Communication failure.");
 
       if (i > 0) {
-        read_from_spawner(&confirmation, sizeof(confirmation));
+        check_error(!read_from_spawner(&confirmation, sizeof(confirmation)),
+                    "Process pipeline: Communication failure.");
       }
 
       const auto status_flags = fcntl(pipe_fd, F_GETFL);
@@ -792,13 +844,15 @@ inline ProcessPipeline::ProcessPipeline(const std::string& cmd)
                   "Process pipeline: fcntl error: " + get_strerror());
       check_error(fcntl(pipe_fd, F_SETFL, status_flags & ~O_NONBLOCK) == -1,
                   "Process pipeline: fcntl error: " + get_strerror());
-      read_from_spawner(&confirmation, sizeof(confirmation));
+      check_error(!read_from_spawner(&confirmation, sizeof(confirmation)),
+                  "Process pipeline: Communication failure.");
 
       (*(handles[i])) = fdopen(pipe_fd, modes[i]);
     }
   }
 
-  read_from_spawner(&id, sizeof(id));
+  check_error(!read_from_spawner(&id, sizeof(id)),
+              "Process pipeline: Communication failure.");
 }
 
 static inline void
@@ -833,12 +887,13 @@ ProcessPipeline::end()
     std::unique_lock<std::mutex> lock(process_spawner_comm_mutex());
 
     const ProcessPipeline::Operation op = ProcessPipeline::Operation::END;
-    write_to_spawner(&op, sizeof(op));
-
-    write_to_spawner(&id, sizeof(id));
+    check_error(!write_to_spawner(&op, sizeof(op)) ||
+                  !write_to_spawner(&id, sizeof(id)),
+                "Process pipeline: Communication failure.");
 
     char confirmation = 0;
-    read_from_spawner(&confirmation, sizeof(confirmation));
+    check_error(!read_from_spawner(&confirmation, sizeof(confirmation)),
+                "Process pipeline: Communication failure.");
 
     ended = true;
   }

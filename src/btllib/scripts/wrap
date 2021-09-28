@@ -31,6 +31,7 @@ echo "%}
 %include <java.swg>
 %include <various.i>
 %include <std_string.i>
+%include <stdint.i>
 
 %include \"extra.i\"
 " >> extras/java/btllib.i
@@ -70,16 +71,17 @@ done
 
 echo "%}
 
+%include <stdint.i>
+%include <typemaps.i>
 %include <pyprimtypes.swg>
 %include <pyopers.swg>
 %include <std_common.i>
 %include <cstring.i>
 %include <std_string.i>
 %include <exception.i>
-%include <std_string.i>
 %include <std_iostream.i>
-%include <std_vector.i>
 %include <carrays.i>
+%include <std_vector.i>
 
 %include \"extra.i\"
 " >> extras/python/btllib.i
@@ -94,3 +96,6 @@ ln -sf $PWD/include extras/python/
 cd extras/python
 swig -python -py3 -fastproxy -fastdispatch -builtin -c++ -Iinclude btllib.i
 rm -f include
+
+# The following line is necessary because SWIG produces inconsistent code that cannot be compiled on all platforms. On some platforms, uint64_t is unsigned long int and unsigned long long int on others.
+sed -i 's~unsigned long long~uint64_t~g' btllib_wrap.cxx
