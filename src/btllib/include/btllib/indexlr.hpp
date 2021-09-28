@@ -184,8 +184,8 @@ private:
 
   static const BloomFilter& dummy_bf()
   {
-    static const BloomFilter VAR;
-    return VAR;
+    static const BloomFilter var;
+    return var;
   }
 
   const std::reference_wrapper<const BloomFilter> filter_in_bf;
@@ -373,14 +373,14 @@ r min = v[i] if (i != prev) { prev = i M <- M + m
 inline std::string
 Indexlr::extract_barcode(const std::string& id, const std::string& comment)
 {
-  const static std::string BARCODE_PREFIX = "BX:Z:";
-  if (startswith(comment, BARCODE_PREFIX)) {
+  const static std::string barcode_prefix = "BX:Z:";
+  if (startswith(comment, barcode_prefix)) {
     const auto space_pos = comment.find(' ');
     if (space_pos != std::string::npos) {
-      return comment.substr(BARCODE_PREFIX.size(),
-                            space_pos - BARCODE_PREFIX.size());
+      return comment.substr(barcode_prefix.size(),
+                            space_pos - barcode_prefix.size());
     }
-    return comment.substr(BARCODE_PREFIX.size());
+    return comment.substr(barcode_prefix.size());
   }
   const auto pound_pos = id.find('#');
   if (pound_pos != std::string::npos) {

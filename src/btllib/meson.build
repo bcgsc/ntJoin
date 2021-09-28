@@ -1,5 +1,5 @@
 project('btllib', 'cpp',
-        version : '1.1.4',
+        version : '1.1.5',
         license : 'GPL3',
         default_options : [ 'cpp_std=c++11', 'warning_level=3', 'werror=true' ])
 
@@ -64,6 +64,8 @@ if doxygen.found()
 endif
 
 run_target('complete', command: join_paths(rootpath, 'scripts/complete'))
+
+run_target('test-wrappers', command: join_paths(rootpath, 'scripts/test_wrappers'))
 
 subdir('include')
 subdir('extras')
