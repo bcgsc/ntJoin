@@ -21,7 +21,7 @@ jobs:
     displayName: Install clang-format and clang-tidy
   - script: |
       source activate ntjoin_CI
-      conda install --yes --quiet --name ntjoin_CI python pylint
+      conda install --yes --quiet --name ntjoin_CI python pylint samtools=1.14
       conda install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda --file requirements.txt
     displayName: Install Anaconda packages
   - script: |
