@@ -20,7 +20,7 @@
 #include <vector>
 
 const static std::string PROGNAME = "indexlr";
-const static std::string VERSION = "v1.3";
+const static std::string VERSION = "v1.4";
 const static size_t OUTPUT_PERIOD_SHORT = 512;
 const static size_t OUTPUT_PERIOD_LONG = 2;
 const static size_t INITIAL_OUTPUT_STREAM_SIZE = 100;
@@ -42,8 +42,10 @@ print_usage()
 	       "[-o FILE] FILE...\n\n"
 	       "  -k K        Use K as k-mer size.\n"
 	       "  -w W        Use W as sliding-window size.\n"
-	       "  --id        Include read ids in the output.\n"
-	       "  --bx        Include read barcodes in the output.\n"
+	       "  --id        Include input sequence ids in the output. (Default if --bx is not "
+	       "provided)\n"
+	       "  --bx        Include input sequence barcodes in the output.\n"
+	       "  --len       Include input sequence length in the output.\n"
 	       "  --pos       Include minimizer positions in the output (appended with : after "
 	       "minimizer value).\n"
 	       "  --strand    Include minimizer strands in the output (appended with : after minimizer "
@@ -75,21 +77,19 @@ main(int argc, char* argv[])
 	unsigned k = 0, w = 0, t = 5;
 	bool w_set = false;
 	bool k_set = false;
-	int with_id = 0, with_bx = 0, with_pos = 0, with_strand = 0, with_seq = 0;
+	int with_id = 0, with_bx = 0, with_len = 0, with_pos = 0, with_strand = 0, with_seq = 0;
 	std::unique_ptr<btllib::KmerBloomFilter> repeat_bf, solid_bf;
 	bool with_repeat = false, with_solid = false;
 	int long_mode = 0;
 	std::string outfile("-");
 	bool failed = false;
-	static const struct option longopts[] = { { "id", no_argument, &with_id, 1 },
-		                                      { "bx", no_argument, &with_bx, 1 },
-		                                      { "pos", no_argument, &with_pos, 1 },
-		                                      { "strand", no_argument, &with_strand, 1 },
-		                                      { "seq", no_argument, &with_seq, 1 },
-		                                      { "long", no_argument, &long_mode, 1 },
-		                                      { "help", no_argument, &help, 1 },
-		                                      { "version", no_argument, &version, 1 },
-		                                      { nullptr, 0, nullptr, 0 } };
+	static const struct option longopts[] = {
+		{ "id", no_argument, &with_id, 1 },         { "bx", no_argument, &with_bx, 1 },
+		{ "len", no_argument, &with_len, 1 },       { "pos", no_argument, &with_pos, 1 },
+		{ "strand", no_argument, &with_strand, 1 }, { "seq", no_argument, &with_seq, 1 },
+		{ "long", no_argument, &long_mode, 1 },     { "help", no_argument, &help, 1 },
+		{ "version", no_argument, &version, 1 },    { nullptr, 0, nullptr, 0 }
+	};
 	while ((c = getopt_long(argc, argv, "k:w:o:t:vr:s:", longopts, &optindex)) != -1) {
 		switch (c) {
 		case 0:
@@ -242,6 +242,9 @@ main(int argc, char* argv[])
 				}
 				if (with_bx) {
 					ss << record.barcode << '\t';
+				}
+				if (with_len) {
+					ss << record.readlen << '\t';
 				}
 				int j = 0;
 				for (const auto& min : record.minimizers) {
