@@ -1,4 +1,5 @@
 #include "btllib/seq_reader.hpp"
+#include "btllib/util.hpp"
 #include "helpers.hpp"
 
 #include <fstream>
@@ -19,9 +20,11 @@ main()
     btllib::SeqReader::Record record;
 
     std::cerr << "Test small FASTA and FASTQ simultaneously" << std::endl;
-    btllib::SeqReader reader_fasta("../tests/input.fa.gz.bz2.xz.lrz",
+    btllib::SeqReader reader_fasta(btllib::get_dirname(__FILE__) +
+                                     "/input.fa.gz.bz2.xz",
                                    btllib::SeqReader::Flag::SHORT_MODE);
-    btllib::SeqReader reader_fastq("../tests/input.fq.tar.xz",
+    btllib::SeqReader reader_fastq(btllib::get_dirname(__FILE__) +
+                                     "/input.fq.tar.xz",
                                    btllib::SeqReader::Flag::SHORT_MODE);
 
     TEST_ASSERT_EQ(reader_fasta.get_format(), btllib::SeqReader::Format::FASTA);
@@ -160,6 +163,53 @@ main()
         parallel_comments.push_back(record.comment);
         parallel_seqs.push_back(record.seq);
         parallel_quals.push_back(record.qual);
+      }
+    }
+
+    std::sort(read_nums.begin(), read_nums.end());
+
+    std::sort(parallel_ids.begin(), parallel_ids.end());
+    std::sort(parallel_comments.begin(), parallel_comments.end());
+    std::sort(parallel_seqs.begin(), parallel_seqs.end());
+    std::sort(parallel_quals.begin(), parallel_quals.end());
+
+    for (i = 0; i < parallel_ids.size(); i++) {
+      TEST_ASSERT_EQ(read_nums[i], long(i));
+      TEST_ASSERT_EQ(parallel_ids[i], generated_ids[i]);
+      TEST_ASSERT_EQ(parallel_comments[i], generated_comments[i]);
+      TEST_ASSERT_EQ(parallel_seqs[i], generated_seqs[i]);
+      TEST_ASSERT_EQ(parallel_quals[i], generated_quals[i]);
+    }
+    TEST_ASSERT_EQ(i, 500);
+    TEST_ASSERT_EQ(size_t(i), read_nums.size());
+
+    std::cerr << "Test larger randomly generated FASTQ file with read_block"
+              << std::endl;
+
+    read_nums.clear();
+
+    parallel_ids.clear();
+    parallel_comments.clear();
+    parallel_seqs.clear();
+    parallel_quals.clear();
+
+    btllib::SeqReader random_reader4(random_filename,
+                                     btllib::SeqReader::Flag::LONG_MODE);
+#pragma omp parallel
+    while (true) {
+      auto block = random_reader4.read_block();
+      if (block.count == 0) {
+        break;
+      }
+      for (auto record : block.data) {
+#pragma omp critical
+        {
+          read_nums.push_back(record.num);
+          parallel_ids.push_back(record.id);
+          parallel_comments.push_back(record.comment);
+          parallel_seqs.push_back(record.seq);
+          parallel_quals.push_back(record.qual);
+        }
       }
     }
 

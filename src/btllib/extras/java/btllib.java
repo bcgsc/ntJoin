@@ -38,6 +38,54 @@ public class btllib {
     return btllibJNI.pop_cnt_byte(x);
   }
 
+  public static String getKMER_COUNTING_BLOOM_FILTER_MAGIC_HEADER() {
+    return btllibJNI.KMER_COUNTING_BLOOM_FILTER_MAGIC_HEADER_get();
+  }
+
+  public static VectorString split(String s, String delim) {
+    return new VectorString(btllibJNI.split(s, delim), true);
+  }
+
+  public static String join(VectorString s, String delim) {
+    return btllibJNI.join(VectorString.getCPtr(s), s, delim);
+  }
+
+  public static void ltrim(SWIGTYPE_p_std__string s) {
+    btllibJNI.ltrim__SWIG_0(SWIGTYPE_p_std__string.getCPtr(s));
+  }
+
+  public static void ltrim(SWIGTYPE_p_btllib__CString s) {
+    btllibJNI.ltrim__SWIG_1(SWIGTYPE_p_btllib__CString.getCPtr(s));
+  }
+
+  public static void rtrim(SWIGTYPE_p_std__string s) {
+    btllibJNI.rtrim__SWIG_0(SWIGTYPE_p_std__string.getCPtr(s));
+  }
+
+  public static void rtrim(SWIGTYPE_p_btllib__CString s) {
+    btllibJNI.rtrim__SWIG_1(SWIGTYPE_p_btllib__CString.getCPtr(s));
+  }
+
+  public static void trim(SWIGTYPE_p_std__string s) {
+    btllibJNI.trim__SWIG_0(SWIGTYPE_p_std__string.getCPtr(s));
+  }
+
+  public static void trim(SWIGTYPE_p_btllib__CString s) {
+    btllibJNI.trim__SWIG_1(SWIGTYPE_p_btllib__CString.getCPtr(s));
+  }
+
+  public static boolean startswith(String s, String prefix) {
+    return btllibJNI.startswith(s, prefix);
+  }
+
+  public static boolean endswith(String s, String suffix) {
+    return btllibJNI.endswith(s, suffix);
+  }
+
+  public static String get_dirname(String path) {
+    return btllibJNI.get_dirname(path);
+  }
+
   public static String getCOMPLEMENTS() {
     return btllibJNI.COMPLEMENTS_get();
   }
@@ -52,6 +100,27 @@ public class btllib {
 
   public static String get_reverse_complement(String seq) {
     return btllibJNI.get_reverse_complement(seq);
+  }
+
+  public static Datatype getDATATYPES() {
+    long cPtr = btllibJNI.DATATYPES_get();
+    return (cPtr == 0) ? null : new Datatype(cPtr, false);
+  }
+
+  public static String get_pipeline_cmd(String path, Operation op) {
+    return btllibJNI.get_pipeline_cmd(path, op.swigValue());
+  }
+
+  public static String get_datatype_cmd(String path, Datatype datatype, Operation op) {
+    return btllibJNI.get_datatype_cmd(path, Datatype.getCPtr(datatype), datatype, op.swigValue());
+  }
+
+  public static VectorString peel_datatype(String path, Operation op) {
+    return new VectorString(btllibJNI.peel_datatype(path, op.swigValue()), true);
+  }
+
+  public static String form_string_cmd(VectorString cmd_layers, Operation op, String path) {
+    return btllibJNI.form_string_cmd(VectorString.getCPtr(cmd_layers), cmd_layers, op.swigValue(), path);
   }
 
   public static int getPIPE_READ_END() {
@@ -112,8 +181,8 @@ public class btllib {
     return btllibJNI.new_pipeline_id();
   }
 
-  public static SWIGTYPE_p_std__mapT_unsigned_long_btllib__ProcessPipelineInternal_t pipeline_map() {
-    return new SWIGTYPE_p_std__mapT_unsigned_long_btllib__ProcessPipelineInternal_t(btllibJNI.pipeline_map(), false);
+  public static SWIGTYPE_p_std__mapT_unsigned_long_btllib__ProcessPipelineInternal_std__lessT_unsigned_long_t_t pipeline_map() {
+    return new SWIGTYPE_p_std__mapT_unsigned_long_btllib__ProcessPipelineInternal_std__lessT_unsigned_long_t_t(btllibJNI.pipeline_map(), false);
   }
 
   public static boolean process_spawner_init() {
@@ -140,8 +209,8 @@ public class btllib {
     btllibJNI.redirect_io(in_fd, out_fd, err_fd);
   }
 
-  public static void assign_process_cmd(SWIGTYPE_p_std__vectorT_std__string_t args) {
-    btllibJNI.assign_process_cmd(SWIGTYPE_p_std__vectorT_std__string_t.getCPtr(args));
+  public static void assign_process_cmd(VectorString args) {
+    btllibJNI.assign_process_cmd(VectorString.getCPtr(args), args);
   }
 
   public static void rm_pipes() {
@@ -184,16 +253,56 @@ public class btllib {
     btllibJNI.closefile(SWIGTYPE_p_p_FILE.getCPtr(f));
   }
 
-  public static String getKMER_COUNTING_BLOOM_FILTER_MAGIC_HEADER() {
-    return btllibJNI.KMER_COUNTING_BLOOM_FILTER_MAGIC_HEADER_get();
+  public static String getPRINT_COLOR_INFO() {
+    return btllibJNI.PRINT_COLOR_INFO_get();
   }
 
-  public static void filter_hashed_kmer(Indexlr.Minimizer hk, boolean filter_in, boolean filter_out, BloomFilter filter_in_bf, BloomFilter filter_out_bf) {
-    btllibJNI.filter_hashed_kmer(Indexlr.Minimizer.getCPtr(hk), hk, filter_in, filter_out, BloomFilter.getCPtr(filter_in_bf), filter_in_bf, BloomFilter.getCPtr(filter_out_bf), filter_out_bf);
+  public static String getPRINT_COLOR_WARNING() {
+    return btllibJNI.PRINT_COLOR_WARNING_get();
   }
 
-  public static void calc_minimizer(SWIGTYPE_p_std__vectorT_btllib__Indexlr__Minimizer_t hashed_kmers_buffer, SWIGTYPE_p_p_btllib__Indexlr__Minimizer min_current, long idx, SWIGTYPE_p_ssize_t min_idx_left, SWIGTYPE_p_ssize_t min_idx_right, SWIGTYPE_p_ssize_t min_pos_prev, long w, SWIGTYPE_p_std__vectorT_btllib__Indexlr__Minimizer_t minimizers) {
-    btllibJNI.calc_minimizer(SWIGTYPE_p_std__vectorT_btllib__Indexlr__Minimizer_t.getCPtr(hashed_kmers_buffer), SWIGTYPE_p_p_btllib__Indexlr__Minimizer.getCPtr(min_current), idx, SWIGTYPE_p_ssize_t.getCPtr(min_idx_left), SWIGTYPE_p_ssize_t.getCPtr(min_idx_right), SWIGTYPE_p_ssize_t.getCPtr(min_pos_prev), w, SWIGTYPE_p_std__vectorT_btllib__Indexlr__Minimizer_t.getCPtr(minimizers));
+  public static String getPRINT_COLOR_ERROR() {
+    return btllibJNI.PRINT_COLOR_ERROR_get();
+  }
+
+  public static String getPRINT_COLOR_END() {
+    return btllibJNI.PRINT_COLOR_END_get();
+  }
+
+  public static String get_time() {
+    return btllibJNI.get_time();
+  }
+
+  public static void log_info(String msg) {
+    btllibJNI.log_info(msg);
+  }
+
+  public static void log_warning(String msg) {
+    btllibJNI.log_warning(msg);
+  }
+
+  public static void log_error(String msg) {
+    btllibJNI.log_error(msg);
+  }
+
+  public static void check_info(boolean condition, String msg) {
+    btllibJNI.check_info(condition, msg);
+  }
+
+  public static void check_warning(boolean condition, String msg) {
+    btllibJNI.check_warning(condition, msg);
+  }
+
+  public static void check_error(boolean condition, String msg) {
+    btllibJNI.check_error(condition, msg);
+  }
+
+  public static void check_stream(SWIGTYPE_p_std__ios stream, String name) {
+    btllibJNI.check_stream(SWIGTYPE_p_std__ios.getCPtr(stream), name);
+  }
+
+  public static String get_strerror() {
+    return btllibJNI.get_strerror();
   }
 
   public static short getCP_OFF() {
@@ -454,8 +563,8 @@ public class btllib {
     return btllibJNI.mask_hash(SWIGTYPE_p_unsigned_long_long.getCPtr(fk_val), SWIGTYPE_p_unsigned_long_long.getCPtr(rk_val), seed_seq, kmer_seq, k);
   }
 
-  public static void sub_hash(java.math.BigInteger fh_val, java.math.BigInteger rh_val, String kmer_seq, SWIGTYPE_p_std__vectorT_unsigned_int_t positions, SWIGTYPE_p_std__vectorT_unsigned_char_t new_bases, long k, long m, SWIGTYPE_p_unsigned_long_long h_val) {
-    btllibJNI.sub_hash(fh_val, rh_val, kmer_seq, SWIGTYPE_p_std__vectorT_unsigned_int_t.getCPtr(positions), SWIGTYPE_p_std__vectorT_unsigned_char_t.getCPtr(new_bases), k, m, SWIGTYPE_p_unsigned_long_long.getCPtr(h_val));
+  public static void sub_hash(java.math.BigInteger fh_val, java.math.BigInteger rh_val, String kmer_seq, VectorUnsigned positions, SWIGTYPE_p_std__vectorT_unsigned_char_t new_bases, long k, long m, SWIGTYPE_p_unsigned_long_long h_val) {
+    btllibJNI.sub_hash(fh_val, rh_val, kmer_seq, VectorUnsigned.getCPtr(positions), positions, SWIGTYPE_p_std__vectorT_unsigned_char_t.getCPtr(new_bases), k, m, SWIGTYPE_p_unsigned_long_long.getCPtr(h_val));
   }
 
   public static java.math.BigInteger nts64(String kmer_seq, SWIGTYPE_p_std__vectorT_bool_t seed, long k, SWIGTYPE_p_unsigned_long_long h_val) {
@@ -466,137 +575,24 @@ public class btllib {
     return btllibJNI.nts64__SWIG_1(kmer_seq, SWIGTYPE_p_std__vectorT_bool_t.getCPtr(seed), char_out, char_in, k, SWIGTYPE_p_unsigned_long_long.getCPtr(h_val));
   }
 
-  public static boolean ntms64(String kmer_seq, SWIGTYPE_p_std__vectorT_std__vectorT_unsigned_int_t_t seed_seq, long k, long m, SWIGTYPE_p_unsigned_long_long fh_val, SWIGTYPE_p_unsigned_long_long rh_val, SWIGTYPE_p_unsigned_int loc_n, SWIGTYPE_p_unsigned_long_long h_val, SWIGTYPE_p_bool h_stn) {
-    return btllibJNI.ntms64__SWIG_0(kmer_seq, SWIGTYPE_p_std__vectorT_std__vectorT_unsigned_int_t_t.getCPtr(seed_seq), k, m, SWIGTYPE_p_unsigned_long_long.getCPtr(fh_val), SWIGTYPE_p_unsigned_long_long.getCPtr(rh_val), SWIGTYPE_p_unsigned_int.getCPtr(loc_n), SWIGTYPE_p_unsigned_long_long.getCPtr(h_val), SWIGTYPE_p_bool.getCPtr(h_stn));
+  public static boolean ntms64(String kmer_seq, VectorSpacedSeed seed_seq, long k, long m, SWIGTYPE_p_unsigned_long_long fh_val, SWIGTYPE_p_unsigned_long_long rh_val, SWIGTYPE_p_unsigned_int loc_n, SWIGTYPE_p_unsigned_long_long h_val, SWIGTYPE_p_bool h_stn) {
+    return btllibJNI.ntms64__SWIG_0(kmer_seq, VectorSpacedSeed.getCPtr(seed_seq), seed_seq, k, m, SWIGTYPE_p_unsigned_long_long.getCPtr(fh_val), SWIGTYPE_p_unsigned_long_long.getCPtr(rh_val), SWIGTYPE_p_unsigned_int.getCPtr(loc_n), SWIGTYPE_p_unsigned_long_long.getCPtr(h_val), SWIGTYPE_p_bool.getCPtr(h_stn));
   }
 
-  public static void ntms64(String kmer_seq, SWIGTYPE_p_std__vectorT_std__vectorT_unsigned_int_t_t seed_seq, short char_out, short char_in, long k, long m, SWIGTYPE_p_unsigned_long_long fh_val, SWIGTYPE_p_unsigned_long_long rh_val, SWIGTYPE_p_unsigned_long_long h_val, SWIGTYPE_p_bool h_stn) {
-    btllibJNI.ntms64__SWIG_1(kmer_seq, SWIGTYPE_p_std__vectorT_std__vectorT_unsigned_int_t_t.getCPtr(seed_seq), char_out, char_in, k, m, SWIGTYPE_p_unsigned_long_long.getCPtr(fh_val), SWIGTYPE_p_unsigned_long_long.getCPtr(rh_val), SWIGTYPE_p_unsigned_long_long.getCPtr(h_val), SWIGTYPE_p_bool.getCPtr(h_stn));
+  public static void ntms64(String kmer_seq, VectorSpacedSeed seed_seq, short char_out, short char_in, long k, long m, SWIGTYPE_p_unsigned_long_long fh_val, SWIGTYPE_p_unsigned_long_long rh_val, SWIGTYPE_p_unsigned_long_long h_val, SWIGTYPE_p_bool h_stn) {
+    btllibJNI.ntms64__SWIG_1(kmer_seq, VectorSpacedSeed.getCPtr(seed_seq), seed_seq, char_out, char_in, k, m, SWIGTYPE_p_unsigned_long_long.getCPtr(fh_val), SWIGTYPE_p_unsigned_long_long.getCPtr(rh_val), SWIGTYPE_p_unsigned_long_long.getCPtr(h_val), SWIGTYPE_p_bool.getCPtr(h_stn));
   }
 
-  public static boolean ntmsm64(String kmer_seq, SWIGTYPE_p_std__vectorT_std__vectorT_unsigned_int_t_t seed_seq, long k, long m, long m2, SWIGTYPE_p_unsigned_long_long fh_val, SWIGTYPE_p_unsigned_long_long rh_val, SWIGTYPE_p_unsigned_int loc_n, SWIGTYPE_p_unsigned_long_long h_val) {
-    return btllibJNI.ntmsm64__SWIG_0(kmer_seq, SWIGTYPE_p_std__vectorT_std__vectorT_unsigned_int_t_t.getCPtr(seed_seq), k, m, m2, SWIGTYPE_p_unsigned_long_long.getCPtr(fh_val), SWIGTYPE_p_unsigned_long_long.getCPtr(rh_val), SWIGTYPE_p_unsigned_int.getCPtr(loc_n), SWIGTYPE_p_unsigned_long_long.getCPtr(h_val));
+  public static boolean ntmsm64(String kmer_seq, VectorSpacedSeed seed_seq, long k, long m, long m2, SWIGTYPE_p_unsigned_long_long fh_val, SWIGTYPE_p_unsigned_long_long rh_val, SWIGTYPE_p_unsigned_int loc_n, SWIGTYPE_p_unsigned_long_long h_val) {
+    return btllibJNI.ntmsm64__SWIG_0(kmer_seq, VectorSpacedSeed.getCPtr(seed_seq), seed_seq, k, m, m2, SWIGTYPE_p_unsigned_long_long.getCPtr(fh_val), SWIGTYPE_p_unsigned_long_long.getCPtr(rh_val), SWIGTYPE_p_unsigned_int.getCPtr(loc_n), SWIGTYPE_p_unsigned_long_long.getCPtr(h_val));
   }
 
-  public static void ntmsm64(String kmer_seq, SWIGTYPE_p_std__vectorT_std__vectorT_unsigned_int_t_t seed_seq, short char_out, short char_in, long k, long m, long m2, SWIGTYPE_p_unsigned_long_long fh_val, SWIGTYPE_p_unsigned_long_long rh_val, SWIGTYPE_p_unsigned_long_long h_val) {
-    btllibJNI.ntmsm64__SWIG_1(kmer_seq, SWIGTYPE_p_std__vectorT_std__vectorT_unsigned_int_t_t.getCPtr(seed_seq), char_out, char_in, k, m, m2, SWIGTYPE_p_unsigned_long_long.getCPtr(fh_val), SWIGTYPE_p_unsigned_long_long.getCPtr(rh_val), SWIGTYPE_p_unsigned_long_long.getCPtr(h_val));
+  public static void ntmsm64(String kmer_seq, VectorSpacedSeed seed_seq, short char_out, short char_in, long k, long m, long m2, SWIGTYPE_p_unsigned_long_long fh_val, SWIGTYPE_p_unsigned_long_long rh_val, SWIGTYPE_p_unsigned_long_long h_val) {
+    btllibJNI.ntmsm64__SWIG_1(kmer_seq, VectorSpacedSeed.getCPtr(seed_seq), seed_seq, char_out, char_in, k, m, m2, SWIGTYPE_p_unsigned_long_long.getCPtr(fh_val), SWIGTYPE_p_unsigned_long_long.getCPtr(rh_val), SWIGTYPE_p_unsigned_long_long.getCPtr(h_val));
   }
 
-  public static SWIGTYPE_p_std__vectorT_std__vectorT_unsigned_int_t_t parse_seeds(SWIGTYPE_p_std__vectorT_std__string_t seed_strings) {
-    return new SWIGTYPE_p_std__vectorT_std__vectorT_unsigned_int_t_t(btllibJNI.parse_seeds(SWIGTYPE_p_std__vectorT_std__string_t.getCPtr(seed_strings)), true);
-  }
-
-  public static Datatype getDATATYPES() {
-    long cPtr = btllibJNI.DATATYPES_get();
-    return (cPtr == 0) ? null : new Datatype(cPtr, false);
-  }
-
-  public static String get_pipeline_cmd(String path, DataStream.Operation op) {
-    return btllibJNI.get_pipeline_cmd(path, op.swigValue());
-  }
-
-  public static String get_datatype_cmd(String path, Datatype datatype, DataStream.Operation op) {
-    return btllibJNI.get_datatype_cmd(path, Datatype.getCPtr(datatype), datatype, op.swigValue());
-  }
-
-  public static SWIGTYPE_p_std__vectorT_std__string_t peel_datatype(String path, DataStream.Operation op) {
-    return new SWIGTYPE_p_std__vectorT_std__string_t(btllibJNI.peel_datatype(path, op.swigValue()), true);
-  }
-
-  public static String form_string_cmd(SWIGTYPE_p_std__vectorT_std__string_t cmd_layers, DataStream.Operation op, String path) {
-    return btllibJNI.form_string_cmd(SWIGTYPE_p_std__vectorT_std__string_t.getCPtr(cmd_layers), op.swigValue(), path);
-  }
-
-  public static String getPRINT_COLOR_INFO() {
-    return btllibJNI.PRINT_COLOR_INFO_get();
-  }
-
-  public static String getPRINT_COLOR_WARNING() {
-    return btllibJNI.PRINT_COLOR_WARNING_get();
-  }
-
-  public static String getPRINT_COLOR_ERROR() {
-    return btllibJNI.PRINT_COLOR_ERROR_get();
-  }
-
-  public static String getPRINT_COLOR_END() {
-    return btllibJNI.PRINT_COLOR_END_get();
-  }
-
-  public static String get_time() {
-    return btllibJNI.get_time();
-  }
-
-  public static void log_info(String msg) {
-    btllibJNI.log_info(msg);
-  }
-
-  public static void log_warning(String msg) {
-    btllibJNI.log_warning(msg);
-  }
-
-  public static void log_error(String msg) {
-    btllibJNI.log_error(msg);
-  }
-
-  public static void check_info(boolean condition, String msg) {
-    btllibJNI.check_info(condition, msg);
-  }
-
-  public static void check_warning(boolean condition, String msg) {
-    btllibJNI.check_warning(condition, msg);
-  }
-
-  public static void check_error(boolean condition, String msg) {
-    btllibJNI.check_error(condition, msg);
-  }
-
-  public static void check_stream(SWIGTYPE_p_std__ios stream, String name) {
-    btllibJNI.check_stream(SWIGTYPE_p_std__ios.getCPtr(stream), name);
-  }
-
-  public static String get_strerror() {
-    return btllibJNI.get_strerror();
-  }
-
-  public static SWIGTYPE_p_std__vectorT_std__string_t split(String s, String delim) {
-    return new SWIGTYPE_p_std__vectorT_std__string_t(btllibJNI.split(s, delim), true);
-  }
-
-  public static String join(SWIGTYPE_p_std__vectorT_std__string_t s, String delim) {
-    return btllibJNI.join(SWIGTYPE_p_std__vectorT_std__string_t.getCPtr(s), delim);
-  }
-
-  public static void ltrim(SWIGTYPE_p_std__string s) {
-    btllibJNI.ltrim__SWIG_0(SWIGTYPE_p_std__string.getCPtr(s));
-  }
-
-  public static void ltrim(SWIGTYPE_p_btllib__CString s) {
-    btllibJNI.ltrim__SWIG_1(SWIGTYPE_p_btllib__CString.getCPtr(s));
-  }
-
-  public static void rtrim(SWIGTYPE_p_std__string s) {
-    btllibJNI.rtrim__SWIG_0(SWIGTYPE_p_std__string.getCPtr(s));
-  }
-
-  public static void rtrim(SWIGTYPE_p_btllib__CString s) {
-    btllibJNI.rtrim__SWIG_1(SWIGTYPE_p_btllib__CString.getCPtr(s));
-  }
-
-  public static void trim(SWIGTYPE_p_std__string s) {
-    btllibJNI.trim__SWIG_0(SWIGTYPE_p_std__string.getCPtr(s));
-  }
-
-  public static void trim(SWIGTYPE_p_btllib__CString s) {
-    btllibJNI.trim__SWIG_1(SWIGTYPE_p_btllib__CString.getCPtr(s));
-  }
-
-  public static boolean startswith(String s, String prefix) {
-    return btllibJNI.startswith(s, prefix);
-  }
-
-  public static boolean endswith(String s, String suffix) {
-    return btllibJNI.endswith(s, suffix);
+  public static VectorSpacedSeed parse_seeds(VectorString seed_strings) {
+    return new VectorSpacedSeed(btllibJNI.parse_seeds(VectorString.getCPtr(seed_strings), seed_strings), true);
   }
 
 }

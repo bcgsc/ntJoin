@@ -172,31 +172,32 @@ SeqReaderSamModule::read_buffer(ReaderType& reader, RecordType& record)
   }
   samtools_process =
     std::unique_ptr<ProcessPipeline>(new ProcessPipeline("samtools fastq"));
-  loader_thread = std::unique_ptr<std::thread>(new std::thread([&]() {
-    check_error(fwrite(reader.buffer.data.data() + reader.buffer.start,
-                       1,
-                       reader.buffer.end - reader.buffer.start,
-                       samtools_process->in) !=
-                  reader.buffer.end - reader.buffer.start,
-                "SeqReader SAM module: fwrite failed.");
-    reader.buffer.start = reader.buffer.end;
-    if (std::ferror(reader.source) == 0 && std::feof(reader.source) == 0) {
-      const auto p = std::fgetc(reader.source);
-      if (p != EOF) {
-        std::ungetc(p, reader.source);
-        while (std::ferror(reader.source) == 0 &&
-               std::feof(reader.source) == 0) {
-          const size_t bufsize = LOADER_BLOCK_SIZE;
-          char buf[bufsize];
-          size_t bytes_read = fread(buf, 1, bufsize, reader.source);
-          check_error(fwrite(buf, 1, bytes_read, samtools_process->in) !=
-                        bytes_read,
-                      "SeqReader SAM module: fwrite failed.");
+  loader_thread =
+    std::unique_ptr<std::thread>(new std::thread([this, &reader]() {
+      check_error(fwrite(reader.buffer.data.data() + reader.buffer.start,
+                         1,
+                         reader.buffer.end - reader.buffer.start,
+                         samtools_process->in) !=
+                    reader.buffer.end - reader.buffer.start,
+                  "SeqReader SAM module: fwrite failed.");
+      reader.buffer.start = reader.buffer.end;
+      if (std::ferror(reader.source) == 0 && std::feof(reader.source) == 0) {
+        const auto p = std::fgetc(reader.source);
+        if (p != EOF) {
+          std::ungetc(p, reader.source);
+          while (std::ferror(reader.source) == 0 &&
+                 std::feof(reader.source) == 0) {
+            const size_t bufsize = LOADER_BLOCK_SIZE;
+            char buf[bufsize];
+            size_t bytes_read = fread(buf, 1, bufsize, reader.source);
+            check_error(fwrite(buf, 1, bytes_read, samtools_process->in) !=
+                          bytes_read,
+                        "SeqReader SAM module: fwrite failed.");
+          }
         }
       }
-    }
-    samtools_process->close_in();
-  }));
+      samtools_process->close_in();
+    }));
   loader_thread->detach();
   return false;
 }

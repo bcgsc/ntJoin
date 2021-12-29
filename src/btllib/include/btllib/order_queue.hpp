@@ -26,12 +26,10 @@ public:
     Block(const Block& block) = default;
 
     Block(Block&& block) noexcept
-      : current(block.current)
-      , count(block.count)
+      : count(block.count)
       , num(block.num)
     {
       std::swap(data, block.data);
-      block.current = 0;
       block.count = 0;
       block.num = 0;
     }
@@ -41,17 +39,14 @@ public:
     Block& operator=(Block&& block) noexcept
     {
       std::swap(data, block.data);
-      current = block.current;
       count = block.count;
       num = block.num;
-      block.current = 0;
       block.count = 0;
       block.num = 0;
       return *this;
     }
 
     std::vector<T> data;
-    size_t current = 0;
     size_t count = 0;
     size_t num = 0;
   };
@@ -123,9 +118,14 @@ public:
   OrderQueue(const OrderQueue&) = delete;
   OrderQueue(OrderQueue&&) = delete;
 
+  ~OrderQueue() { close(); }
+
+  size_t get_queue_size() const { return queue_size; }
+  size_t get_block_size() const { return block_size; }
+
 protected:
   std::vector<Slot> slots;
-  size_t queue_size, block_size;
+  const std::atomic<size_t> queue_size, block_size;
   size_t read_counter = 0;
   std::atomic<size_t> element_count{ 0 };
   std::atomic<bool> closed{ false };

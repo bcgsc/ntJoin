@@ -34,8 +34,8 @@ get_config_vars() {
     export declare ${ldflags_var}="$(${!config_var} --ldflags)"
     export declare ${lib_paths_var}="$(get_lib_paths "${!ldflags_var}")"
   else
-    export declare ${version}=""
-    export declare ${version_num}=-1
+    export declare ${version_var}=""
+    export declare ${version_num_var}=-1
   fi
 }
 

@@ -1,7 +1,9 @@
 #include "btllib/seq_reader.hpp"
+#include "btllib/util.hpp"
 #include "helpers.hpp"
 
 #include <iostream>
+#include <memory>
 
 int
 main()
@@ -13,7 +15,9 @@ main()
     std::cerr << "Iteration " << iteration + 1 << std::endl;
 
     std::cerr << "Test small FASTA" << std::endl;
-    btllib::SeqReader reader("../tests/input.fa.gz.bz2.xz.lrz",
+
+    btllib::SeqReader reader(btllib::get_dirname(__FILE__) +
+                               "/input.fa.gz.bz2.xz",
                              btllib::SeqReader::Flag::SHORT_MODE);
     TEST_ASSERT_EQ(reader.get_format(), btllib::SeqReader::Format::FASTA)
 

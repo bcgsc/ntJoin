@@ -14,14 +14,14 @@ rm -f ${MESON_SOURCE_ROOT}/extras/python/*.py
 # Generate java swig files
 cd ${MESON_SOURCE_ROOT}
 
-include_files=$(scripts/get_include_files)
+include_files=$(scripts/get-include-files)
 
 echo "%module btllib
 
 %{" > extras/java/btllib.i
 
 for file in ${include_files}; do
-  relative=$(scripts/get_include_relative ${file})
+  relative=$(scripts/get-include-relative ${file})
   path="${relative}/$(basename ${file})"
   echo "#include \"$path\"" >> extras/java/btllib.i
 done
@@ -32,12 +32,14 @@ echo "%}
 %include <various.i>
 %include <std_string.i>
 %include <stdint.i>
+%include <stl.i>
 
+%include \"../extra_common.i\"
 %include \"extra.i\"
 " >> extras/java/btllib.i
 
 for file in ${include_files}; do
-  relative=$(scripts/get_include_relative ${file})
+  relative=$(scripts/get-include-relative ${file})
   path="${relative}/$(basename ${file})"
   echo "%include \"$path\"" >> extras/java/btllib.i
 done
@@ -55,7 +57,7 @@ echo "$meson_build" | sed "s~java_files.*=.*\[.*\]~java_files = [$java_files]~" 
 # Generate python swig files
 cd ${MESON_SOURCE_ROOT}
 
-include_files=$(scripts/get_include_files)
+include_files=$(scripts/get-include-files)
 
 echo "%module btllib
 
@@ -64,7 +66,7 @@ echo "%module btllib
 " > extras/python/btllib.i
 
 for file in ${include_files}; do
-  relative=$(scripts/get_include_relative ${file})
+  relative=$(scripts/get-include-relative ${file})
   path="${relative}/$(basename ${file})"
   echo "#include \"$path\"" >> extras/python/btllib.i
 done
@@ -82,12 +84,14 @@ echo "%}
 %include <std_iostream.i>
 %include <carrays.i>
 %include <std_vector.i>
+%include <stl.i>
 
+%include \"../extra_common.i\"
 %include \"extra.i\"
 " >> extras/python/btllib.i
 
 for file in ${include_files}; do
-  relative=$(scripts/get_include_relative ${file})
+  relative=$(scripts/get-include-relative ${file})
   path="${relative}/$(basename ${file})"
   echo "%include \"$path\"" >> extras/python/btllib.i
 done

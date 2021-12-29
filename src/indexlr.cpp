@@ -236,7 +236,7 @@ main(int argc, char* argv[])
 		const size_t output_period = long_mode ? OUTPUT_PERIOD_LONG : OUTPUT_PERIOD_SHORT;
 		std::unique_ptr<std::thread> info_compiler(new std::thread([&]() {
 			std::stringstream ss;
-			while ((record = indexlr->get_minimizers())) {
+			while ((record = indexlr->read())) {
 				if (with_id || (!with_id && !with_bx)) {
 					ss << record.id << '\t';
 				}

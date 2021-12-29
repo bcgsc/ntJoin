@@ -8,18 +8,18 @@
 
 package btllib;
 
-public class SWIGTYPE_p_std__vectorT_std__string_t {
+public class SWIGTYPE_p_cpptoml__table {
   private transient long swigCPtr;
 
-  protected SWIGTYPE_p_std__vectorT_std__string_t(long cPtr, @SuppressWarnings("unused") boolean futureUse) {
+  protected SWIGTYPE_p_cpptoml__table(long cPtr, @SuppressWarnings("unused") boolean futureUse) {
     swigCPtr = cPtr;
   }
 
-  protected SWIGTYPE_p_std__vectorT_std__string_t() {
+  protected SWIGTYPE_p_cpptoml__table() {
     swigCPtr = 0;
   }
 
-  protected static long getCPtr(SWIGTYPE_p_std__vectorT_std__string_t obj) {
+  protected static long getCPtr(SWIGTYPE_p_cpptoml__table obj) {
     return (obj == null) ? 0 : obj.swigCPtr;
   }
 }

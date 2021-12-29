@@ -1,4 +1,4 @@
-tests_files = run_command('../scripts/get_tests').stdout().strip().split()
+tests_files = run_command('../scripts/get-tests').stdout().strip().split()
 
 foreach file : tests_files
     t = file.split('.cpp')[0].split('.cxx')[0].split('/')[-1]

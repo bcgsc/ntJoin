@@ -1,4 +1,4 @@
-pyflags_cmd = run_command('../../scripts/get_python_flags')
+pyflags_cmd = run_command('../../scripts/get-python-flags')
 
 if pyflags_cmd.stderr() != ''
   error(pyflags_cmd.stderr())

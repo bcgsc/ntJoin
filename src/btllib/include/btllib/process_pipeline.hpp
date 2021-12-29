@@ -22,12 +22,12 @@
 #include <tuple>
 #include <vector>
 
-#include <dlfcn.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
+#include <dlfcn.h>     // NOLINT
+#include <fcntl.h>     // NOLINT
+#include <sys/stat.h>  // NOLINT
+#include <sys/types.h> // NOLINT
+#include <sys/wait.h>  // NOLINT
+#include <unistd.h>    // NOLINT
 
 namespace btllib {
 
@@ -440,10 +440,12 @@ install_signal_handlers_spawner()
 
   action.sa_handler = [](const int sig) {
     (void)sig;
+    const auto prev_errno = errno;
     if (check_children_failures()) {
       rm_pipes();
       std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
     }
+    errno = prev_errno;
   };
   sigaction(SIGCHLD, &action, nullptr);
 

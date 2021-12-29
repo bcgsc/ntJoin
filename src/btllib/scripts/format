@@ -9,9 +9,9 @@ set -e
 
 cd "${MESON_SOURCE_ROOT}"
 
-files=$(scripts/get_include_files)
-files+=$(scripts/get_tests_files)
-files+=$(scripts/get_examples_files)
+files=$(scripts/get-include-files)
+files+=$(scripts/get-tests-files)
+files+=$(scripts/get-examples-files)
 for file in $files; do
   clang-format -style=mozilla $file >${file}_formatted
   rm $file

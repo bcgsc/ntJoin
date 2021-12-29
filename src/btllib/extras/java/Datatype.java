@@ -36,58 +36,58 @@ public class Datatype {
     }
   }
 
-  public void setPrefixes(SWIGTYPE_p_std__vectorT_std__string_t value) {
-    btllibJNI.Datatype_prefixes_set(swigCPtr, this, SWIGTYPE_p_std__vectorT_std__string_t.getCPtr(value));
+  public void setPrefixes(VectorString value) {
+    btllibJNI.Datatype_prefixes_set(swigCPtr, this, VectorString.getCPtr(value), value);
   }
 
-  public SWIGTYPE_p_std__vectorT_std__string_t getPrefixes() {
+  public VectorString getPrefixes() {
     long cPtr = btllibJNI.Datatype_prefixes_get(swigCPtr, this);
-    return (cPtr == 0) ? null : new SWIGTYPE_p_std__vectorT_std__string_t(cPtr, false);
+    return (cPtr == 0) ? null : new VectorString(cPtr, false);
   }
 
-  public void setSuffixes(SWIGTYPE_p_std__vectorT_std__string_t value) {
-    btllibJNI.Datatype_suffixes_set(swigCPtr, this, SWIGTYPE_p_std__vectorT_std__string_t.getCPtr(value));
+  public void setSuffixes(VectorString value) {
+    btllibJNI.Datatype_suffixes_set(swigCPtr, this, VectorString.getCPtr(value), value);
   }
 
-  public SWIGTYPE_p_std__vectorT_std__string_t getSuffixes() {
+  public VectorString getSuffixes() {
     long cPtr = btllibJNI.Datatype_suffixes_get(swigCPtr, this);
-    return (cPtr == 0) ? null : new SWIGTYPE_p_std__vectorT_std__string_t(cPtr, false);
+    return (cPtr == 0) ? null : new VectorString(cPtr, false);
   }
 
-  public void setCmds_check_existence(SWIGTYPE_p_std__vectorT_std__string_t value) {
-    btllibJNI.Datatype_cmds_check_existence_set(swigCPtr, this, SWIGTYPE_p_std__vectorT_std__string_t.getCPtr(value));
+  public void setCmds_check_existence(VectorString value) {
+    btllibJNI.Datatype_cmds_check_existence_set(swigCPtr, this, VectorString.getCPtr(value), value);
   }
 
-  public SWIGTYPE_p_std__vectorT_std__string_t getCmds_check_existence() {
+  public VectorString getCmds_check_existence() {
     long cPtr = btllibJNI.Datatype_cmds_check_existence_get(swigCPtr, this);
-    return (cPtr == 0) ? null : new SWIGTYPE_p_std__vectorT_std__string_t(cPtr, false);
+    return (cPtr == 0) ? null : new VectorString(cPtr, false);
   }
 
-  public void setRead_cmds(SWIGTYPE_p_std__vectorT_std__string_t value) {
-    btllibJNI.Datatype_read_cmds_set(swigCPtr, this, SWIGTYPE_p_std__vectorT_std__string_t.getCPtr(value));
+  public void setRead_cmds(VectorString value) {
+    btllibJNI.Datatype_read_cmds_set(swigCPtr, this, VectorString.getCPtr(value), value);
   }
 
-  public SWIGTYPE_p_std__vectorT_std__string_t getRead_cmds() {
+  public VectorString getRead_cmds() {
     long cPtr = btllibJNI.Datatype_read_cmds_get(swigCPtr, this);
-    return (cPtr == 0) ? null : new SWIGTYPE_p_std__vectorT_std__string_t(cPtr, false);
+    return (cPtr == 0) ? null : new VectorString(cPtr, false);
   }
 
-  public void setWrite_cmds(SWIGTYPE_p_std__vectorT_std__string_t value) {
-    btllibJNI.Datatype_write_cmds_set(swigCPtr, this, SWIGTYPE_p_std__vectorT_std__string_t.getCPtr(value));
+  public void setWrite_cmds(VectorString value) {
+    btllibJNI.Datatype_write_cmds_set(swigCPtr, this, VectorString.getCPtr(value), value);
   }
 
-  public SWIGTYPE_p_std__vectorT_std__string_t getWrite_cmds() {
+  public VectorString getWrite_cmds() {
     long cPtr = btllibJNI.Datatype_write_cmds_get(swigCPtr, this);
-    return (cPtr == 0) ? null : new SWIGTYPE_p_std__vectorT_std__string_t(cPtr, false);
+    return (cPtr == 0) ? null : new VectorString(cPtr, false);
   }
 
-  public void setAppend_cmds(SWIGTYPE_p_std__vectorT_std__string_t value) {
-    btllibJNI.Datatype_append_cmds_set(swigCPtr, this, SWIGTYPE_p_std__vectorT_std__string_t.getCPtr(value));
+  public void setAppend_cmds(VectorString value) {
+    btllibJNI.Datatype_append_cmds_set(swigCPtr, this, VectorString.getCPtr(value), value);
   }
 
-  public SWIGTYPE_p_std__vectorT_std__string_t getAppend_cmds() {
+  public VectorString getAppend_cmds() {
     long cPtr = btllibJNI.Datatype_append_cmds_get(swigCPtr, this);
-    return (cPtr == 0) ? null : new SWIGTYPE_p_std__vectorT_std__string_t(cPtr, false);
+    return (cPtr == 0) ? null : new VectorString(cPtr, false);
   }
 
   public Datatype() {

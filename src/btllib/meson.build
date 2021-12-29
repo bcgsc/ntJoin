@@ -1,5 +1,5 @@
 project('btllib', 'cpp',
-        version : '1.1.6',
+        version : '1.1.8',
         license : 'GPL3',
         default_options : [ 'cpp_std=c++11', 'warning_level=3', 'werror=true' ])
 
@@ -31,7 +31,7 @@ btllib_include = include_directories('include')
 
 rootpath = meson.source_root()
 
-run_target('build-sdsl', command: join_paths(rootpath, 'scripts/build_sdsl'))
+run_target('build-sdsl', command: join_paths(rootpath, 'scripts/build-sdsl'))
 
 clang_format = find_program('clang-format', required : false)
 if clang_format.found()
@@ -58,6 +58,10 @@ if cppcheck.found()
   run_target('cppcheck', command: join_paths(rootpath, 'scripts/cppcheck'))
 endif
 
+run_target('sanitize-address', command: join_paths(rootpath, 'scripts/sanitize-address'))
+run_target('sanitize-thread', command: join_paths(rootpath, 'scripts/sanitize-thread'))
+run_target('sanitize-undefined', command: join_paths(rootpath, 'scripts/sanitize-undefined'))
+
 doxygen = find_program('doxygen', required : false)
 if doxygen.found()
   run_target('docs', command: join_paths(rootpath, 'scripts/docs'))
@@ -65,7 +69,7 @@ endif
 
 run_target('complete', command: join_paths(rootpath, 'scripts/complete'))
 
-run_target('test-wrappers', command: join_paths(rootpath, 'scripts/test_wrappers'))
+run_target('test-wrappers', command: join_paths(rootpath, 'scripts/test-wrappers'))
 
 subdir('include')
 subdir('extras')
