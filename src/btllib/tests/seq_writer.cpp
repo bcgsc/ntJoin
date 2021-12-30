@@ -125,7 +125,11 @@ main()
     auto random_filename2 = get_random_name(64) + ".gz";
     btllib::SeqWriter random_seqs2(
       random_filename2, btllib::SeqWriter::FASTQ, false);
-#pragma omp parallel for
+#pragma omp parallel for shared(generated_ids2,                                \
+                                generated_comments2,                           \
+                                generated_seqs2,                               \
+                                generated_quals2,                              \
+                                random_seqs2)
     for (int s = 0; s < 500; s++) {
       std::string id, comment, seq, qual;
 

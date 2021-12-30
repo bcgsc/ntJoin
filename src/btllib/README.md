@@ -53,6 +53,7 @@ The following are the available `ninja` commands which can be run within `build`
 - `ninja cppcheck` runs cppcheck on C++ code and makes sure it passes (requires cppcheck)
 - `ninja` builds the tests and wrapper libraries / makes sure they compile
 - `ninja test` runs the tests
+- `ninja sanitize-undefined` runs undefined sanitization
 - `ninja docs` generates code documentation from comments (requires Doxygen)
 - `ninja complete` runs all of the above commands in the listed order
 

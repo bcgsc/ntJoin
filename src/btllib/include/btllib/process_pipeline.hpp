@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cassert>
 #include <cerrno>
 #include <csignal>
@@ -64,6 +65,8 @@ public:
   void end();
 
   FILE *in = nullptr, *out = nullptr;
+  std::atomic<bool> in_closed{ false };
+  std::atomic<bool> out_closed{ false };
 
 private:
   enum class Operation
@@ -73,7 +76,7 @@ private:
   };
 
   PipelineId id = 0;
-  bool ended = false;
+  std::atomic<bool> ended{ false };
 
   friend void run_cmd();
   friend void end_cmd();
@@ -489,6 +492,7 @@ inline void
 ProcessPipelineInternal::end()
 {
   if (!ended) {
+    ended = true;
     int status;
     for (const auto& cmd : cmds) {
       status = 0;
@@ -502,7 +506,6 @@ ProcessPipelineInternal::end()
     if (check_children_failures()) {
       std::exit(EXIT_FAILURE); // NOLINT(concurrency-mt-unsafe)
     }
-    ended = true;
   }
 }
 
@@ -872,19 +875,26 @@ closefile(FILE*& f)
 inline void
 ProcessPipeline::close_in()
 {
-  closefile(in);
+  bool in_closed_expected = false;
+  if (in_closed.compare_exchange_strong(in_closed_expected, true)) {
+    closefile(in);
+  }
 }
 
 inline void
 ProcessPipeline::close_out()
 {
-  closefile(out);
+  bool out_closed_expected = false;
+  if (out_closed.compare_exchange_strong(out_closed_expected, true)) {
+    closefile(out);
+  }
 }
 
 inline void
 ProcessPipeline::end()
 {
-  if (!ended) {
+  bool ended_expected = false;
+  if (ended.compare_exchange_strong(ended_expected, true)) {
     close_in();
     close_out();
 
@@ -898,8 +908,6 @@ ProcessPipeline::end()
     char confirmation = 0;
     check_error(!read_from_spawner(&confirmation, sizeof(confirmation)),
                 "Process pipeline: Communication failure.");
-
-    ended = true;
   }
 }
 

@@ -48,7 +48,7 @@ public:
 
     std::vector<T> data;
     size_t count = 0;
-    size_t num = 0;
+    uint64_t num = 0;
   };
 
   // Surrounds pieces of data in the buffer with a busy mutex

@@ -73,7 +73,7 @@ protected:
   std::string streampath;
   Operation op;
   FILE* file = nullptr;
-  bool closed = false;
+  std::atomic<bool> closed{ false };
   std::unique_ptr<ProcessPipeline> pipeline;
 };
 
@@ -122,11 +122,11 @@ inline DataStream::DataStream(const std::string& path, Operation op)
 inline void
 DataStream::close()
 {
-  if (!closed) {
+  bool closed_expected = false;
+  if (closed.compare_exchange_strong(closed_expected, true)) {
     if (streampath != "-") {
       pipeline->end();
     }
-    closed = true;
   }
 }
 

@@ -25,6 +25,7 @@ get_config_vars() {
   local lib_paths_var="${prefix}_lib_paths"
 
   export declare ${config_var}="python${1}-config"
+  set +e
   command -v ${!config_var} >/dev/null
   if [[ $? -eq 0 ]]; then
     export declare ${path_var}="$(${!config_var} --exec-prefix)/bin/python${1}"
@@ -37,6 +38,7 @@ get_config_vars() {
     export declare ${version_var}=""
     export declare ${version_num_var}=-1
   fi
+  set -e
 }
 
 are_lists_diff() {

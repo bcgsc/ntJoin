@@ -9,6 +9,14 @@
 int
 main()
 {
+  std::cerr << "Testing on empty file" << std::endl;
+  btllib::Indexlr indexlr_empty(btllib::get_dirname(__FILE__) + "/empty.fa",
+                                20,
+                                50,
+                                btllib::Indexlr::Flag::LONG_MODE);
+  for (auto minimizers : indexlr_empty) {
+  }
+
   btllib::Indexlr indexlr(btllib::get_dirname(__FILE__) + "/indexlr.fa",
                           100,
                           5,

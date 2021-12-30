@@ -154,7 +154,12 @@ main()
 
     btllib::SeqReader random_reader3(random_filename,
                                      btllib::SeqReader::Flag::LONG_MODE);
-#pragma omp parallel
+#pragma omp parallel shared(read_nums,                                         \
+                            parallel_ids,                                      \
+                            parallel_comments,                                 \
+                            parallel_seqs,                                     \
+                            parallel_quals,                                    \
+                            random_reader3)
     for (const auto record : random_reader3) {
 #pragma omp critical
       {
@@ -195,7 +200,12 @@ main()
 
     btllib::SeqReader random_reader4(random_filename,
                                      btllib::SeqReader::Flag::LONG_MODE);
-#pragma omp parallel
+#pragma omp parallel shared(read_nums,                                         \
+                            parallel_ids,                                      \
+                            parallel_comments,                                 \
+                            parallel_seqs,                                     \
+                            parallel_quals,                                    \
+                            random_reader4)
     while (true) {
       auto block = random_reader4.read_block();
       if (block.count == 0) {

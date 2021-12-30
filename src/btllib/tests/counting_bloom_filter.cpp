@@ -4,7 +4,6 @@
 
 #include <cstdio>
 #include <iostream>
-#include <mutex>
 #include <string>
 
 int
@@ -69,27 +68,27 @@ main()
   }
   std::vector<std::string> present_seqs2 = present_seqs;
 
-  std::mutex seqs_lock;
   btllib::KmerCountingBloomFilter8 kbf_multithreads(100 * 1024 * 1024, 4, 100);
-#pragma omp parallel shared(present_seqs,                                      \
-                            present_seqs2,                                     \
-                            inserts,                                           \
-                            absent_seqs,                                       \
-                            seqs_lock,                                         \
-                            kbf_multithreads)
+#pragma omp parallel shared(                                                   \
+  present_seqs, present_seqs2, inserts, absent_seqs, kbf_multithreads)
   {
     while (true) {
       std::string seq;
       unsigned insert_count;
+      bool end = false;
+#pragma omp critical
       {
-        std::unique_lock<std::mutex> lock(seqs_lock);
         if (present_seqs.empty()) {
-          break;
+          end = true;
+        } else {
+          seq = present_seqs.back();
+          insert_count = inserts.back();
+          present_seqs.pop_back();
+          inserts.pop_back();
         }
-        seq = present_seqs.back();
-        insert_count = inserts.back();
-        present_seqs.pop_back();
-        inserts.pop_back();
+      }
+      if (end) {
+        break;
       }
       for (size_t i = 0; i < insert_count; i++) {
         kbf_multithreads.insert(seq);
@@ -97,24 +96,28 @@ main()
     }
   }
 
-  std::atomic<unsigned> false_positives(0);
+  unsigned false_positives = 0;
 #pragma omp parallel shared(present_seqs,                                      \
                             present_seqs2,                                     \
                             inserts,                                           \
                             absent_seqs,                                       \
-                            seqs_lock,                                         \
-                            kbf_multithreads,                                  \
-                            false_positives)
+                            kbf_multithreads)                                  \
+                            reduction(+:false_positives)
   {
     while (true) {
       std::string seq;
+      bool end = false;
+#pragma omp critical
       {
-        std::unique_lock<std::mutex> lock(seqs_lock);
         if (absent_seqs.empty()) {
-          break;
+          end = true;
+        } else {
+          seq = absent_seqs.back();
+          absent_seqs.pop_back();
         }
-        seq = absent_seqs.back();
-        absent_seqs.pop_back();
+      }
+      if (end) {
+        break;
       }
       false_positives += kbf_multithreads.contains(seq);
     }
@@ -122,24 +125,28 @@ main()
   std::cerr << "False positives = " << false_positives << std::endl;
   TEST_ASSERT_LT(false_positives, 10);
 
-  std::atomic<int> more_than_1(0);
+  int more_than_1 = 0;
 #pragma omp parallel shared(present_seqs,                                      \
                             present_seqs2,                                     \
                             inserts,                                           \
                             absent_seqs,                                       \
-                            seqs_lock,                                         \
-                            kbf_multithreads,                                  \
-                            more_than_1)
+                            kbf_multithreads)                                  \
+                            reduction(+:more_than_1)
   {
     while (true) {
       std::string seq;
+      bool end = false;
+#pragma omp critical
       {
-        std::unique_lock<std::mutex> lock(seqs_lock);
         if (present_seqs2.empty()) {
-          break;
+          end = true;
+        } else {
+          seq = present_seqs2.back();
+          present_seqs2.pop_back();
         }
-        seq = present_seqs2.back();
-        present_seqs2.pop_back();
+      }
+      if (end) {
+        break;
       }
       if (kbf_multithreads.contains(seq) > 1) {
         more_than_1++;

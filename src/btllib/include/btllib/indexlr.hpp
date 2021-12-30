@@ -254,6 +254,7 @@ private:
   public:
     void start() { t = std::thread(do_work, this); }
     void join() { t.join(); }
+    void set_id(const int id) { this->id = id; }
 
     Worker& operator=(const Worker& worker) = delete;
     Worker& operator=(Worker&& worker) = delete;
@@ -272,6 +273,7 @@ private:
     void work();
     static void do_work(Worker* worker) { worker->work(); }
 
+    int id = -1;
     Indexlr& indexlr;
     std::thread t;
   };
@@ -279,7 +281,8 @@ private:
   std::vector<Worker> workers;
   Barrier end_barrier;
   std::mutex last_block_num_mutex;
-  size_t last_block_num = 0;
+  uint64_t last_block_num = 0;
+  bool last_block_num_valid = false;
 };
 
 inline Indexlr::Indexlr(std::string seqfile,
@@ -312,7 +315,9 @@ inline Indexlr::Indexlr(std::string seqfile,
               "be provided.");
   check_error(threads == 0,
               "Indexlr: Number of processing threads cannot be 0.");
+  int id_counter = 0;
   for (auto& worker : workers) {
+    worker.set_id(id_counter++);
     worker.start();
   }
 }
@@ -520,7 +525,8 @@ Indexlr::Worker::work()
 {
   decltype(indexlr.output_queue)::Block output_block(
     indexlr.reader.get_block_size());
-  size_t last_block_num = 0;
+  uint64_t last_block_num = 0;
+  bool last_block_num_valid = false;
   for (;;) {
     auto input_block = indexlr.reader.read_block();
     if (input_block.count == 0) {
@@ -574,16 +580,24 @@ Indexlr::Worker::work()
     }
     if (output_block.count > 0) {
       last_block_num = output_block.num;
+      last_block_num_valid = true;
       indexlr.output_queue.write(output_block);
       output_block.count = 0;
     }
   }
-  std::unique_lock<std::mutex> lock(indexlr.last_block_num_mutex);
-  indexlr.last_block_num = std::max(indexlr.last_block_num, last_block_num);
-  lock.unlock();
+  if (last_block_num_valid) {
+    std::unique_lock<std::mutex> lock(indexlr.last_block_num_mutex);
+    indexlr.last_block_num = std::max(indexlr.last_block_num, last_block_num);
+    indexlr.last_block_num_valid = true;
+    lock.unlock();
+  }
   indexlr.end_barrier.wait();
-  if (last_block_num == indexlr.last_block_num) {
+  if (last_block_num_valid && indexlr.last_block_num_valid &&
+      last_block_num == indexlr.last_block_num) {
     output_block.num = last_block_num + 1;
+    indexlr.output_queue.write(output_block);
+  } else if (!indexlr.last_block_num_valid && id == 0) {
+    output_block.num = 0;
     indexlr.output_queue.write(output_block);
   }
 }

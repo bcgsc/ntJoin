@@ -13,7 +13,5 @@ files=$(scripts/get-include-files)
 files+=$(scripts/get-tests-files)
 files+=$(scripts/get-examples-files)
 for file in $files; do
-  clang-format -style=mozilla $file >${file}_formatted
-  rm $file
-  mv ${file}_formatted $file
+  clang-format -i -style=mozilla $file
 done
