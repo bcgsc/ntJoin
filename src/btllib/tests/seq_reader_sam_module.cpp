@@ -1,4 +1,5 @@
 #include "btllib/seq_reader.hpp"
+#include "btllib/util.hpp"
 #include "helpers.hpp"
 
 #include <fstream>
@@ -15,7 +16,7 @@ main()
     std::cerr << "Iteration " << iteration + 1 << std::endl;
 
     std::cerr << "Test small SAM" << std::endl;
-    btllib::SeqReader reader("../tests/input.bam",
+    btllib::SeqReader reader(btllib::get_dirname(__FILE__) + "/input.bam",
                              btllib::SeqReader::Flag::SHORT_MODE);
     TEST_ASSERT_EQ(reader.get_format(), btllib::SeqReader::Format::SAM);
 
@@ -28,9 +29,11 @@ main()
     }
 
     std::cerr << "Test larger SAM file" << std::endl;
-    btllib::SeqReader large_fastq_reader("../tests/large.fq",
+    btllib::SeqReader large_fastq_reader(btllib::get_dirname(__FILE__) +
+                                           "/large.fq",
                                          btllib::SeqReader::Flag::SHORT_MODE);
-    btllib::SeqReader large_bam_reader("../tests/large.bam",
+    btllib::SeqReader large_bam_reader(btllib::get_dirname(__FILE__) +
+                                         "/large.bam",
                                        btllib::SeqReader::Flag::SHORT_MODE);
     while (true) {
       btllib::SeqReader::Record record1 = large_fastq_reader.read();

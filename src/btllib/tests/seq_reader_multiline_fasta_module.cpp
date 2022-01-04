@@ -1,4 +1,5 @@
 #include "btllib/seq_reader.hpp"
+#include "btllib/util.hpp"
 #include "helpers.hpp"
 
 #include <fstream>
@@ -15,7 +16,8 @@ main()
     std::cerr << "Iteration " << iteration + 1 << std::endl;
 
     std::cerr << "Test multiline FASTA" << std::endl;
-    btllib::SeqReader reader("../tests/input_multiline.fa",
+    btllib::SeqReader reader(btllib::get_dirname(__FILE__) +
+                               "/input_multiline.fa",
                              btllib::SeqReader::Flag::SHORT_MODE);
 
     TEST_ASSERT_EQ(reader.get_format(), btllib::SeqReader::Format::FASTA);

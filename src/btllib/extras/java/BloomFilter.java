@@ -56,24 +56,24 @@ public class BloomFilter {
     btllibJNI.BloomFilter_insert__SWIG_0(swigCPtr, this, SWIGTYPE_p_unsigned_long_long.getCPtr(hashes));
   }
 
-  public void insert(SWIGTYPE_p_std__vectorT_unsigned_long_long_t hashes) {
-    btllibJNI.BloomFilter_insert__SWIG_1(swigCPtr, this, SWIGTYPE_p_std__vectorT_unsigned_long_long_t.getCPtr(hashes));
+  public void insert(VectorUint64t hashes) {
+    btllibJNI.BloomFilter_insert__SWIG_1(swigCPtr, this, VectorUint64t.getCPtr(hashes), hashes);
   }
 
   public boolean contains(SWIGTYPE_p_unsigned_long_long hashes) {
     return btllibJNI.BloomFilter_contains__SWIG_0(swigCPtr, this, SWIGTYPE_p_unsigned_long_long.getCPtr(hashes));
   }
 
-  public boolean contains(SWIGTYPE_p_std__vectorT_unsigned_long_long_t hashes) {
-    return btllibJNI.BloomFilter_contains__SWIG_1(swigCPtr, this, SWIGTYPE_p_std__vectorT_unsigned_long_long_t.getCPtr(hashes));
+  public boolean contains(VectorUint64t hashes) {
+    return btllibJNI.BloomFilter_contains__SWIG_1(swigCPtr, this, VectorUint64t.getCPtr(hashes), hashes);
   }
 
   public boolean contains_insert(SWIGTYPE_p_unsigned_long_long hashes) {
     return btllibJNI.BloomFilter_contains_insert__SWIG_0(swigCPtr, this, SWIGTYPE_p_unsigned_long_long.getCPtr(hashes));
   }
 
-  public boolean contains_insert(SWIGTYPE_p_std__vectorT_unsigned_long_long_t hashes) {
-    return btllibJNI.BloomFilter_contains_insert__SWIG_1(swigCPtr, this, SWIGTYPE_p_std__vectorT_unsigned_long_long_t.getCPtr(hashes));
+  public boolean contains_insert(VectorUint64t hashes) {
+    return btllibJNI.BloomFilter_contains_insert__SWIG_1(swigCPtr, this, VectorUint64t.getCPtr(hashes), hashes);
   }
 
   public long get_bytes() {
@@ -101,11 +101,11 @@ public class BloomFilter {
   }
 
   public void save(String path) {
-    btllibJNI.BloomFilter_save(swigCPtr, this, path);
+    btllibJNI.BloomFilter_save__SWIG_0(swigCPtr, this, path);
   }
 
-  public static SWIGTYPE_p_std__shared_ptrT_cpptoml__table_t parse_header(SWIGTYPE_p_std__ifstream file, String magic_string) {
-    return new SWIGTYPE_p_std__shared_ptrT_cpptoml__table_t(btllibJNI.BloomFilter_parse_header(SWIGTYPE_p_std__ifstream.getCPtr(file), magic_string), true);
+  public static void save(String path, SWIGTYPE_p_cpptoml__table table, String data, long n) {
+    btllibJNI.BloomFilter_save__SWIG_1(path, SWIGTYPE_p_cpptoml__table.getCPtr(table), data, n);
   }
 
 }

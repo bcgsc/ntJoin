@@ -118,6 +118,9 @@ public:
   /** Obtain next record. */
   Record read();
 
+  /** Obtain a whole block of records. */
+  OrderQueueMPMC<Record>::Block read_block();
+
   static const size_t MAX_SIMULTANEOUS_SEQREADERS = 256;
 
   /** For range-based for loop only. */
@@ -156,7 +159,9 @@ public:
   RecordIterator begin() { return RecordIterator(*this, false); }
   RecordIterator end() { return RecordIterator(*this, true); }
 
-private:
+  size_t get_buffer_size() const { return buffer_size; }
+  size_t get_block_size() const { return block_size; }
+
   static const size_t SHORT_MODE_BUFFER_SIZE = 32;
   static const size_t SHORT_MODE_BLOCK_SIZE = 32;
 
@@ -165,6 +170,7 @@ private:
 
   static const size_t FORMAT_BUFFER_SIZE = 16384;
 
+private:
   struct Buffer
   {
 
@@ -198,11 +204,11 @@ private:
   std::condition_variable format_cv;
   std::atomic<bool> reader_end{ false };
   RecordCString* reader_record = nullptr;
-  const size_t buffer_size;
-  const size_t block_size;
+  const std::atomic<size_t> buffer_size;
+  const std::atomic<size_t> block_size;
   OrderQueueSPMC<RecordCString> cstring_queue;
   OrderQueueMPMC<Record> output_queue;
-  size_t dummy_block_num = 0;
+  std::atomic<size_t> dummy_block_num{ 0 };
   const long id;
 
   // I am crying at this code, but until C++17 compliant compilers are
@@ -217,7 +223,13 @@ private:
 
   static long* ready_records_owners()
   {
-    thread_local static long var[MAX_SIMULTANEOUS_SEQREADERS];
+    thread_local static long var[MAX_SIMULTANEOUS_SEQREADERS] = { 0 };
+    return var;
+  }
+
+  static size_t* ready_records_current()
+  {
+    thread_local static size_t var[MAX_SIMULTANEOUS_SEQREADERS] = { 0 };
     return var;
   }
 
@@ -299,6 +311,8 @@ inline SeqReader::SeqReader(const std::string& source_path,
   check_error(!short_mode() && !long_mode(),
               "SeqReader: no mode selected, either short or long mode flag "
               "must be provided.");
+  check_error(short_mode() && long_mode(),
+              "SeqReader: short and long mode are mutually exclusive.");
   check_error(threads == 0, "SeqReader: Number of helper threads cannot be 0.");
   start_processors();
   {
@@ -440,11 +454,9 @@ SeqReader::update_cstring_records(OrderQueueSPMC<RecordCString>::Block& records,
 {
   records.count++;
   if (records.count == block_size) {
-    records.current = 0;
     records.num = counter++;
     cstring_queue.write(records);
     records.num = 0;
-    records.current = 0;
     records.count = 0;
   }
 }
@@ -570,7 +582,6 @@ SeqReader::start_reader()
 
     reader_end = true;
     if (records.count > 0) {
-      records.current = 0;
       records.num = counter++;
       cstring_queue.write(records);
     }
@@ -580,7 +591,6 @@ SeqReader::start_reader()
       }
       decltype(cstring_queue)::Block dummy(block_size);
       dummy.num = counter++;
-      dummy.current = 0;
       dummy.count = 0;
       cstring_queue.write(dummy);
     }
@@ -697,7 +707,6 @@ SeqReader::start_processors()
             records_out.data[i].num = records_in.num * block_size + i;
           }
           records_out.count = records_in.count;
-          records_out.current = records_in.current;
           records_out.num = records_in.num;
           if (records_out.count == 0) {
             if (records_out.num == dummy_block_num) {
@@ -719,22 +728,36 @@ SeqReader::read()
       std::unique_ptr<decltype(output_queue)::Block>(
         new decltype(output_queue)::Block(block_size));
     ready_records_owners()[id % MAX_SIMULTANEOUS_SEQREADERS] = id;
+    ready_records_current()[id % MAX_SIMULTANEOUS_SEQREADERS] = 0;
   }
   auto& ready_records =
     *(ready_records_array()[id % MAX_SIMULTANEOUS_SEQREADERS]);
-  if (ready_records.count <=          // cppcheck-suppress danglingTempReference
-      ready_records.current) {        // cppcheck-suppress danglingTempReference
+  auto& current = ready_records_current()[id % MAX_SIMULTANEOUS_SEQREADERS];
+  if (current >=
+      ready_records.count) {          // cppcheck-suppress danglingTempReference
+    ready_records.count = 0;          // cppcheck-suppress danglingTempReference
     output_queue.read(ready_records); // cppcheck-suppress danglingTempReference
-    if (ready_records.count <=        // cppcheck-suppress danglingTempReference
-        ready_records.current) {      // cppcheck-suppress danglingTempReference
+    if (ready_records.count == 0) {   // cppcheck-suppress danglingTempReference
       close();
       // cppcheck-suppress danglingTempReference
       ready_records = decltype(output_queue)::Block(block_size);
       return Record();
     }
+    current = 0;
   }
   // cppcheck-suppress danglingTempReference
-  return std::move(ready_records.data[ready_records.current++]);
+  return std::move(ready_records.data[current++]);
+}
+
+inline OrderQueueMPMC<SeqReader::Record>::Block
+SeqReader::read_block()
+{
+  decltype(SeqReader::read_block()) block(block_size);
+  output_queue.read(block); // cppcheck-suppress danglingTempReference
+  if (block.count == 0) {   // cppcheck-suppress danglingTempReference
+    close();
+  }
+  return block;
 }
 
 } // namespace btllib

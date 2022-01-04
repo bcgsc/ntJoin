@@ -215,8 +215,8 @@ public class Indexlr {
       this(btllibJNI.new_Indexlr_IndexlrRecord__SWIG_0(), true);
     }
   
-    public IndexlrRecord(long num, String id, String barcode, long readlen, SWIGTYPE_p_std__vectorT_btllib__Indexlr__Minimizer_t minimizers) {
-      this(btllibJNI.new_Indexlr_IndexlrRecord__SWIG_1(num, id, barcode, readlen, SWIGTYPE_p_std__vectorT_btllib__Indexlr__Minimizer_t.getCPtr(minimizers)), true);
+    public IndexlrRecord(long num, String id, String barcode, long readlen, VectorMinimizer minimizers) {
+      this(btllibJNI.new_Indexlr_IndexlrRecord__SWIG_1(num, id, barcode, readlen, VectorMinimizer.getCPtr(minimizers), minimizers), true);
     }
   
     public void setNum(long value) {
@@ -251,19 +251,19 @@ public class Indexlr {
       return btllibJNI.Indexlr_IndexlrRecord_readlen_get(swigCPtr, this);
     }
   
-    public void setMinimizers(SWIGTYPE_p_std__vectorT_btllib__Indexlr__Minimizer_t value) {
-      btllibJNI.Indexlr_IndexlrRecord_minimizers_set(swigCPtr, this, SWIGTYPE_p_std__vectorT_btllib__Indexlr__Minimizer_t.getCPtr(value));
+    public void setMinimizers(VectorMinimizer value) {
+      btllibJNI.Indexlr_IndexlrRecord_minimizers_set(swigCPtr, this, VectorMinimizer.getCPtr(value), value);
     }
   
-    public SWIGTYPE_p_std__vectorT_btllib__Indexlr__Minimizer_t getMinimizers() {
+    public VectorMinimizer getMinimizers() {
       long cPtr = btllibJNI.Indexlr_IndexlrRecord_minimizers_get(swigCPtr, this);
-      return (cPtr == 0) ? null : new SWIGTYPE_p_std__vectorT_btllib__Indexlr__Minimizer_t(cPtr, false);
+      return (cPtr == 0) ? null : new VectorMinimizer(cPtr, false);
     }
   
   }
 
-  public Indexlr.IndexlrRecord get_minimizers() {
-    return new Indexlr.IndexlrRecord(btllibJNI.Indexlr_get_minimizers(swigCPtr, this), true);
+  public Indexlr.IndexlrRecord read() {
+    return new Indexlr.IndexlrRecord(btllibJNI.Indexlr_read(swigCPtr, this), true);
   }
 
   public Indexlr(String seqfile, long k, long w, long flags, long threads, boolean verbose, BloomFilter bf1, BloomFilter bf2) {
@@ -288,6 +288,52 @@ public class Indexlr {
 
   public Indexlr(String seqfile, long k, long w) {
     this(btllibJNI.new_Indexlr__SWIG_5(seqfile, k, w), true);
+  }
+
+  public void close() {
+    btllibJNI.Indexlr_close(swigCPtr, this);
+  }
+
+  static public class IndexlrRecordIterator {
+    private transient long swigCPtr;
+    protected transient boolean swigCMemOwn;
+  
+    protected IndexlrRecordIterator(long cPtr, boolean cMemoryOwn) {
+      swigCMemOwn = cMemoryOwn;
+      swigCPtr = cPtr;
+    }
+  
+    protected static long getCPtr(IndexlrRecordIterator obj) {
+      return (obj == null) ? 0 : obj.swigCPtr;
+    }
+  
+    @SuppressWarnings("deprecation")
+    protected void finalize() {
+      delete();
+    }
+  
+    public synchronized void delete() {
+      if (swigCPtr != 0) {
+        if (swigCMemOwn) {
+          swigCMemOwn = false;
+          btllibJNI.delete_Indexlr_IndexlrRecordIterator(swigCPtr);
+        }
+        swigCPtr = 0;
+      }
+    }
+  
+    public Indexlr.IndexlrRecord next() {
+      return new Indexlr.IndexlrRecord(btllibJNI.Indexlr_IndexlrRecordIterator_next(swigCPtr, this), true);
+    }
+  
+  }
+
+  public Indexlr.IndexlrRecordIterator begin() {
+    return new Indexlr.IndexlrRecordIterator(btllibJNI.Indexlr_begin(swigCPtr, this), true);
+  }
+
+  public Indexlr.IndexlrRecordIterator end() {
+    return new Indexlr.IndexlrRecordIterator(btllibJNI.Indexlr_end(swigCPtr, this), true);
   }
 
   public final static long MAX_SIMULTANEOUS_INDEXLRS = btllibJNI.Indexlr_MAX_SIMULTANEOUS_INDEXLRS_get();

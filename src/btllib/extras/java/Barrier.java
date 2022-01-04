@@ -8,16 +8,16 @@
 
 package btllib;
 
-public class SeqReaderFastqModule {
+public class Barrier {
   private transient long swigCPtr;
   protected transient boolean swigCMemOwn;
 
-  protected SeqReaderFastqModule(long cPtr, boolean cMemoryOwn) {
+  protected Barrier(long cPtr, boolean cMemoryOwn) {
     swigCMemOwn = cMemoryOwn;
     swigCPtr = cPtr;
   }
 
-  protected static long getCPtr(SeqReaderFastqModule obj) {
+  protected static long getCPtr(Barrier obj) {
     return (obj == null) ? 0 : obj.swigCPtr;
   }
 
@@ -30,14 +30,18 @@ public class SeqReaderFastqModule {
     if (swigCPtr != 0) {
       if (swigCMemOwn) {
         swigCMemOwn = false;
-        btllibJNI.delete_SeqReaderFastqModule(swigCPtr);
+        btllibJNI.delete_Barrier(swigCPtr);
       }
       swigCPtr = 0;
     }
   }
 
-  public SeqReaderFastqModule() {
-    this(btllibJNI.new_SeqReaderFastqModule(), true);
+  public Barrier(long count) {
+    this(btllibJNI.new_Barrier(count), true);
+  }
+
+  public void wait() {
+    btllibJNI.Barrier_wait(swigCPtr, this);
   }
 
 }
