@@ -1,3 +1,0 @@
-python-igraph
-pybedtools
-pymannkendall
