@@ -250,7 +250,8 @@ class Ntjoin:
         gap_size = max(mean_dist - a - b, self.args.g)
         if self.args.G > 0:
             gap_size = min(gap_size, self.args.G)
-        return gap_size
+            
+        return gap_size, mean_dist - a - b
 
     @staticmethod
     def is_new_region_overlapping(start, end, node_i, node_j, incorporated_segments_ctg):
@@ -351,8 +352,9 @@ class Ntjoin:
                                      first_mx=first_mx,
                                      terminal_mx=prev_mx))
         for u, v in zip(out_path, out_path[1:]):
-            gap_size = self.calculate_gap_size(u, v, component_graph, assembly)
+            gap_size, raw_gap_size = self.calculate_gap_size(u, v, component_graph, assembly)
             u.set_gap_size(gap_size)
+            u.set_raw_gap_size(raw_gap_size)
 
         return out_path
 
@@ -713,6 +715,35 @@ class Ntjoin:
 
         return new_path
 
+    @staticmethod
+    def update_graph_tally(path, vertices, edges):
+        "Update graph vertices/edges with given path"
+        for s, t in zip(path, path[1:]):
+            formatted_s, formatted_t = "{}{}".format(s.contig, s.ori), "{}{}".format(t.contig, t.ori)
+            vertices.add(formatted_s)
+            vertices.add(formatted_t)
+            edges.add(ntjoin_utils.EdgeGraph(source=formatted_s,
+                                             target=formatted_t,
+                                             raw_gap_est=s.raw_gap_size))
+
+    def print_scaffold_graph(self, vertices, edges):
+        "Print scaffold graph generated from path file"
+        outfile = open(self.args.p + ".scaffold.dot", 'w')
+        outfile.write("digraph G {\n")
+
+        for node in vertices:
+            node_label = "\"{scaffold}\" [l={length}]\n". \
+                format(scaffold=node, length=Ntjoin.scaffolds[node.strip("+-")].length)
+            outfile.write(node_label)
+
+        for edge in edges:
+            edge_str = "\"{source}\" -> \"{target}\" [d={d} e={e} n={n}]\n". \
+                format(source=edge.source, target=edge.target,
+                       d=edge.raw_gap_est, e=100, n=1)
+            outfile.write(edge_str)
+
+        outfile.write("}\n")
+        outfile.close()
 
     def print_scaffolds(self, paths, intersecting_regions):
         "Given the paths, print out the scaffolds fasta"
@@ -727,6 +758,9 @@ class Ntjoin:
         pathfile = open(self.args.p + ".path", 'w')
         if self.args.agp:
             agpfile = open(self.args.p + ".agp", "w")
+        if self.args.overlap:
+            vertices = set()
+            edges = set() # Set of EdgeGraph
         incorporated_segments = []  # List of Bed entries
 
         ct = 0
@@ -761,6 +795,8 @@ class Ntjoin:
             pathfile.write("%s\t%s\n" % (ctg_id, path_str))
             if self.args.agp:
                 self.write_agp(agpfile, ctg_id, path_str)
+            if self.args.overlap:
+                self.update_graph_tally(path, vertices, edges)
             ct += 1
         outfile.close()
 
@@ -794,6 +830,9 @@ class Ntjoin:
             print("bedtools getfasta failed -- is bedtools on your PATH?")
             print(out_fasta.stderr)
             raise subprocess.CalledProcessError(out_fasta.returncode, cmd_shlex)
+
+        if self.args.overlap:
+            self.print_scaffold_graph(vertices, edges)
 
         outfile.close()
         pathfile.close()
@@ -878,6 +917,8 @@ class Ntjoin:
         parser.add_argument("-v", "--version", action='version', version='ntJoin v1.0.8')
         parser.add_argument("--agp", help="Output AGP file describing scaffolds", action="store_true")
         parser.add_argument("--no_cut", help="Do not cut input contigs, place in most representative path",
+                            action="store_true")
+        parser.add_argument("--overlap", help="Print scaffold graph form of paths, including putative overlaps",
                             action="store_true")
         return parser.parse_args()
 

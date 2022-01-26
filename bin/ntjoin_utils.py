@@ -13,6 +13,7 @@ import sys
 Bed = namedtuple("Bed", ["contig", "start", "end"])
 Agp = namedtuple("Unassigned_bed", ["new_id", "contig", "start", "end"])
 Scaffold = namedtuple("Scaffold", ["id", "length", "sequence"])
+EdgeGraph = namedtuple("EdgeGraph", ["source", "target", "raw_gap_est"])
 
 # Helper functions
 def filter_minimizers(list_mxs):
@@ -36,7 +37,7 @@ def filter_minimizers(list_mxs):
 class PathNode:
     "Defines a node in a path of contig regions"
     def __init__(self, contig, ori, start, end, contig_size,
-                 first_mx, terminal_mx, gap_size=0):
+                 first_mx, terminal_mx, gap_size=0, raw_gap_size=0):
         self.contig = contig
         self.ori = ori
         self.start = start
@@ -45,10 +46,15 @@ class PathNode:
         self.first_mx = first_mx
         self.terminal_mx = terminal_mx
         self.gap_size = gap_size
+        self.raw_gap_size = raw_gap_size
 
     def set_gap_size(self, gap_size):
         "Set the gap size of the path node"
         self.gap_size = gap_size
+
+    def set_raw_gap_size(self, raw_gap_size):
+        "Set the 'raw' gap size. Equal to gap_size if > min_gap_size"
+        self.raw_gap_size = raw_gap_size
 
     def get_aligned_length(self):
         "Get the aligned length based on start/end coordinates"
