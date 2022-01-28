@@ -84,7 +84,8 @@ class PathNode:
         return self.end_adjust
 
     def __str__(self):
-        return "Contig:%s\tOrientation:%s\tStart-End:%d-%d\tLength:%s\tFirstmx:%s\tLastmx:%s\tAdjusted_start-end:%d-%d" \
+        return "Contig:%s\tOrientation:%s\tStart-End:%d-%d\tLength:%s\tFirstmx:%s\tLastmx:%s\t" \
+               "Adjusted_start-end:%d-%d" \
                % (self.contig, self.ori, self.start, self.end, self.contig_size,
                   self.first_mx, self.terminal_mx, self.start_adjust, self.end_adjust)
 

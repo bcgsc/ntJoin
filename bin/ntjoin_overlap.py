@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-import ntjoin_utils
-import igraph as ig
-from collections import defaultdict, namedtuple
+"""
+Detect and trim overlapping adjacent sequences
+"""
+from collections import namedtuple
 import numpy as np
+import ntjoin_utils
 import ntjoin_assemble
+
 
 MappedPathInfo = namedtuple("MappedPathInfo",
                             ["mapped_region_length", "mid_mx", "median_length_from_end"])
@@ -90,8 +93,7 @@ def is_in_valid_end(pos, index, nodes, source=True):
     "Return true if the mx is in a valid end"
     if source:
         return pos >= nodes[index].get_aligned_length() + nodes[index].raw_gap_size
-    else:
-        return pos < nodes[index].raw_gap_size*-1
+    return pos < nodes[index].raw_gap_size*-1
 
 def filter_minimizers_position(list_mxs_pair, source, target,
                                list_mx_info, nodes):

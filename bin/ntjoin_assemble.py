@@ -17,9 +17,9 @@ import warnings
 import igraph as ig
 import pybedtools
 import pymannkendall as mk
+import btllib
 from read_fasta import read_fasta
 import ntjoin_utils
-import btllib
 import ntjoin_overlap
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
@@ -828,7 +828,7 @@ class Ntjoin:
 
             if self.args.overlap:
                 path_segments_file = open(self.args.p + ".segments.fa", 'w')
-                for seq, path_seg, node in zip(sequences, path_segments, nodes):  # !! TODO: limit to overlapping section?
+                for seq, node in zip(sequences, nodes):  # !! TODO: limit to overlapping section?
                     path_segments_file.write(">{}_{}-{} {}\n{}\n".format(node.contig, node.start,
                                                                          node.end, node.raw_gap_size, seq.strip()))
                 path_segments_file.close()
@@ -858,25 +858,31 @@ class Ntjoin:
             ct += 1
         outfile.close()
 
-        # Also print out the sequences that were NOT scaffolded
+        outfile = self.print_unassigned(agpfile, assembly, assembly_fa, incorporated_segments, outfile, params)
+
+        if self.args.overlap:
+            self.print_scaffold_graph(vertices, edges)
+
+        outfile.close()
+        pathfile.close()
+        if self.args.agp:
+            agpfile.close()
+
+    def print_unassigned(self, agpfile, assembly, assembly_fa, incorporated_segments, outfile, params):
+        "Also print out the sequences that were NOT scaffolded"
         incorporated_segments_str = "\n".join(["%s\t%s\t%s" % (chrom, s, e)
                                                for chrom, s, e in incorporated_segments])
         incorporated_segments_bed = pybedtools.BedTool(incorporated_segments_str,
                                                        from_string=True).sort()
         genome_bed, genome_dict = self.format_bedtools_genome(Ntjoin.scaffolds)
-
         missing_bed = genome_bed.complement(i=incorporated_segments_bed, g=genome_dict)
         missing_bed.saveas(self.args.p + "." + assembly + ".unassigned.bed")
-
         outfile = open(assembly_fa + params + ".n" +
                        str(self.args.n) + ".unassigned.scaffolds.fa", 'w')
-
         cmd = "bedtools getfasta -fi %s -bed %s -fo -" % \
               (assembly_fa, self.args.p + "." + assembly + ".unassigned.bed")
         cmd_shlex = shlex.split(cmd)
-
         out_fasta = subprocess.Popen(cmd_shlex, stdout=subprocess.PIPE, universal_newlines=True)
-
         for header, seq, _, _ in read_fasta(iter(out_fasta.stdout.readline, '')):
             if self.args.agp:
                 self.write_agp_unassigned(agpfile, header, seq)
@@ -888,14 +894,7 @@ class Ntjoin:
             print("bedtools getfasta failed -- is bedtools on your PATH?")
             print(out_fasta.stderr)
             raise subprocess.CalledProcessError(out_fasta.returncode, cmd_shlex)
-
-        if self.args.overlap:
-            self.print_scaffold_graph(vertices, edges)
-
-        outfile.close()
-        pathfile.close()
-        if self.args.agp:
-            agpfile.close()
+        return outfile
 
     @staticmethod
     def tally_intersecting_segments():
