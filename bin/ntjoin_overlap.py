@@ -75,7 +75,6 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, nodes):
 
     nodes[source].end_adjust = source_cut
     nodes[target].start_adjust = target_cut
-    print("Source:", source_cut, "Target", target_cut)
 
     return True
 
@@ -97,7 +96,6 @@ def is_in_valid_end(pos, index, nodes, source=True):
 def filter_minimizers_position(list_mxs_pair, source, target,
                                list_mx_info, nodes):
     "Filter to keep minimizers in particular positions"
-    print(list_mxs_pair)
     list_mxs_pair_return = {source: [[mx for mx in list_mxs_pair[source][0]
                                      if is_in_valid_end(list_mx_info[source][mx], source, nodes, source=True)]],
                             target: [[mx for mx in list_mxs_pair[target][0]
