@@ -7,6 +7,7 @@ Written by Lauren Coombe (@lcoombe)
 import datetime
 from collections import namedtuple
 import sys
+import os
 
 
 # Defining namedtuples
@@ -14,6 +15,19 @@ Bed = namedtuple("Bed", ["contig", "start", "end"])
 Agp = namedtuple("Unassigned_bed", ["new_id", "contig", "start", "end"])
 Scaffold = namedtuple("Scaffold", ["id", "length", "sequence"])
 EdgeGraph = namedtuple("EdgeGraph", ["source", "target", "raw_gap_est"])
+
+class HiddenPrints:
+    "Adapted from: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print"
+    def __init__(self):
+        self._original_stdout = sys.stdout
+
+    def __enter__(self):
+        self._original_stdout = sys.stdout
+        sys.stdout = open(os.devnull, 'w')
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout.close()
+        sys.stdout = self._original_stdout
 
 # Helper functions
 def filter_minimizers(list_mxs):

@@ -87,7 +87,7 @@ class Ntjoin:
         return sum([weights[f] for f in list_files])
 
 
-    def build_graph(self, list_mxs):
+    def build_graph(self, list_mxs, weights):
         "Builds an undirected graph: nodes=minimizers; edges=between adjacent minimizers"
         print(datetime.datetime.today(), ": Building graph", file=sys.stdout)
         graph = ig.Graph()
@@ -122,7 +122,7 @@ class Ntjoin:
         print(datetime.datetime.today(), ": Adding attributes", file=sys.stdout)
         edge_attributes = {self.edge_index(graph, s, t): {"support": edges[s][t],
                                                           "weight": self.calc_total_weight(edges[s][t],
-                                                                                           Ntjoin.weights)}
+                                                                                           weights)}
                            for s in edges for t in edges[s]}
         self.set_edge_attributes(graph, edge_attributes)
 
@@ -717,13 +717,13 @@ class Ntjoin:
 
         return new_path
 
-    @staticmethod
-    def adjust_for_trimming(fasta_filename, path):
+    def adjust_for_trimming(self, fasta_filename, path):
         "Go through path, trim the segments if overlapping"
         ct = 0
-        mx_info = defaultdict(dict) # path_index -> mx -> pos
-        mxs = {} # path_index -> [mx]
-        with btllib.Indexlr(fasta_filename, 15, 10, btllib.IndexlrFlag.LONG_MODE, 1) as minimizers: # !! TODO: fix magic numbers
+        mx_info = defaultdict(dict)  # path_index -> mx -> pos
+        mxs = {}  # path_index -> [mx]
+        with btllib.Indexlr(fasta_filename, self.args.overlap_k, self.args.overlap_w,
+                            btllib.IndexlrFlag.LONG_MODE, self.args.overlap_t) as minimizers:
             for mx_entry in minimizers:
                 mxs[ct] = []
                 dup_mxs = set()  # Set of minimizers identified as duplicates
@@ -734,16 +734,13 @@ class Ntjoin:
                     if ct in mx_info and mx in mx_info[ct]:  # This is a duplicate
                         dup_mxs.add(mx)
                     else:
-                        mx_info[ct][mx] = (ct, int(pos))
+                        mx_info[ct][mx] = int(pos)
                         mxs[ct].append(mx)
-                print(mxs)
                 mx_info[ct] = {mx: mx_info[ct][mx] for mx in mx_info[ct] if mx not in dup_mxs}
                 mxs[ct] = [[mx for mx in mxs[ct] if mx not in dup_mxs and mx in mx_info[ct]]]
                 ct += 1
 
-
         for i in range(0, len(path) - 1):
-            print(i)
             source = path[i]
             if source.raw_gap_size < 0:
                 ntjoin_overlap.merge_overlapping(mxs, mx_info, i, i+1, path)
@@ -782,9 +779,10 @@ class Ntjoin:
 
     def get_adjusted_sequence(self, sequence, node):
         "Return sequence adjusted for overlap trimming"
+        return_sequence = sequence[node.start_adjust:node.get_end_adjust()]
         if node.gap_size > 0:
-            return sequence[node.start_adjust:node.get_end_adjust()] + self.args.g*"N"
-        return sequence[node.start_adjust:node.get_end_adjust()]
+            return return_sequence + self.args.overlap_gap*"N"
+        return return_sequence
 
 
     def print_scaffolds(self, paths, intersecting_regions):
@@ -808,8 +806,6 @@ class Ntjoin:
         ct = 0
         pathfile.write(assembly_fa + "\n")
         for path in paths:
-            path_segments_file = open(self.args.p + ".segments.fa", 'w')
-
             sequences = []
             nodes = []
             path_segments = []
@@ -825,20 +821,25 @@ class Ntjoin:
                     continue
                 sequences.append(self.get_fasta_segment(node, Ntjoin.scaffolds[node.contig].sequence))
                 path_segments.append(ntjoin_utils.Bed(contig=node.contig, start=node.start,
-                                         end=node.end))
+                                                      end=node.end))
                 nodes.append(node)
             if len(sequences) < 2:
                 continue
-            for seq, path_seg, node in zip(sequences, path_segments, nodes): # !! TODO: limit to overlapping section?
-                path_segments_file.write(">{}_{}-{} {}\n{}\n".format(node.contig, node.start, node.end, node.raw_gap_size, seq.strip()))
-            path_segments_file.close()
+
+            if self.args.overlap:
+                path_segments_file = open(self.args.p + ".segments.fa", 'w')
+                for seq, path_seg, node in zip(sequences, path_segments, nodes):  # !! TODO: limit to overlapping section?
+                    path_segments_file.write(">{}_{}-{} {}\n{}\n".format(node.contig, node.start,
+                                                                         node.end, node.raw_gap_size, seq.strip()))
+                path_segments_file.close()
 
             if self.args.overlap:
                 self.adjust_for_trimming(self.args.p + ".segments.fa", nodes)
-                for node in nodes:
-                    print(node)
-                sequences = [self.get_adjusted_sequence(sequence, nodes[i]) #Don't get rid of gaps?
+                sequences = [self.get_adjusted_sequence(sequence, nodes[i])
                              for i, sequence in enumerate(sequences)]
+                cmd = shlex.split("rm {}".format(self.args.p + ".segments.fa"))
+                return_code = subprocess.call(cmd)
+                assert return_code == 0
 
             ctg_id = "ntJoin" + str(ct)
             ctg_sequence = self.join_sequences(sequences, path, path_segments)
@@ -970,13 +971,21 @@ class Ntjoin:
         parser.add_argument('-m', help="Require at least m %% of minimizer positions to be "
                                        "increasing/decreasing to assign contig orientation [90]\n "
                                        "Note: Only used with --mkt is NOT specified", default=90, type=int)
-        parser.add_argument('-t', help="Number of threads [1]", default=1, type=int)
+        parser.add_argument('-t', help="Number of threads for multiprocessing [1]", default=1, type=int)
         parser.add_argument("-v", "--version", action='version', version='ntJoin v1.0.8')
         parser.add_argument("--agp", help="Output AGP file describing scaffolds", action="store_true")
         parser.add_argument("--no_cut", help="Do not cut input contigs, place in most representative path",
                             action="store_true")
         parser.add_argument("--overlap", help="Print scaffold graph form of paths, including putative overlaps",
                             action="store_true")
+        parser.add_argument("--overlap_gap", help="Length of gap introduced between overlapping, trimmed segments",
+                            type=int, default=20)
+        parser.add_argument("--overlap_k", help="Kmer size used for overlap minimizer step",
+                            type=int, default=15)
+        parser.add_argument("--overlap_w", help="Window size used for overlap minimizer step",
+                            type=int, default=10)
+        parser.add_argument("--overlap_t", help="Number of threads for computing overlap minimizers",
+                            type=int, default=4)
         return parser.parse_args()
 
     def print_parameters(self):
@@ -1000,6 +1009,12 @@ class Ntjoin:
             print("Orienting contigs with Mann-Kendall Test (more computationally intensive)\n")
         else:
             print("Orienting contigs using increasing/decreasing minimizer positions\n")
+        if self.args.overlap:
+            print("\t--overlap")
+            print("\t--overlap_gap", self.args.overlap_gap)
+            print("\t--overlap_k", self.args.overlap_k)
+            print("\t--overlap_w", self.args.overlap_w)
+            print("\t--overlap_t", self.args.overlap_t)
 
     def main(self):
         "Run ntJoin graph stage"
@@ -1038,7 +1053,7 @@ class Ntjoin:
         list_mxs = ntjoin_utils.filter_minimizers(list_mxs)
 
         # Build a graph: Nodes = mx; Edges between adjacent mx in the assemblies
-        graph = self.build_graph(list_mxs)
+        graph = self.build_graph(list_mxs, Ntjoin.weights)
 
         # Print the DOT graph
         self.print_graph(graph)

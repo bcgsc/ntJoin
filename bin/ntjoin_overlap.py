@@ -13,16 +13,11 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, nodes):
 
     weights = {source: 1, target: 1}
     list_mxs_pair = {source: list_mxs[source], target: list_mxs[target]}
-    print(list_mxs_pair)
     list_mxs_pair = filter_minimizers_position(list_mxs_pair, source, target, list_mx_info, nodes)
-    print(list_mxs_pair)
 
-    #with ntlink_utils.HiddenPrints():
-    list_mxs_pair = ntjoin_utils.filter_minimizers(list_mxs_pair)
-
-    graph = build_graph(list_mxs_pair, weights)
+    with ntjoin_utils.HiddenPrints():
+        graph = ntjoin_assemble.Ntjoin.build_graph(ntjoin_assemble.Ntjoin(), list_mxs_pair, weights)
     graph = filter_graph_global(graph, 2)
-
 
     paths_components = []
     for component in graph.components():
@@ -38,19 +33,19 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, nodes):
             assert len(paths) == 1
             path = [ntjoin_assemble.Ntjoin.vertex_name(component_graph, mx) for mx in paths[0]]
             start_mx, end_mx = path[0], path[-1]
-            source_start, target_start = [list_mx_info[assembly][start_mx][1]
+            source_start, target_start = [list_mx_info[assembly][start_mx]
                                           for assembly in [source, target]]
-            source_end, target_end = [list_mx_info[assembly][end_mx][1]
+            source_end, target_end = [list_mx_info[assembly][end_mx]
                                       for assembly in [source, target]]
             source_align_len = abs(source_start - source_end)
             target_align_len = abs(target_start - target_end)
 
             mid_mx = path[int(len(path)/2)]
             mid_mx_dist_end_source = get_dist_from_end(source,
-                                                       list_mx_info[source][mid_mx][1],
+                                                       list_mx_info[source][mid_mx],
                                                        nodes[source].get_aligned_length())
             mid_mx_dist_end_target = get_dist_from_end(target,
-                                                       list_mx_info[target][mid_mx][1],
+                                                       list_mx_info[target][mid_mx],
                                                        nodes[target].get_aligned_length(), target=True)
             paths_components.append(MappedPathInfo(mapped_region_length=np.median([source_align_len,
                                                                                    target_align_len]),
@@ -60,9 +55,9 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, nodes):
         elif singleton_nodes:
             assert len(singleton_nodes) == 1
             mid_mx = ntjoin_assemble.Ntjoin.vertex_name(component_graph, singleton_nodes[0])
-            mid_mx_dist_end_source = get_dist_from_end(source, list_mx_info[source][mid_mx][1],
+            mid_mx_dist_end_source = get_dist_from_end(source, list_mx_info[source][mid_mx],
                                                        nodes[source].get_aligned_length())
-            mid_mx_dist_end_target = get_dist_from_end(target, list_mx_info[target][mid_mx][1],
+            mid_mx_dist_end_target = get_dist_from_end(target, list_mx_info[target][mid_mx],
                                                        nodes[target].get_aligned_length(), target=True)
             paths_components.append(MappedPathInfo(mapped_region_length=1, mid_mx=mid_mx,
                                                    median_length_from_end=np.median([mid_mx_dist_end_source,
@@ -73,7 +68,7 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, nodes):
         return False
     path = sorted(paths_components, key=lambda x: (x.mapped_region_length, x.median_length_from_end,
                                                    x.mid_mx), reverse=True)[0]
-    source_cut, target_cut = list_mx_info[source][path.mid_mx][1], list_mx_info[target][path.mid_mx][1]
+    source_cut, target_cut = list_mx_info[source][path.mid_mx], list_mx_info[target][path.mid_mx]
 
     if source_cut is None or target_cut is None:
         return False
@@ -102,50 +97,17 @@ def is_in_valid_end(pos, index, nodes, source=True):
 def filter_minimizers_position(list_mxs_pair, source, target,
                                list_mx_info, nodes):
     "Filter to keep minimizers in particular positions"
-    list_mxs_pair_return = {}
-    list_mxs_pair_return[source] = [[mx for mx in list_mxs_pair[source][0]
-                                           if is_in_valid_end(list_mx_info[source][mx][1], source, nodes, source=True)]]
+    print(list_mxs_pair)
+    list_mxs_pair_return = {source: [[mx for mx in list_mxs_pair[source][0]
+                                     if is_in_valid_end(list_mx_info[source][mx], source, nodes, source=True)]],
+                            target: [[mx for mx in list_mxs_pair[target][0]
+                                     if is_in_valid_end(list_mx_info[target][mx], source, nodes, source=False)]]}
 
-    list_mxs_pair_return[target] = [[mx for mx in list_mxs_pair[target][0]
-                                           if is_in_valid_end(list_mx_info[target][mx][1], source, nodes, source=False)]]
-   # with ntlink_utils.HiddenPrints():
-    list_mxs_pair_return = ntjoin_utils.filter_minimizers(list_mxs_pair_return)
+    with ntjoin_utils.HiddenPrints():
+        list_mxs_pair_return = ntjoin_utils.filter_minimizers(list_mxs_pair_return)
 
     return list_mxs_pair_return
 
-def build_graph(list_mxs, weights):
-    "Builds an undirected graph: nodes=minimizers; edges=between adjacent minimizers"
-    graph = ig.Graph()
-
-    vertices = set()
-    edges = defaultdict(dict)  # source -> target -> [list assembly support]
-
-    for assembly in list_mxs:
-        for assembly_mx_list in list_mxs[assembly]:
-            for i, j in zip(range(0, len(assembly_mx_list)),
-                            range(1, len(assembly_mx_list))):
-                if assembly_mx_list[i] in edges and \
-                        assembly_mx_list[j] in edges[assembly_mx_list[i]]:
-                    edges[assembly_mx_list[i]][assembly_mx_list[j]].append(assembly)
-                elif assembly_mx_list[j] in edges and \
-                        assembly_mx_list[i] in edges[assembly_mx_list[j]]:
-                    edges[assembly_mx_list[j]][assembly_mx_list[i]].append(assembly)
-                else:
-                    edges[assembly_mx_list[i]][assembly_mx_list[j]] = [assembly]
-                vertices.add(assembly_mx_list[i])
-            if assembly_mx_list:
-                vertices.add(assembly_mx_list[-1])
-
-    formatted_edges = [(s, t) for s in edges for t in edges[s]]
-
-    graph.add_vertices(list(vertices))
-    graph.add_edges(formatted_edges)
-    edge_attributes = {ntjoin_assemble.Ntjoin.edge_index(graph, s, t): {"support": edges[s][t],
-                                                  "weight": calc_total_weight(edges[s][t], weights)}
-                       for s in edges for t in edges[s]}
-    set_edge_attributes(graph, edge_attributes)
-
-    return graph
 
 def filter_graph_global(graph, n):
     "Filter the graph globally based on minimum edge weight"

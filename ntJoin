@@ -34,6 +34,12 @@ w=1000
 # Kmer size
 k=32
 
+# Window size for overlap detection
+overlap_w=10
+
+# Kmer size for overlap detection
+overlap_k=15
+
 # Number of threads
 t=4
 
@@ -45,6 +51,9 @@ n=1
 
 # Minimum gap size between scaffolds
 g=20
+
+# Gap size between trimmed overlapping segments (used if overlap=True)
+overlap_g?=$g
 
 # Maximum gap size between scaffolds (0 if no maximum)
 G=0
@@ -102,6 +111,9 @@ gzip=pigz -p$t -f
 else
 gzip=gzip -f
 endif
+
+# Set-up PYTHON PATH
+PYTHONPATH=$(assemble_path)/src/btllib/python/
 
 help:
 	@echo ""
@@ -200,11 +212,12 @@ ifeq ($(agp), True)
     ntjoin_assembly_opts += --agp
 endif
 ifeq ($(overlap), True)
-    ntjoin_assembly_opts += --overlap
+    ntjoin_assembly_opts += --overlap --overlap_gap $(overlap_g) --overlap_t $(t)
+    ntjoin_assembly_opts += --overlap_k $(overlap_k) --overlap_w $(overlap_w)
 endif
 	
 $(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa: $(target).k$(k).w$(w).tsv $(min_ref_targets)
-	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	$(log_time) PYTHONPATH=$(PYTHONPATH) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
 	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) $(ntjoin_assembly_opts) $(min_ref_targets)
 
 $(target).k$(k).w$(w).n$(n).unassigned.scaffolds.fa: $(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa
