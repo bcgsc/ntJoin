@@ -18,10 +18,11 @@ EdgeGraph = namedtuple("EdgeGraph", ["source", "target", "raw_gap_est"])
 # Helper functions
 def filter_minimizers(list_mxs):
     "Filters out minimizers that are not found in all assemblies"
+    print(list_mxs)
     print(datetime.datetime.today(), ": Filtering minimizers", file=sys.stdout)
     list_mx_sets = [{mx for mx_list in list_mxs[assembly] for mx in mx_list}
                     for assembly in list_mxs]
-
+    print(list_mxs)
     mx_intersection = set.intersection(*list_mx_sets)
 
     return_mxs = {}
@@ -47,6 +48,8 @@ class PathNode:
         self.terminal_mx = terminal_mx
         self.gap_size = gap_size
         self.raw_gap_size = raw_gap_size
+        self.start_adjust = 0
+        self.end_adjust = 0  # Adjust for trimming
 
     def set_gap_size(self, gap_size):
         "Set the gap size of the path node"
@@ -60,10 +63,16 @@ class PathNode:
         "Get the aligned length based on start/end coordinates"
         return self.end - self.start
 
+    def get_end_adjust(self):
+        "Return the adjusted end coordinate"
+        if self.end_adjust == 0:
+            return self.get_aligned_length()
+        return self.end_adjust
+
     def __str__(self):
-        return "Contig:%s\tOrientation:%s\tStart-End:%d-%d\tLength:%s\tFirstmx:%s\tLastmx:%s" \
+        return "Contig:%s\tOrientation:%s\tStart-End:%d-%d\tLength:%s\tFirstmx:%s\tLastmx:%s\tAdjusted_start-end:%d-%d" \
                % (self.contig, self.ori, self.start, self.end, self.contig_size,
-                  self.first_mx, self.terminal_mx)
+                  self.first_mx, self.terminal_mx, self.start_adjust, self.end_adjust)
 
 class OverlapRegion:
     "Overlapping regions in a contig to fix"

@@ -19,6 +19,8 @@ import pybedtools
 import pymannkendall as mk
 from read_fasta import read_fasta
 import ntjoin_utils
+import btllib
+import ntjoin_overlap
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 
@@ -250,7 +252,7 @@ class Ntjoin:
         gap_size = max(mean_dist - a - b, self.args.g)
         if self.args.G > 0:
             gap_size = min(gap_size, self.args.G)
-            
+
         return gap_size, mean_dist - a - b
 
     @staticmethod
@@ -716,6 +718,39 @@ class Ntjoin:
         return new_path
 
     @staticmethod
+    def adjust_for_trimming(fasta_filename, path):
+        "Go through path, trim the segments if overlapping"
+        ct = 0
+        mx_info = defaultdict(dict) # path_index -> mx -> pos
+        mxs = {} # path_index -> [mx]
+        with btllib.Indexlr(fasta_filename, 15, 10, btllib.IndexlrFlag.LONG_MODE, 1) as minimizers: # !! TODO: fix magic numbers
+            for mx_entry in minimizers:
+                mxs[ct] = []
+                dup_mxs = set()  # Set of minimizers identified as duplicates
+                for mx_pos_strand in mx_entry.minimizers:
+                    mx, pos = str(mx_pos_strand.out_hash), mx_pos_strand.pos
+                    if not ntjoin_overlap.is_in_valid_region(pos, ct, path):
+                        continue
+                    if ct in mx_info and mx in mx_info[ct]:  # This is a duplicate
+                        dup_mxs.add(mx)
+                    else:
+                        mx_info[ct][mx] = (ct, int(pos))
+                        mxs[ct].append(mx)
+                print(mxs)
+                mx_info[ct] = {mx: mx_info[ct][mx] for mx in mx_info[ct] if mx not in dup_mxs}
+                mxs[ct] = [[mx for mx in mxs[ct] if mx not in dup_mxs and mx in mx_info[ct]]]
+                ct += 1
+
+
+        for i in range(0, len(path) - 1):
+            print(i)
+            source = path[i]
+            if source.raw_gap_size < 0:
+                ntjoin_overlap.merge_overlapping(mxs, mx_info, i, i+1, path)
+
+
+
+    @staticmethod
     def update_graph_tally(path, vertices, edges):
         "Update graph vertices/edges with given path"
         for s, t in zip(path, path[1:]):
@@ -745,6 +780,13 @@ class Ntjoin:
         outfile.write("}\n")
         outfile.close()
 
+    def get_adjusted_sequence(self, sequence, node):
+        "Return sequence adjusted for overlap trimming"
+        if node.gap_size > 0:
+            return sequence[node.start_adjust:node.get_end_adjust()] + self.args.g*"N"
+        return sequence[node.start_adjust:node.get_end_adjust()]
+
+
     def print_scaffolds(self, paths, intersecting_regions):
         "Given the paths, print out the scaffolds fasta"
         print(datetime.datetime.today(), ": Printing output scaffolds", file=sys.stdout)
@@ -766,7 +808,10 @@ class Ntjoin:
         ct = 0
         pathfile.write(assembly_fa + "\n")
         for path in paths:
+            path_segments_file = open(self.args.p + ".segments.fa", 'w')
+
             sequences = []
+            nodes = []
             path_segments = []
 
             path = self.merge_relocations(path)
@@ -781,8 +826,20 @@ class Ntjoin:
                 sequences.append(self.get_fasta_segment(node, Ntjoin.scaffolds[node.contig].sequence))
                 path_segments.append(ntjoin_utils.Bed(contig=node.contig, start=node.start,
                                          end=node.end))
+                nodes.append(node)
             if len(sequences) < 2:
                 continue
+            for seq, path_seg, node in zip(sequences, path_segments, nodes): # !! TODO: limit to overlapping section?
+                path_segments_file.write(">{}_{}-{} {}\n{}\n".format(node.contig, node.start, node.end, node.raw_gap_size, seq.strip()))
+            path_segments_file.close()
+
+            if self.args.overlap:
+                self.adjust_for_trimming(self.args.p + ".segments.fa", nodes)
+                for node in nodes:
+                    print(node)
+                sequences = [self.get_adjusted_sequence(sequence, nodes[i]) #Don't get rid of gaps?
+                             for i, sequence in enumerate(sequences)]
+
             ctg_id = "ntJoin" + str(ct)
             ctg_sequence = self.join_sequences(sequences, path, path_segments)
 
