@@ -45,7 +45,7 @@ jobs:
 
 - job: macOS_default_clang
   pool:
-    vmImage: macOS-10.14
+    vmImage: macOS-latest
   steps:
   - script: make -C src all
     displayName: Compile C++ executables with clang
