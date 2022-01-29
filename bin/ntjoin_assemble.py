@@ -779,7 +779,7 @@ class Ntjoin:
 
     def get_adjusted_sequence(self, sequence, node):
         "Return sequence adjusted for overlap trimming"
-        return_sequence = sequence[node.start_adjust:node.get_end_adjust()]
+        return_sequence = sequence[node.start_adjust:node.get_end_adjusted_coordinate()]
         if node.gap_size > 0:
             return return_sequence + self.args.overlap_gap*"N"
         return return_sequence
@@ -848,7 +848,8 @@ class Ntjoin:
                           (ctg_id, ctg_sequence))
             incorporated_segments.extend(path_segments)
             path_str = " ".join(["%s%s:%d-%d %dN" %
-                                 (node.contig, node.ori, node.start, node.end, node.gap_size) for node in path])
+                                 (node.contig, node.ori, node.get_adjusted_start(), node.get_adjusted_end(),
+                                  node.gap_size) for node in path])
             path_str = re.sub(r'\s+\d+N$', r'', path_str)
             pathfile.write("%s\t%s\n" % (ctg_id, path_str))
             if self.args.agp:
@@ -858,7 +859,10 @@ class Ntjoin:
             ct += 1
         outfile.close()
 
-        outfile = self.print_unassigned(agpfile, assembly, assembly_fa, incorporated_segments, outfile, params)
+        if self.args.agp:
+            outfile = self.print_unassigned(assembly, assembly_fa, incorporated_segments, outfile, params, agpfile=agpfile)
+        else:
+            outfile = self.print_unassigned(assembly, assembly_fa, incorporated_segments, outfile, params)
 
         if self.args.overlap:
             self.print_scaffold_graph(vertices, edges)
@@ -868,7 +872,7 @@ class Ntjoin:
         if self.args.agp:
             agpfile.close()
 
-    def print_unassigned(self, agpfile, assembly, assembly_fa, incorporated_segments, outfile, params):
+    def print_unassigned(self, assembly, assembly_fa, incorporated_segments, outfile, params, agpfile=None):
         "Also print out the sequences that were NOT scaffolded"
         incorporated_segments_str = "\n".join(["%s\t%s\t%s" % (chrom, s, e)
                                                for chrom, s, e in incorporated_segments])

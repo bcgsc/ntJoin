@@ -32,11 +32,9 @@ class HiddenPrints:
 # Helper functions
 def filter_minimizers(list_mxs):
     "Filters out minimizers that are not found in all assemblies"
-    print(list_mxs)
     print(datetime.datetime.today(), ": Filtering minimizers", file=sys.stdout)
     list_mx_sets = [{mx for mx_list in list_mxs[assembly] for mx in mx_list}
                     for assembly in list_mxs]
-    print(list_mxs)
     mx_intersection = set.intersection(*list_mx_sets)
 
     return_mxs = {}
@@ -77,17 +75,40 @@ class PathNode:
         "Get the aligned length based on start/end coordinates"
         return self.end - self.start
 
-    def get_end_adjust(self):
+    def get_end_adjusted_coordinate(self):
         "Return the adjusted end coordinate"
         if self.end_adjust == 0:
             return self.get_aligned_length()
         return self.end_adjust
+
+    def get_adjusted_start(self):
+        "Return the start coordinate of segment, adjusted for any trimming"
+        if self.ori == "+":
+            return self.start + self.start_adjust
+        elif self.ori == "-":
+            return self.start + (self.get_aligned_length() - self.get_end_adjusted_coordinate())
+        else:
+            raise OrientationError()
+
+    def get_adjusted_end(self):
+        "Return the end coordinate of the segment, adjusted for any trimming"
+        if self.ori == "+":
+            return self.end - (self.get_aligned_length() - self.get_end_adjusted_coordinate())
+        elif self.ori == "-":
+            return self.end - self.start_adjust
+        else:
+            raise OrientationError()
 
     def __str__(self):
         return "Contig:%s\tOrientation:%s\tStart-End:%d-%d\tLength:%s\tFirstmx:%s\tLastmx:%s\t" \
                "Adjusted_start-end:%d-%d" \
                % (self.contig, self.ori, self.start, self.end, self.contig_size,
                   self.first_mx, self.terminal_mx, self.start_adjust, self.end_adjust)
+
+class OrientationError(ValueError):
+    def __init__(self):
+        self.message = "Orientation must be + or -"
+        super().__init__(self.message)
 
 class OverlapRegion:
     "Overlapping regions in a contig to fix"
