@@ -37,6 +37,10 @@ jobs:
   - script: make -C src check
     displayName: Test C++ executables
   - script: |
+      cd src/btllib
+      ./compile-wrappers
+    displayName: Compile btllib wrappers
+  - script: |
       source activate ntjoin_CI
       conda install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda pytest bedtools samtools
       cd tests
