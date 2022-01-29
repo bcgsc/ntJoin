@@ -66,6 +66,13 @@ def run_ntjoin_config_extra(config_file, target, prefix, window=1000, n=2):
     return_paths = launch_ntjoin(cmd, prefix)
     return return_paths
 
+def run_ntjoin_overlap(ref1, target, prefix, window=1000, n=2):
+    "Run ntJoin with a pair of files"
+    cmd = "../ntJoin assemble -B target={target} target_weight=1 references=\'{ref}\' reference_weights=\'2\' " \
+          "prefix={prefix} k=32 w={w} n={n} overlap=True".format(target=target, ref=ref1, prefix=prefix, w=window, n=n)
+    return_paths = launch_ntjoin(cmd, prefix)
+    return return_paths
+
 # Following 4 tests to check for the expected PATHs given 2 pieces that should be merged
 #     together based on the reference in different orientations
 #     - Pieces are the reference piece split, with ~20bp in between
@@ -169,7 +176,7 @@ def test_regions_3_config_extra():
     assert paths.pop() == "ntJoin0\t1_f+:0-1981 20N 2_f+:0-2329"
 
 # Testing AGP output
-def test_mx_r_f():
+def test_mx_r_f_agp():
     "Testing ntJoin with assembly + reference, rev-fwd orientation - AGP output"
     agp = run_ntjoin_agp("ref.fa", "scaf.r-f.fa", "r-f_test")
     assert len(agp) == 3
@@ -178,7 +185,7 @@ def test_mx_r_f():
     assert agp[2].strip() == "ntJoin0\t2002\t4330\t3\tW\t2_f\t1\t2329\t+"
 
 # Testing AGP output
-def test_mx_f_f():
+def test_mx_f_f_agp():
     "Testing ntJoin with assembly + reference, fwd-fwd orientation, with terminal gaps - AGP output + unassigned"
     agp = run_ntjoin_agp("ref.fa", "scaf.f-f.termN.unassigned.fa", "f-f_test")
     assert len(agp) == 4
@@ -186,3 +193,19 @@ def test_mx_f_f():
     assert agp[1].strip() == "ntJoin0\t1982\t2001\t2\tN\t20\tscaffold\tyes\talign_genus"
     assert agp[2].strip() == "ntJoin0\t2002\t4330\t3\tW\t2_f\t1\t2329\t+"
     assert agp[3].strip() == "unassigned:0-14\t1\t8\t1\tW\tunassigned\t3\t10\t+"
+
+# Testing overlap code
+def test_mx_f_f_overlap():
+    "Testing ntJoin with assembly + reference, fwd-fwd orientation, overlap code on"
+    paths = run_ntjoin_overlap("ref.fa", "scaf.f-f.overlapping.fa", "f-f_test_overlap")
+    assert paths.pop() == "ntJoin0\t1+:0-2037 20N 2+:38-2331"
+
+def test_mx_f_r_overlap():
+    "Testing ntJoin with assembly + reference, fwd-rev orientation, overlap code on"
+    paths = run_ntjoin_overlap("ref.fa", "scaf.f-r.overlapping.fa", "f-r_test_overlap")
+    assert paths.pop() == "ntJoin0\t1+:0-2037 20N 2-:0-2293"
+
+def test_mx_r_r_overlap():
+    "Testing ntJoin with assembly + reference, rev-rev orientation, overlap code on"
+    paths = run_ntjoin_overlap("ref.fa", "scaf.r-r.overlapping.fa", "f-r_test_overlap")
+    assert paths.pop() == "ntJoin0\t1-:62-2099 20N 2-:0-2293"
