@@ -217,7 +217,7 @@ ifeq ($(overlap), True)
 endif
 	
 $(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa: $(target).k$(k).w$(w).tsv $(min_ref_targets)
-	$(log_time) PYTHONPATH=$(PYTHONPATH) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	PYTHONPATH=$(PYTHONPATH) $(log_time)  $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
 	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) $(ntjoin_assembly_opts) $(min_ref_targets)
 
 $(target).k$(k).w$(w).n$(n).unassigned.scaffolds.fa: $(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa
