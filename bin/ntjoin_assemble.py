@@ -841,6 +841,11 @@ class Ntjoin:
                 return_code = subprocess.call(cmd)
                 assert return_code == 0
 
+            ## For debugging
+            # !! TODO remove
+            for path, seq in zip(sequences, path_segments):
+                print(">{}_{}-{}\n{}".format(path.contig, path.start, path.end, seq), file=sys.stderr)
+
             ctg_id = "ntJoin" + str(ct)
             ctg_sequence = self.join_sequences(sequences, path, path_segments)
 
