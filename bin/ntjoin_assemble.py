@@ -843,8 +843,8 @@ class Ntjoin:
 
             ## For debugging
             # !! TODO remove
-            for seq, path in zip(sequences, path_segments):
-                print(">{}_{}-{}\n{}".format(path.contig, path.start, path.end, seq), file=sys.stderr)
+            for seq, my_path in zip(sequences, path_segments):
+                print(">{}_{}-{}\n{}".format(my_path.contig, my_path.start, my_path.end, seq), file=sys.stderr)
 
             ctg_id = "ntJoin" + str(ct)
             ctg_sequence = self.join_sequences(sequences, path, path_segments)
