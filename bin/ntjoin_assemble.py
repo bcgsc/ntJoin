@@ -781,7 +781,11 @@ class Ntjoin:
         "Return sequence adjusted for overlap trimming"
         return_sequence = sequence[node.start_adjust:node.get_end_adjusted_coordinate()]
         if node.gap_size > 0:
-            return return_sequence + self.args.overlap_gap*"N"
+            if node.get_end_adjusted_coordinate() == node.get_aligned_length():
+                # no trimming was done on the end, keep calculated gap size
+                return return_sequence + "N"*node.gap_size
+            else:
+                return return_sequence + self.args.overlap_gap*"N"
         return return_sequence
 
 
