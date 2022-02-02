@@ -1,9 +1,16 @@
 CXXFLAGS=-O3 -Wall -Wextra -Werror -Wno-unknown-pragmas -std=c++11 -pthread -Ibtllib/include
 
-all: indexlr
+all: indexlr \
+	btllib_compile
 
 clean:
-	rm -f indexlr
+	rm -f indexlr btllib/python/*
+
+# Compile btllib wrappers
+btllib_compile: btllib/python/btllib.py
+
+btllib/python/btllib.py:
+	cd btllib && ./compile-wrappers
 
 # Check the C++ source code for errors.
 lint: clang-format clang-tidy
