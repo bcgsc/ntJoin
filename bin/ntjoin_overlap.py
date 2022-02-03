@@ -89,6 +89,23 @@ def is_in_valid_region(pos, index, nodes):
         return True
     return False
 
+def get_valid_regions(nodes):
+    "Given a list of nodes, find coordinates for overlaps for each node"
+    return_coords = []
+    for i in range(0, len(nodes)):
+        if i > 0 and nodes[i-1].raw_gap_size < 0:
+            l_coord = nodes[i-1].raw_gap_size*-1 + 15 # !! TODO magic number
+        else:
+            l_coord = 0
+
+        if nodes[i].raw_gap_size < 0:
+            r_coord = nodes[i].get_aligned_length() - nodes[i].raw_gap_size*-1 - 15
+        else:
+            r_coord = nodes[i].get_aligned_length()
+        return_coords.append((l_coord, r_coord))
+    return return_coords
+
+
 def is_in_valid_end(pos, index, nodes, source=True):
     "Return true if the mx is in a valid end"
     if source:

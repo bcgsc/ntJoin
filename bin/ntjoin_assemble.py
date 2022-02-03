@@ -832,9 +832,14 @@ class Ntjoin:
 
             if self.args.overlap:
                 path_segments_file = open(self.args.p + ".segments.fa", 'w')
-                for seq, node in zip(sequences, nodes):  # !! TODO: limit to overlapping section?
+                out_coords = ntjoin_overlap.get_valid_regions(nodes)
+                for seq, node, out_coords in zip(sequences, nodes, out_coords):  # !! TODO: limit to overlapping section?
+                    my_seq = seq.strip("Nn")
+                    my_seq = my_seq[:out_coords[0]] + "N"*(out_coords[1] - out_coords[0]) + my_seq[out_coords[1]:]
+                    assert len(my_seq) == node.get_aligned_length()
                     path_segments_file.write(">{}_{}-{} {}\n{}\n".format(node.contig, node.start,
-                                                                         node.end, node.raw_gap_size, seq.strip()))
+                                                                         node.end, node.raw_gap_size,
+                                                                         my_seq))
                 path_segments_file.close()
 
             if self.args.overlap:
