@@ -102,6 +102,8 @@ def get_valid_regions(nodes):
             r_coord = nodes[i].get_aligned_length() - nodes[i].raw_gap_size*-1 - 15
         else:
             r_coord = nodes[i].get_aligned_length()
+        if l_coord > r_coord:
+            r_coord = l_coord
         return_coords.append((l_coord, r_coord))
     return return_coords
 
