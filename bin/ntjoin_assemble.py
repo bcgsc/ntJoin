@@ -214,7 +214,7 @@ class Ntjoin:
 
         # Don't attempt gap estimation when don't know orientation
         if u.ori == "?" or v.ori == "?":
-            return 0
+            return 0, 0
 
         # Find the assemblies that have a path between these mx
         # Are situations where there is not a direct edge if an unoriented contig was in-between
@@ -223,7 +223,7 @@ class Ntjoin:
             *map(set, [graph.es()[self.edge_index(graph, s, t)]['support']
                        for s, t in zip(path, path[1:])]))
         if not supporting_assemblies:
-            return self.args.g
+            return self.args.g, self.args.g
 
         distances = [abs(Ntjoin.list_mx_info[assembly][v_mx][1] - Ntjoin.list_mx_info[assembly][u_mx][1])
                      for assembly in supporting_assemblies]
