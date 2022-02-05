@@ -11,6 +11,13 @@ import ntjoin_assemble
 MappedPathInfo = namedtuple("MappedPathInfo",
                             ["mapped_region_length", "mid_mx", "median_length_from_end"])
 
+def merge_overlapping_path(path, mxs, mx_info):
+    "Merge overlapping contigs for a given path"
+    for i in range(0, len(path) - 1):
+        source = path[i]
+        if source.raw_gap_size < 0:
+            merge_overlapping(mxs, mx_info, i, i + 1, path)
+
 def merge_overlapping(list_mxs, list_mx_info, source, target, nodes):
     "Find the cut points for overlapping adjacent contigs"
 

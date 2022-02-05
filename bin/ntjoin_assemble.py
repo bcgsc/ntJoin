@@ -717,35 +717,40 @@ class Ntjoin:
 
         return new_path
 
-    def adjust_for_trimming(self, fasta_filename, path):
+    def adjust_for_trimming(self, fasta_filename, paths):
         "Go through path, trim the segments if overlapping"
         ct = 0
         mx_info = defaultdict(dict)  # path_index -> mx -> pos
         mxs = {}  # path_index -> [mx]
+        cur_path_index = 0
+        cur_valid_segments = set(["{}_{}_{}".format(node.contig, node.start, node.end) for node in paths[cur_path_index]])
         with btllib.Indexlr(fasta_filename, self.args.overlap_k, self.args.overlap_w,
                             btllib.IndexlrFlag.LONG_MODE, self.args.overlap_t) as minimizers:
             for mx_entry in minimizers:
-                mxs[ct] = []
-                dup_mxs = set()  # Set of minimizers identified as duplicates
-                for mx_pos_strand in mx_entry.minimizers:
-                    mx, pos = str(mx_pos_strand.out_hash), mx_pos_strand.pos
-                    if not ntjoin_overlap.is_in_valid_region(pos, ct, path):
-                        continue
-                    if ct in mx_info and mx in mx_info[ct]:  # This is a duplicate
-                        dup_mxs.add(mx)
-                    else:
-                        mx_info[ct][mx] = int(pos)
-                        mxs[ct].append(mx)
-                mx_info[ct] = {mx: mx_info[ct][mx] for mx in mx_info[ct] if mx not in dup_mxs}
-                mxs[ct] = [[mx for mx in mxs[ct] if mx not in dup_mxs and mx in mx_info[ct]]]
-                ct += 1
-
-        for i in range(0, len(path) - 1):
-            source = path[i]
-            if source.raw_gap_size < 0:
-                ntjoin_overlap.merge_overlapping(mxs, mx_info, i, i+1, path)
-
-
+                if mx_entry.id in cur_valid_segments:
+                    mxs[ct] = []
+                    dup_mxs = set()  # Set of minimizers identified as duplicates
+                    for mx_pos_strand in mx_entry.minimizers:
+                        mx, pos = str(mx_pos_strand.out_hash), mx_pos_strand.pos
+                        if not ntjoin_overlap.is_in_valid_region(pos, ct, paths[cur_path_index]):
+                            continue
+                        if ct in mx_info and mx in mx_info[ct]:  # This is a duplicate
+                            dup_mxs.add(mx)
+                        else:
+                            mx_info[ct][mx] = int(pos)
+                            mxs[ct].append(mx)
+                    mx_info[ct] = {mx: mx_info[ct][mx] for mx in mx_info[ct] if mx not in dup_mxs}
+                    mxs[ct] = [[mx for mx in mxs[ct] if mx not in dup_mxs and mx in mx_info[ct]]]
+                    ct += 1
+                else:
+                    ntjoin_overlap.merge_overlapping_path(paths[cur_path_index], mxs, mx_info)
+                    ct = 0
+                    mx_info = defaultdict(dict)  # path_index -> mx -> pos
+                    mxs = {}  # path_index -> [mx]
+                    cur_path_index += 1
+                    cur_valid_segments = set(["{}_{}_{}".format(node.contig, node.start, node.end) for node in paths[cur_path_index]])
+        # Don't miss last path
+        ntjoin_overlap.merge_overlapping_path(paths[cur_path_index], mxs, mx_info)
 
     @staticmethod
     def update_graph_tally(path, vertices, edges):
@@ -809,16 +814,41 @@ class Ntjoin:
 
         ct = 0
         pathfile.write(assembly_fa + "\n")
+
+        # Deal with merging relocations
+        for path in paths:
+            path = self.merge_relocations(path)
+            path = self.remove_overlapping_regions(path, intersecting_regions)
+            self.check_terminal_node_gap_zero(path)
+
+        if self.args.overlap:
+            path_segments_file = open(self.args.p + ".segments.fa", 'w')
+            for path in paths:
+                sequences = []
+                nodes = []
+                for node in path:
+                    if node.ori == "?":
+                        continue
+                    sequences.append(self.get_fasta_segment(node, Ntjoin.scaffolds[node.contig].sequence))
+                    nodes.append(node)
+                if len(sequences) < 2:
+                    continue
+                out_coords = ntjoin_overlap.get_valid_regions(nodes, self.args.overlap_k, self.args.overlap_w)
+                for seq, node, out_coords in zip(sequences, nodes, out_coords):  # !! TODO: limit to overlapping section?
+                    my_seq = seq.strip("Nn")
+                    my_seq = my_seq[:out_coords[0]] + "N"*(out_coords[1] - out_coords[0]) + my_seq[out_coords[1]:]
+                    assert len(my_seq) == node.get_aligned_length()
+                    path_segments_file.write(">{}_{}_{} {}\n{}\n".format(node.contig, node.start,
+                                                                         node.end, node.raw_gap_size,
+                                                                         my_seq))
+            path_segments_file.close()
+
+            self.adjust_for_trimming(self.args.p + ".segments.fa", paths)
+
+
         for path in paths:
             sequences = []
-            nodes = []
             path_segments = []
-
-            path = self.merge_relocations(path)
-
-            path = self.remove_overlapping_regions(path, intersecting_regions)
-
-            self.check_terminal_node_gap_zero(path)
 
             for node in path:
                 if node.ori == "?":
@@ -826,29 +856,12 @@ class Ntjoin:
                 sequences.append(self.get_fasta_segment(node, Ntjoin.scaffolds[node.contig].sequence))
                 path_segments.append(ntjoin_utils.Bed(contig=node.contig, start=node.start,
                                                       end=node.end))
-                nodes.append(node)
             if len(sequences) < 2:
                 continue
 
             if self.args.overlap:
-                path_segments_file = open(self.args.p + ".segments.fa", 'w')
-                out_coords = ntjoin_overlap.get_valid_regions(nodes, self.args.overlap_k, self.args.overlap_w)
-                for seq, node, out_coords in zip(sequences, nodes, out_coords):  # !! TODO: limit to overlapping section?
-                    my_seq = seq.strip("Nn")
-                    my_seq = my_seq[:out_coords[0]] + "N"*(out_coords[1] - out_coords[0]) + my_seq[out_coords[1]:]
-                    assert len(my_seq) == node.get_aligned_length()
-                    path_segments_file.write(">{}_{}-{} {}\n{}\n".format(node.contig, node.start,
-                                                                         node.end, node.raw_gap_size,
-                                                                         my_seq))
-                path_segments_file.close()
-
-            if self.args.overlap:
-                self.adjust_for_trimming(self.args.p + ".segments.fa", nodes)
                 sequences = [self.get_adjusted_sequence(sequence, nodes[i])
                              for i, sequence in enumerate(sequences)]
-                cmd = shlex.split("rm {}".format(self.args.p + ".segments.fa"))
-                return_code = subprocess.call(cmd)
-                assert return_code == 0
 
             ctg_id = "ntJoin" + str(ct)
             ctg_sequence = self.join_sequences(sequences, path, path_segments)

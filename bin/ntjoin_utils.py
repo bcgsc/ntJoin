@@ -62,6 +62,11 @@ class PathNode:
         self.raw_gap_size = raw_gap_size
         self.start_adjust = 0
         self.end_adjust = 0  # Adjust for trimming
+        self.path_id = 0 #
+
+    def set_path_id(self, path_id):
+        "Associate node with path ID"
+        self.path_id = path_id
 
     def set_gap_size(self, gap_size):
         "Set the gap size of the path node"
