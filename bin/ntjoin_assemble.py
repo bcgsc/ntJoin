@@ -730,6 +730,7 @@ class Ntjoin:
                 print(mx_entry.id)
                 if mx_entry.id in cur_valid_segments:
                     self.tally_minimizers_overlap(ct, cur_path_index, mx_entry, mx_info, mxs, paths)
+                    ct += 1
                 else:
                     assert len(mx_info.keys()) == len(paths[cur_path_index])
                     ntjoin_overlap.merge_overlapping_path(paths[cur_path_index], mxs, mx_info)
@@ -738,7 +739,10 @@ class Ntjoin:
                     mxs = {}  # path_index -> [mx]
                     cur_path_index += 1
                     cur_valid_segments = set(["{}_{}_{}".format(node.contig, node.start, node.end) for node in paths[cur_path_index]])
-                    self.tally_minimizers_overlap(ct, cur_path_index, mx_entry, mx_info, mxs, paths)
+
+                    if mx_entry.id in cur_valid_segments:
+                        self.tally_minimizers_overlap(ct, cur_path_index, mx_entry, mx_info, mxs, paths)
+                        ct += 1
         # Don't miss last path
         ntjoin_overlap.merge_overlapping_path(paths[cur_path_index], mxs, mx_info)
 
@@ -757,7 +761,6 @@ class Ntjoin:
                 mxs[ct].append(mx)
         mx_info[ct] = {mx: mx_info[ct][mx] for mx in mx_info[ct] if mx not in dup_mxs}
         mxs[ct] = [[mx for mx in mxs[ct] if mx not in dup_mxs and mx in mx_info[ct]]]
-        ct += 1
 
     @staticmethod
     def update_graph_tally(path, vertices, edges):
