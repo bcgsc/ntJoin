@@ -823,6 +823,7 @@ class Ntjoin:
 
         if self.args.overlap:
             path_segments_file = open(self.args.p + ".segments.fa", 'w')
+            filtered_paths = []
             for path in paths:
                 sequences = []
                 nodes = []
@@ -841,9 +842,10 @@ class Ntjoin:
                     path_segments_file.write(">{}_{}_{} {}\n{}\n".format(node.contig, node.start,
                                                                          node.end, node.raw_gap_size,
                                                                          my_seq))
+                filtered_paths.append(nodes)
             path_segments_file.close()
 
-            self.adjust_for_trimming(self.args.p + ".segments.fa", paths)
+            self.adjust_for_trimming(self.args.p + ".segments.fa", filtered_paths)
 
 
         for path in paths:
