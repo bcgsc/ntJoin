@@ -727,30 +727,37 @@ class Ntjoin:
         with btllib.Indexlr(fasta_filename, self.args.overlap_k, self.args.overlap_w,
                             btllib.IndexlrFlag.LONG_MODE, self.args.overlap_t) as minimizers:
             for mx_entry in minimizers:
+                print(mx_entry.id)
                 if mx_entry.id in cur_valid_segments:
-                    mxs[ct] = []
-                    dup_mxs = set()  # Set of minimizers identified as duplicates
-                    for mx_pos_strand in mx_entry.minimizers:
-                        mx, pos = str(mx_pos_strand.out_hash), mx_pos_strand.pos
-                        if not ntjoin_overlap.is_in_valid_region(pos, ct, paths[cur_path_index]):
-                            continue
-                        if ct in mx_info and mx in mx_info[ct]:  # This is a duplicate
-                            dup_mxs.add(mx)
-                        else:
-                            mx_info[ct][mx] = int(pos)
-                            mxs[ct].append(mx)
-                    mx_info[ct] = {mx: mx_info[ct][mx] for mx in mx_info[ct] if mx not in dup_mxs}
-                    mxs[ct] = [[mx for mx in mxs[ct] if mx not in dup_mxs and mx in mx_info[ct]]]
-                    ct += 1
+                    self.tally_minimizers_overlap(ct, cur_path_index, mx_entry, mx_info, mxs, paths)
                 else:
+                    assert len(mx_info.keys()) == len(paths[cur_path_index])
                     ntjoin_overlap.merge_overlapping_path(paths[cur_path_index], mxs, mx_info)
                     ct = 0
                     mx_info = defaultdict(dict)  # path_index -> mx -> pos
                     mxs = {}  # path_index -> [mx]
                     cur_path_index += 1
                     cur_valid_segments = set(["{}_{}_{}".format(node.contig, node.start, node.end) for node in paths[cur_path_index]])
+                    self.tally_minimizers_overlap(ct, cur_path_index, mx_entry, mx_info, mxs, paths)
         # Don't miss last path
         ntjoin_overlap.merge_overlapping_path(paths[cur_path_index], mxs, mx_info)
+
+    def tally_minimizers_overlap(self, ct, cur_path_index, mx_entry, mx_info, mxs, paths):
+        "Tally minimizer info for the given path"
+        mxs[ct] = []
+        dup_mxs = set()  # Set of minimizers identified as duplicates
+        for mx_pos_strand in mx_entry.minimizers:
+            mx, pos = str(mx_pos_strand.out_hash), mx_pos_strand.pos
+            if not ntjoin_overlap.is_in_valid_region(pos, ct, paths[cur_path_index]):
+                continue
+            if ct in mx_info and mx in mx_info[ct]:  # This is a duplicate
+                dup_mxs.add(mx)
+            else:
+                mx_info[ct][mx] = int(pos)
+                mxs[ct].append(mx)
+        mx_info[ct] = {mx: mx_info[ct][mx] for mx in mx_info[ct] if mx not in dup_mxs}
+        mxs[ct] = [[mx for mx in mxs[ct] if mx not in dup_mxs and mx in mx_info[ct]]]
+        ct += 1
 
     @staticmethod
     def update_graph_tally(path, vertices, edges):
