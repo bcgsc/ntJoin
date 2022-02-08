@@ -556,7 +556,7 @@ class Ntjoin:
         scaffolds = {}
         try:
             with btllib.SeqReader(filename, btllib.SeqReaderFlag.LONG_MODE,
-                                  self.args.overlap_t) as fin: #!! TODO change
+                                  self.args.btllib_t) as fin: #!! TODO change
                 for rec in fin:
                     scaffolds[rec.id] = ntjoin_utils.Scaffold(id=rec.id, length=len(rec.seq), sequence=rec.seq)
         except FileNotFoundError:
@@ -726,7 +726,7 @@ class Ntjoin:
         cur_valid_segments = {"{}_{}_{}".format(node.contig, node.start, node.end)
                                   for node in paths[cur_path_index]}
         with btllib.Indexlr(fasta_filename, self.args.overlap_k, self.args.overlap_w,
-                            btllib.IndexlrFlag.LONG_MODE, self.args.overlap_t) as minimizers:
+                            btllib.IndexlrFlag.LONG_MODE, self.args.btllib_t) as minimizers:
             for mx_entry in minimizers:
                 if mx_entry.id in cur_valid_segments:
                     self.tally_minimizers_overlap(ct, cur_path_index, mx_entry, mx_info, mxs, paths)
@@ -994,7 +994,8 @@ class Ntjoin:
                             type=int, default=15)
         parser.add_argument("--overlap_w", help="Window size used for overlap minimizer step",
                             type=int, default=10)
-        parser.add_argument("--overlap_t", help="Number of threads for computing overlap minimizers",
+        parser.add_argument("--btllib_t", help="Number of threads for btllib wrapper functions "
+                                               "(computing minimizers, reading fasta file)",
                             type=int, default=4)
         return parser.parse_args()
 
@@ -1024,7 +1025,7 @@ class Ntjoin:
             print("\t--overlap_gap", self.args.overlap_gap)
             print("\t--overlap_k", self.args.overlap_k)
             print("\t--overlap_w", self.args.overlap_w)
-            print("\t--overlap_t", self.args.overlap_t)
+            print("\t--btllib_t", self.args.btllib_t)
 
     def main(self):
         "Run ntJoin graph stage"

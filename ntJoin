@@ -212,7 +212,7 @@ ifeq ($(agp), True)
     ntjoin_assembly_opts += --agp
 endif
 ifeq ($(overlap), True)
-    ntjoin_assembly_opts += --overlap --overlap_gap $(overlap_g) --overlap_t $(t)
+    ntjoin_assembly_opts += --overlap --overlap_gap $(overlap_g) --btllib_t $(t)
     ntjoin_assembly_opts += --overlap_k $(overlap_k) --overlap_w $(overlap_w)
 endif
 	
