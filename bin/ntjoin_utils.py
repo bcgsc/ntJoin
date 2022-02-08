@@ -90,19 +90,17 @@ class PathNode:
         "Return the start coordinate of segment, adjusted for any trimming"
         if self.ori == "+":
             return self.start + self.start_adjust
-        elif self.ori == "-":
+        if self.ori == "-":
             return self.start + (self.get_aligned_length() - self.get_end_adjusted_coordinate())
-        else:
-            raise OrientationError()
+        raise OrientationError()
 
     def get_adjusted_end(self):
         "Return the end coordinate of the segment, adjusted for any trimming"
         if self.ori == "+":
             return self.end - (self.get_aligned_length() - self.get_end_adjusted_coordinate())
-        elif self.ori == "-":
+        if self.ori == "-":
             return self.end - self.start_adjust
-        else:
-            raise OrientationError()
+        raise OrientationError()
 
     def __str__(self):
         return "Contig:%s\tOrientation:%s\tStart-End:%d-%d\tLength:%s\tFirstmx:%s\tLastmx:%s\t" \
@@ -111,6 +109,7 @@ class PathNode:
                   self.first_mx, self.terminal_mx, self.start_adjust, self.end_adjust)
 
 class OrientationError(ValueError):
+    "Orientation type error"
     def __init__(self):
         self.message = "Orientation must be + or -"
         super().__init__(self.message)

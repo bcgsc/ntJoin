@@ -97,18 +97,18 @@ def is_in_valid_region(pos, index, nodes):
     return False
 
 def get_valid_regions(nodes, k, w):
-    "Given a list of nodes, find coordinates for overlaps for each node"
+    "Given a list of nodes, find coordinates for overlaps for each node to use for hard-masking"
     return_coords = []
-    for i in range(0, len(nodes)):
+    for i, node in enumerate(nodes):
         if i > 0 and nodes[i-1].raw_gap_size < 0:
             l_coord = nodes[i-1].raw_gap_size*-1 + k + w
         else:
             l_coord = 0
 
-        if nodes[i].raw_gap_size < 0:
-            r_coord = nodes[i].get_aligned_length() - nodes[i].raw_gap_size*-1 - k - w
+        if node.raw_gap_size < 0:
+            r_coord = node.get_aligned_length() - node.raw_gap_size*-1 - k - w
         else:
-            r_coord = nodes[i].get_aligned_length()
+            r_coord = node.get_aligned_length()
         if l_coord > r_coord:
             r_coord = l_coord
         return_coords.append((l_coord, r_coord))
