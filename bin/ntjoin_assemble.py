@@ -550,15 +550,15 @@ class Ntjoin:
         return new_paths
 
 
-    @staticmethod
-    def read_fasta_file(filename):
+    def read_fasta_file(self, filename):
         "Read a fasta file into memory. Returns dictionary of scafID -> Scaffold"
         print(datetime.datetime.today(), ": Reading fasta file", filename, file=sys.stdout)
         scaffolds = {}
         try:
-            with open(filename, 'r') as fasta:
-                for header, seq, _, _ in read_fasta(fasta):
-                    scaffolds[header] = ntjoin_utils.Scaffold(id=header, length=len(seq), sequence=seq)
+            with btllib.SeqReader(filename, btllib.SeqReaderFlag.LONG_MODE,
+                                  self.args.overlap_t) as fin: #!! TODO change
+                for rec in fin:
+                    scaffolds[rec.id] = ntjoin_utils.Scaffold(id=rec.id, length=len(rec.seq), sequence=rec.seq)
         except FileNotFoundError:
             print("ERROR: File", filename, "not found.")
             print("Minimizer TSV file must follow the naming convention:")
