@@ -205,6 +205,14 @@ def test_mx_f_r_overlap():
     paths = run_ntjoin_overlap("ref.fa", "scaf.f-r.overlapping.fa", "f-r_test_overlap")
     assert paths.pop() == "ntJoin0\t1+:0-2037 20N 2-:0-2293"
 
+def test_mx_f_r_overlap_agp():
+    "Testing ntJoin with assembly + reference, fwd-rev orientation, overlap code on, agp output"
+    agp = run_ntjoin_agp("ref.fa", "scaf.f-r.overlapping.fa", "f-r_test_overlap_agp")
+    assert len(agp) == 3
+    assert agp[0].strip() == "ntJoin0\t1\t2099\t1\tW\t1\t1\t2099\t+"
+    assert agp[1].strip() == "ntJoin0\t2100\t2119\t2\tN\t20\tscaffold\tyes\talign_genus"
+    assert agp[2].strip() == "ntJoin0\t2120\t4450\t3\tW\t2\t1\t2331\t-"
+
 def test_mx_r_r_overlap():
     "Testing ntJoin with assembly + reference, rev-rev orientation, overlap code on"
     paths = run_ntjoin_overlap("ref.fa", "scaf.r-r.overlapping.fa", "f-r_test_overlap")
