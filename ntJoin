@@ -34,6 +34,9 @@ w=1000
 # Kmer size
 k=32
 
+# Run overlap logic?
+overlap=True
+
 # Window size for overlap detection
 overlap_w=10
 
@@ -66,9 +69,6 @@ agp=False
 
 # The proportion of increasing/decreasing minimizer positions needed to orient a contig
 m=90
-
-# Run overlap logic?
-overlap=False
 
 # Reference genome (for analysis)
 ref=None
@@ -137,6 +137,7 @@ help:
 	@echo "mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive, overrides 'm') [False]"
 	@echo "agp			If True, output AGP file describing output scaffolds [False]"
 	@echo "no_cut		    	If True, will not cut contigs at putative misassemblies [False]"
+	@echo "overlap			If True, attempts to detect and trim overlaps between joined sequences [True]"
 	@echo "time		    	If True, will log the time for each step [False]"
 	@echo "reference_config	Config file with reference assemblies and reference weights as comma-separated values (See README for example)"
 	@echo "			 This is optional, and will override the 'references' and 'reference_weights' variables if specified"
