@@ -19,14 +19,14 @@ def launch_ntjoin(cmd, prefix):
 def run_ntjoin(ref1, target, prefix, window=1000, n=2):
     "Run ntJoin with a pair of files"
     cmd = "../ntJoin assemble -B target={target} target_weight=1 references=\'{ref}\' reference_weights=\'2\' " \
-          "prefix={prefix} k=32 w={w} n={n}".format(target=target, ref=ref1, prefix=prefix, w=window, n=n)
+          "prefix={prefix} k=32 w={w} n={n} overlap=False".format(target=target, ref=ref1, prefix=prefix, w=window, n=n)
     return_paths = launch_ntjoin(cmd, prefix)
     return return_paths
 
 def run_ntjoin_nocut(ref1, target, prefix, window=1000, n=2):
     "Run ntJoin with a pair of files"
     cmd = "../ntJoin assemble -B target={target} target_weight=1 references=\'{ref}\' reference_weights=\'2\' " \
-          "prefix={prefix} k=32 w={w} n={n} no_cut=True".format(target=target, ref=ref1, prefix=prefix, w=window, n=n)
+          "prefix={prefix} k=32 w={w} n={n} no_cut=True overlap=False".format(target=target, ref=ref1, prefix=prefix, w=window, n=n)
     return_paths = launch_ntjoin(cmd, prefix)
     return return_paths
 

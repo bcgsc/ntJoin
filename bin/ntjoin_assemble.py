@@ -556,7 +556,7 @@ class Ntjoin:
         scaffolds = {}
         try:
             with btllib.SeqReader(filename, btllib.SeqReaderFlag.LONG_MODE,
-                                  self.args.btllib_t) as fin: #!! TODO change
+                                  self.args.btllib_t) as fin:
                 for rec in fin:
                     scaffolds[rec.id] = ntjoin_utils.Scaffold(id=rec.id, length=len(rec.seq), sequence=rec.seq)
         except FileNotFoundError:
@@ -876,8 +876,9 @@ class Ntjoin:
         pathfile.close()
         if self.args.agp:
             agpfile.close()
-        cmd_shlex = shlex.split("rm {}".format(self.args.p + ".segments.fa"))
-        subprocess.call(cmd_shlex)
+        if self.args.overlap:
+            cmd_shlex = shlex.split("rm {}".format(self.args.p + ".segments.fa"))
+            subprocess.call(cmd_shlex)
 
     def print_unassigned(self, assembly, assembly_fa, incorporated_segments, outfile, params, agpfile=None):
         "Also print out the sequences that were NOT scaffolded"
@@ -986,16 +987,16 @@ class Ntjoin:
         parser.add_argument("--agp", help="Output AGP file describing scaffolds", action="store_true")
         parser.add_argument("--no_cut", help="Do not cut input contigs, place in most representative path",
                             action="store_true")
-        parser.add_argument("--overlap", help="Print scaffold graph form of paths, including putative overlaps",
+        parser.add_argument("--overlap", help="Attempt to detect and trim overlapping joined sequences",
                             action="store_true")
-        parser.add_argument("--overlap_gap", help="Length of gap introduced between overlapping, trimmed segments",
+        parser.add_argument("--overlap_gap", help="Length of gap introduced between overlapping, trimmed segments [20]",
                             type=int, default=20)
-        parser.add_argument("--overlap_k", help="Kmer size used for overlap minimizer step",
+        parser.add_argument("--overlap_k", help="Kmer size used for overlap minimizer step [15]",
                             type=int, default=15)
-        parser.add_argument("--overlap_w", help="Window size used for overlap minimizer step",
+        parser.add_argument("--overlap_w", help="Window size used for overlap minimizer step [10]",
                             type=int, default=10)
         parser.add_argument("--btllib_t", help="Number of threads for btllib wrapper functions "
-                                               "(computing minimizers, reading fasta file)",
+                                               "(computing minimizers, reading fasta file) [4]",
                             type=int, default=4)
         return parser.parse_args()
 
