@@ -67,6 +67,7 @@ m			Minimum percentage of increasing/decreasing minimizer positions to orient co
 mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive, overrides 'm') [False]
 agp			If True, output AGP file describing output scaffolds [False]
 no_cut			If True, will not cut contigs at putative misassemblies [False]
+overlap                 If True, attempts to detect and trim overlaps between joined sequences [True]
 time		    	If True, will log the time for each step [False]
 reference_config	Config file with reference assemblies and reference weights as comma-separated values (See README for example)
                 	 This is optional, and will override the 'references' and 'reference_weights' variables if specified

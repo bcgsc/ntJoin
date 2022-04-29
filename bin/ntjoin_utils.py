@@ -7,12 +7,27 @@ Written by Lauren Coombe (@lcoombe)
 import datetime
 from collections import namedtuple
 import sys
+import os
 
 
 # Defining namedtuples
 Bed = namedtuple("Bed", ["contig", "start", "end"])
 Agp = namedtuple("Unassigned_bed", ["new_id", "contig", "start", "end"])
 Scaffold = namedtuple("Scaffold", ["id", "length", "sequence"])
+EdgeGraph = namedtuple("EdgeGraph", ["source", "target", "raw_gap_est"])
+
+class HiddenPrints:
+    "Adapted from: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print"
+    def __init__(self):
+        self._original_stdout = sys.stdout
+
+    def __enter__(self):
+        self._original_stdout = sys.stdout
+        sys.stdout = open(os.devnull, 'w')
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout.close()
+        sys.stdout = self._original_stdout
 
 # Helper functions
 def filter_minimizers(list_mxs):
@@ -20,7 +35,6 @@ def filter_minimizers(list_mxs):
     print(datetime.datetime.today(), ": Filtering minimizers", file=sys.stdout)
     list_mx_sets = [{mx for mx_list in list_mxs[assembly] for mx in mx_list}
                     for assembly in list_mxs]
-
     mx_intersection = set.intersection(*list_mx_sets)
 
     return_mxs = {}
@@ -36,7 +50,7 @@ def filter_minimizers(list_mxs):
 class PathNode:
     "Defines a node in a path of contig regions"
     def __init__(self, contig, ori, start, end, contig_size,
-                 first_mx, terminal_mx, gap_size=0):
+                 first_mx, terminal_mx, gap_size=0, raw_gap_size=0):
         self.contig = contig
         self.ori = ori
         self.start = start
@@ -45,19 +59,55 @@ class PathNode:
         self.first_mx = first_mx
         self.terminal_mx = terminal_mx
         self.gap_size = gap_size
+        self.raw_gap_size = raw_gap_size
+        self.start_adjust = 0
+        self.end_adjust = 0  # Adjust for trimming
 
     def set_gap_size(self, gap_size):
         "Set the gap size of the path node"
         self.gap_size = gap_size
 
+    def set_raw_gap_size(self, raw_gap_size):
+        "Set the 'raw' gap size. Equal to gap_size if > min_gap_size"
+        self.raw_gap_size = raw_gap_size
+
     def get_aligned_length(self):
         "Get the aligned length based on start/end coordinates"
         return self.end - self.start
 
+    def get_end_adjusted_coordinate(self):
+        "Return the adjusted end coordinate"
+        if self.end_adjust == 0:
+            return self.get_aligned_length()
+        return self.end_adjust
+
+    def get_adjusted_start(self):
+        "Return the start coordinate of segment, adjusted for any trimming"
+        if self.ori == "+":
+            return self.start + self.start_adjust
+        if self.ori == "-":
+            return self.start + (self.get_aligned_length() - self.get_end_adjusted_coordinate())
+        raise OrientationError()
+
+    def get_adjusted_end(self):
+        "Return the end coordinate of the segment, adjusted for any trimming"
+        if self.ori == "+":
+            return self.end - (self.get_aligned_length() - self.get_end_adjusted_coordinate())
+        if self.ori == "-":
+            return self.end - self.start_adjust
+        raise OrientationError()
+
     def __str__(self):
-        return "Contig:%s\tOrientation:%s\tStart-End:%d-%d\tLength:%s\tFirstmx:%s\tLastmx:%s" \
+        return "Contig:%s\tOrientation:%s\tStart-End:%d-%d\tLength:%s\tFirstmx:%s\tLastmx:%s\t" \
+               "Adjusted_start-end:%d-%d" \
                % (self.contig, self.ori, self.start, self.end, self.contig_size,
-                  self.first_mx, self.terminal_mx)
+                  self.first_mx, self.terminal_mx, self.start_adjust, self.end_adjust)
+
+class OrientationError(ValueError):
+    "Orientation type error"
+    def __init__(self):
+        self.message = "Orientation must be + or -"
+        super().__init__(self.message)
 
 class OverlapRegion:
     "Overlapping regions in a contig to fix"

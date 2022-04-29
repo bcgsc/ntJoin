@@ -17,8 +17,10 @@ import warnings
 import igraph as ig
 import pybedtools
 import pymannkendall as mk
+import btllib
 from read_fasta import read_fasta
 import ntjoin_utils
+import ntjoin_overlap
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 
@@ -85,7 +87,7 @@ class Ntjoin:
         return sum([weights[f] for f in list_files])
 
 
-    def build_graph(self, list_mxs):
+    def build_graph(self, list_mxs, weights):
         "Builds an undirected graph: nodes=minimizers; edges=between adjacent minimizers"
         print(datetime.datetime.today(), ": Building graph", file=sys.stdout)
         graph = ig.Graph()
@@ -120,7 +122,7 @@ class Ntjoin:
         print(datetime.datetime.today(), ": Adding attributes", file=sys.stdout)
         edge_attributes = {self.edge_index(graph, s, t): {"support": edges[s][t],
                                                           "weight": self.calc_total_weight(edges[s][t],
-                                                                                           Ntjoin.weights)}
+                                                                                           weights)}
                            for s in edges for t in edges[s]}
         self.set_edge_attributes(graph, edge_attributes)
 
@@ -212,7 +214,7 @@ class Ntjoin:
 
         # Don't attempt gap estimation when don't know orientation
         if u.ori == "?" or v.ori == "?":
-            return 0
+            return 0, 0
 
         # Find the assemblies that have a path between these mx
         # Are situations where there is not a direct edge if an unoriented contig was in-between
@@ -221,7 +223,7 @@ class Ntjoin:
             *map(set, [graph.es()[self.edge_index(graph, s, t)]['support']
                        for s, t in zip(path, path[1:])]))
         if not supporting_assemblies:
-            return self.args.g
+            return self.args.g, self.args.g
 
         distances = [abs(Ntjoin.list_mx_info[assembly][v_mx][1] - Ntjoin.list_mx_info[assembly][u_mx][1])
                      for assembly in supporting_assemblies]
@@ -250,7 +252,8 @@ class Ntjoin:
         gap_size = max(mean_dist - a - b, self.args.g)
         if self.args.G > 0:
             gap_size = min(gap_size, self.args.G)
-        return gap_size
+
+        return gap_size, mean_dist - a - b
 
     @staticmethod
     def is_new_region_overlapping(start, end, node_i, node_j, incorporated_segments_ctg):
@@ -351,8 +354,9 @@ class Ntjoin:
                                      first_mx=first_mx,
                                      terminal_mx=prev_mx))
         for u, v in zip(out_path, out_path[1:]):
-            gap_size = self.calculate_gap_size(u, v, component_graph, assembly)
+            gap_size, raw_gap_size = self.calculate_gap_size(u, v, component_graph, assembly)
             u.set_gap_size(gap_size)
+            u.set_raw_gap_size(raw_gap_size)
 
         return out_path
 
@@ -546,15 +550,15 @@ class Ntjoin:
         return new_paths
 
 
-    @staticmethod
-    def read_fasta_file(filename):
+    def read_fasta_file(self, filename):
         "Read a fasta file into memory. Returns dictionary of scafID -> Scaffold"
         print(datetime.datetime.today(), ": Reading fasta file", filename, file=sys.stdout)
         scaffolds = {}
         try:
-            with open(filename, 'r') as fasta:
-                for header, seq, _, _ in read_fasta(fasta):
-                    scaffolds[header] = ntjoin_utils.Scaffold(id=header, length=len(seq), sequence=seq)
+            with btllib.SeqReader(filename, btllib.SeqReaderFlag.LONG_MODE,
+                                  self.args.btllib_t) as fin:
+                for rec in fin:
+                    scaffolds[rec.id] = ntjoin_utils.Scaffold(id=rec.id, length=len(rec.seq), sequence=rec.seq)
         except FileNotFoundError:
             print("ERROR: File", filename, "not found.")
             print("Minimizer TSV file must follow the naming convention:")
@@ -713,6 +717,65 @@ class Ntjoin:
 
         return new_path
 
+    def adjust_for_trimming(self, fasta_filename, paths):
+        "Go through path, trim the segments if overlapping"
+        ct = 0
+        mx_info = defaultdict(dict)  # path_index -> mx -> pos
+        mxs = {}  # path_index -> [mx]
+        cur_path_index = 0
+        cur_valid_segments = {"{}_{}_{}".format(node.contig, node.start, node.end)
+                                  for node in paths[cur_path_index]}
+        with btllib.Indexlr(fasta_filename, self.args.overlap_k, self.args.overlap_w,
+                            btllib.IndexlrFlag.LONG_MODE, self.args.btllib_t) as minimizers:
+            for mx_entry in minimizers:
+                if mx_entry.id in cur_valid_segments:
+                    self.tally_minimizers_overlap(ct, cur_path_index, mx_entry, mx_info, mxs, paths)
+                    ct += 1
+                else:
+                    assert len(mx_info) == len(paths[cur_path_index])
+                    ntjoin_overlap.merge_overlapping_path(paths[cur_path_index], mxs, mx_info)
+
+                    ct = 0
+                    mx_info = defaultdict(dict)  # path_index -> mx -> pos
+                    mxs = {}  # path_index -> [mx]
+                    cur_path_index += 1
+                    cur_valid_segments = {"{}_{}_{}".format(node.contig, node.start, node.end)
+                                              for node in paths[cur_path_index]}
+
+                    if mx_entry.id in cur_valid_segments:
+                        self.tally_minimizers_overlap(ct, cur_path_index, mx_entry, mx_info, mxs, paths)
+                        ct += 1
+        # Don't miss last path
+        ntjoin_overlap.merge_overlapping_path(paths[cur_path_index], mxs, mx_info)
+
+    @staticmethod
+    def tally_minimizers_overlap(ct, cur_path_index, mx_entry, mx_info, mxs, paths):
+        "Tally minimizer info for the given path"
+        mxs[ct] = []
+        dup_mxs = set()  # Set of minimizers identified as duplicates
+        for mx_pos_strand in mx_entry.minimizers:
+            mx, pos = str(mx_pos_strand.out_hash), mx_pos_strand.pos
+            if not ntjoin_overlap.is_in_valid_region(pos, ct, paths[cur_path_index]):
+                continue
+            if ct in mx_info and mx in mx_info[ct]:  # This is a duplicate
+                dup_mxs.add(mx)
+            else:
+                mx_info[ct][mx] = int(pos)
+                mxs[ct].append(mx)
+        mx_info[ct] = {mx: mx_info[ct][mx] for mx in mx_info[ct] if mx not in dup_mxs}
+        mxs[ct] = [[mx for mx in mxs[ct] if mx not in dup_mxs and mx in mx_info[ct]]]
+
+
+    def get_adjusted_sequence(self, sequence, node):
+        "Return sequence adjusted for overlap trimming"
+        return_sequence = sequence[node.start_adjust:node.get_end_adjusted_coordinate()]
+        if node.gap_size > 0:
+            if node.get_end_adjusted_coordinate() == node.get_aligned_length():
+                # no trimming was done on the end, keep calculated gap size
+                return return_sequence + "N"*node.gap_size
+            return return_sequence + self.args.overlap_gap*"N"
+        return return_sequence
+
 
     def print_scaffolds(self, paths, intersecting_regions):
         "Given the paths, print out the scaffolds fasta"
@@ -731,24 +794,61 @@ class Ntjoin:
 
         ct = 0
         pathfile.write(assembly_fa + "\n")
+
+        # Deal with merging relocations
+        for i, path in enumerate(paths):
+            new_path = self.merge_relocations(path)
+            new_path = self.remove_overlapping_regions(new_path, intersecting_regions)
+            self.check_terminal_node_gap_zero(new_path)
+            paths[i] = new_path
+
+        # Trim overlaps if option turned on
+        if self.args.overlap:
+            path_segments_file = open(self.args.p + ".segments.fa", 'w')
+            filtered_paths = []
+            for path in paths:
+                sequences = []
+                nodes = []
+                for node in path:
+                    if node.ori == "?":
+                        continue
+                    sequences.append(self.get_fasta_segment(node, Ntjoin.scaffolds[node.contig].sequence))
+                    nodes.append(node)
+                if len(sequences) < 2:
+                    continue
+                out_coords = ntjoin_overlap.get_valid_regions(nodes, self.args.overlap_k, self.args.overlap_w)
+                for seq, node, out_coords in zip(sequences, nodes, out_coords):
+                    my_seq = seq.strip("Nn")
+                    my_seq = my_seq[:out_coords[0]] + "N"*(out_coords[1] - out_coords[0]) + my_seq[out_coords[1]:]
+                    assert len(my_seq) == node.get_aligned_length()
+                    path_segments_file.write(">{}_{}_{} {}\n{}\n".format(node.contig, node.start,
+                                                                         node.end, node.raw_gap_size,
+                                                                         my_seq))
+                filtered_paths.append(nodes)
+            path_segments_file.close()
+
+            self.adjust_for_trimming(self.args.p + ".segments.fa", filtered_paths)
+
         for path in paths:
             sequences = []
             path_segments = []
-
-            path = self.merge_relocations(path)
-
-            path = self.remove_overlapping_regions(path, intersecting_regions)
-
-            self.check_terminal_node_gap_zero(path)
+            nodes = []
 
             for node in path:
                 if node.ori == "?":
                     continue
                 sequences.append(self.get_fasta_segment(node, Ntjoin.scaffolds[node.contig].sequence))
                 path_segments.append(ntjoin_utils.Bed(contig=node.contig, start=node.start,
-                                         end=node.end))
+                                                      end=node.end))
+                nodes.append(node)
+
             if len(sequences) < 2:
                 continue
+
+            if self.args.overlap:
+                sequences = [self.get_adjusted_sequence(sequence, nodes[i])
+                             for i, sequence in enumerate(sequences)]
+
             ctg_id = "ntJoin" + str(ct)
             ctg_sequence = self.join_sequences(sequences, path, path_segments)
 
@@ -756,33 +856,45 @@ class Ntjoin:
                           (ctg_id, ctg_sequence))
             incorporated_segments.extend(path_segments)
             path_str = " ".join(["%s%s:%d-%d %dN" %
-                                 (node.contig, node.ori, node.start, node.end, node.gap_size) for node in path])
+                                 (node.contig, node.ori, node.get_adjusted_start(), node.get_adjusted_end(),
+                                  node.gap_size) for node in path])
             path_str = re.sub(r'\s+\d+N$', r'', path_str)
             pathfile.write("%s\t%s\n" % (ctg_id, path_str))
             if self.args.agp:
                 self.write_agp(agpfile, ctg_id, path_str)
+
             ct += 1
         outfile.close()
 
-        # Also print out the sequences that were NOT scaffolded
+        if self.args.agp:
+            outfile = self.print_unassigned(assembly, assembly_fa, incorporated_segments, outfile, params,
+                                            agpfile=agpfile)
+        else:
+            outfile = self.print_unassigned(assembly, assembly_fa, incorporated_segments, outfile, params)
+
+        outfile.close()
+        pathfile.close()
+        if self.args.agp:
+            agpfile.close()
+        if self.args.overlap:
+            cmd_shlex = shlex.split("rm {}".format(self.args.p + ".segments.fa"))
+            subprocess.call(cmd_shlex)
+
+    def print_unassigned(self, assembly, assembly_fa, incorporated_segments, outfile, params, agpfile=None):
+        "Also print out the sequences that were NOT scaffolded"
         incorporated_segments_str = "\n".join(["%s\t%s\t%s" % (chrom, s, e)
                                                for chrom, s, e in incorporated_segments])
         incorporated_segments_bed = pybedtools.BedTool(incorporated_segments_str,
                                                        from_string=True).sort()
         genome_bed, genome_dict = self.format_bedtools_genome(Ntjoin.scaffolds)
-
         missing_bed = genome_bed.complement(i=incorporated_segments_bed, g=genome_dict)
         missing_bed.saveas(self.args.p + "." + assembly + ".unassigned.bed")
-
         outfile = open(assembly_fa + params + ".n" +
                        str(self.args.n) + ".unassigned.scaffolds.fa", 'w')
-
         cmd = "bedtools getfasta -fi %s -bed %s -fo -" % \
               (assembly_fa, self.args.p + "." + assembly + ".unassigned.bed")
         cmd_shlex = shlex.split(cmd)
-
         out_fasta = subprocess.Popen(cmd_shlex, stdout=subprocess.PIPE, universal_newlines=True)
-
         for header, seq, _, _ in read_fasta(iter(out_fasta.stdout.readline, '')):
             if self.args.agp:
                 self.write_agp_unassigned(agpfile, header, seq)
@@ -794,11 +906,7 @@ class Ntjoin:
             print("bedtools getfasta failed -- is bedtools on your PATH?")
             print(out_fasta.stderr)
             raise subprocess.CalledProcessError(out_fasta.returncode, cmd_shlex)
-
-        outfile.close()
-        pathfile.close()
-        if self.args.agp:
-            agpfile.close()
+        return outfile
 
     @staticmethod
     def tally_intersecting_segments():
@@ -874,11 +982,22 @@ class Ntjoin:
         parser.add_argument('-m', help="Require at least m %% of minimizer positions to be "
                                        "increasing/decreasing to assign contig orientation [90]\n "
                                        "Note: Only used with --mkt is NOT specified", default=90, type=int)
-        parser.add_argument('-t', help="Number of threads [1]", default=1, type=int)
+        parser.add_argument('-t', help="Number of threads for multiprocessing [1]", default=1, type=int)
         parser.add_argument("-v", "--version", action='version', version='ntJoin v1.0.8')
         parser.add_argument("--agp", help="Output AGP file describing scaffolds", action="store_true")
         parser.add_argument("--no_cut", help="Do not cut input contigs, place in most representative path",
                             action="store_true")
+        parser.add_argument("--overlap", help="Attempt to detect and trim overlapping joined sequences",
+                            action="store_true")
+        parser.add_argument("--overlap_gap", help="Length of gap introduced between overlapping, trimmed segments [20]",
+                            type=int, default=20)
+        parser.add_argument("--overlap_k", help="Kmer size used for overlap minimizer step [15]",
+                            type=int, default=15)
+        parser.add_argument("--overlap_w", help="Window size used for overlap minimizer step [10]",
+                            type=int, default=10)
+        parser.add_argument("--btllib_t", help="Number of threads for btllib wrapper functions "
+                                               "(computing minimizers, reading fasta file) [4]",
+                            type=int, default=4)
         return parser.parse_args()
 
     def print_parameters(self):
@@ -902,6 +1021,12 @@ class Ntjoin:
             print("Orienting contigs with Mann-Kendall Test (more computationally intensive)\n")
         else:
             print("Orienting contigs using increasing/decreasing minimizer positions\n")
+        if self.args.overlap:
+            print("\t--overlap")
+            print("\t--overlap_gap", self.args.overlap_gap)
+            print("\t--overlap_k", self.args.overlap_k)
+            print("\t--overlap_w", self.args.overlap_w)
+            print("\t--btllib_t", self.args.btllib_t)
 
     def main(self):
         "Run ntJoin graph stage"
@@ -940,7 +1065,7 @@ class Ntjoin:
         list_mxs = ntjoin_utils.filter_minimizers(list_mxs)
 
         # Build a graph: Nodes = mx; Edges between adjacent mx in the assemblies
-        graph = self.build_graph(list_mxs)
+        graph = self.build_graph(list_mxs, Ntjoin.weights)
 
         # Print the DOT graph
         self.print_graph(graph)

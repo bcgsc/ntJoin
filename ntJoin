@@ -34,6 +34,15 @@ w=1000
 # Kmer size
 k=32
 
+# Run overlap logic?
+overlap=True
+
+# Window size for overlap detection
+overlap_w=10
+
+# Kmer size for overlap detection
+overlap_k=15
+
 # Number of threads
 t=4
 
@@ -45,6 +54,9 @@ n=1
 
 # Minimum gap size between scaffolds
 g=20
+
+# Gap size between trimmed overlapping segments (used if overlap=True)
+overlap_g?=$g
 
 # Maximum gap size between scaffolds (0 if no maximum)
 G=0
@@ -100,6 +112,9 @@ else
 gzip=gzip -f
 endif
 
+# Set-up PYTHON PATH
+PYTHONPATH=$(assemble_path)/src/btllib/python/
+
 help:
 	@echo ""
 	@echo "ntJoin: Scaffolding assemblies using reference assemblies and minimizer graphs"
@@ -122,6 +137,7 @@ help:
 	@echo "mkt			If True, use Mann-Kendall Test to predict contig orientation (computationally-intensive, overrides 'm') [False]"
 	@echo "agp			If True, output AGP file describing output scaffolds [False]"
 	@echo "no_cut		    	If True, will not cut contigs at putative misassemblies [False]"
+	@echo "overlap			If True, attempts to detect and trim overlaps between joined sequences [True]"
 	@echo "time		    	If True, will log the time for each step [False]"
 	@echo "reference_config	Config file with reference assemblies and reference weights as comma-separated values (See README for example)"
 	@echo "			 This is optional, and will override the 'references' and 'reference_weights' variables if specified"
@@ -185,45 +201,25 @@ version:
 
 %.fa.gz: %.fa
 	$(log_time) $(gzip) $<
+
+# Set ntJoin options
+ifeq ($(mkt), True)
+    ntjoin_assembly_opts += --mkt
+endif
+ifeq ($(no_cut), True)
+    ntjoin_assembly_opts += --no_cut
+endif
+ifeq ($(agp), True)
+    ntjoin_assembly_opts += --agp
+endif
+ifeq ($(overlap), True)
+    ntjoin_assembly_opts += --overlap --overlap_gap $(overlap_g) --btllib_t $(t)
+    ntjoin_assembly_opts += --overlap_k $(overlap_k) --overlap_w $(overlap_w)
+endif
 	
 $(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa: $(target).k$(k).w$(w).tsv $(min_ref_targets)
-ifeq ($(mkt), True)
-ifeq ($(agp), True)
-ifeq ($(no_cut), True)
-	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
-	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) --mkt --agp --no_cut $(min_ref_targets)
-else
-	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
-	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) --mkt --agp $(min_ref_targets)
-endif
-else
-ifeq ($(no_cut), True)
-	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
-	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) --mkt --no_cut $(min_ref_targets)
-else
-	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
-	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) --mkt $(min_ref_targets)
-endif
-endif
-else
-ifeq ($(agp), True)
-ifeq ($(no_cut), True)
-	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
-	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) -m $(m) --agp --no_cut $(min_ref_targets)
-else
-	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
-	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) -m $(m) --agp $(min_ref_targets)
-endif
-else
-ifeq ($(no_cut), True)
-	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
-	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) -m $(m) --no_cut $(min_ref_targets)
-else
-	$(log_time) $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
-	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) -m $(m) $(min_ref_targets)
-endif
-endif
-endif
+	PYTHONPATH=$(PYTHONPATH) $(log_time)  $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) $(ntjoin_assembly_opts) $(min_ref_targets)
 
 $(target).k$(k).w$(w).n$(n).unassigned.scaffolds.fa: $(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa
 	touch $@
