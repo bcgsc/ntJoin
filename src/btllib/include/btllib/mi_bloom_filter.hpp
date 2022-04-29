@@ -1,11 +1,11 @@
 #ifndef BTLLIB_MI_BLOOM_FILTER_HPP
 #define BTLLIB_MI_BLOOM_FILTER_HPP
 
-#include "nthash.hpp"
-#include "status.hpp"
+#include "btllib/nthash.hpp"
+#include "btllib/status.hpp"
 
-#include <sdsl/bit_vector_il.hpp>
-#include <sdsl/rank_support.hpp>
+#include "sdsl/bit_vector_il.hpp"
+#include "sdsl/rank_support.hpp"
 
 #include <algorithm> // std::random_shuffle
 #include <cassert>
@@ -94,6 +94,7 @@ public:
   }
 
   // TODO: include allowed miss in header
+  /// @cond HIDDEN_SYMBOLS
 #pragma pack(1) // to maintain consistent values across platforms
   struct FileHeader
   {
@@ -105,6 +106,7 @@ public:
     uint32_t version;
     //		uint8_t allowed_miss;
   };
+  /// @endcond
 
   /*
    * Constructor using a prebuilt bitvector
@@ -136,6 +138,8 @@ public:
   }
 
   MIBloomFilter<T>(const std::string& filter_file_path)
+    : m_prob_saturated(pow(double(get_pop_saturated()) / double(get_pop()),
+                           m_hash_num)) // TODO: make more streamlined
   {
 #pragma omp parallel for default(none) shared(filter_file_path)
     for (unsigned i = 0; i < 2; ++i) {
@@ -233,9 +237,6 @@ public:
 
     log_info("MIBloomFilter: Bit vector size: " + std::to_string(m_bv.size()) +
              "\nPopcount: " + std::to_string(get_pop()));
-    // TODO: make more streamlined
-    m_prob_saturated =
-      pow(double(get_pop_saturated()) / double(get_pop()), m_hash_num);
   }
 
   /*

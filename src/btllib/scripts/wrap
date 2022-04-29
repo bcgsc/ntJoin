@@ -8,67 +8,23 @@ fi
 set -e
 
 # Remove old wrapper files
-rm -f ${MESON_SOURCE_ROOT}/extras/java/*.java
-rm -f ${MESON_SOURCE_ROOT}/extras/python/*.py
-
-# Generate java swig files
-cd ${MESON_SOURCE_ROOT}
-
-include_files=$(scripts/get-include-files)
-
-echo "%module btllib
-
-%{" > extras/java/btllib.i
-
-for file in ${include_files}; do
-  relative=$(scripts/get-include-relative ${file})
-  path="${relative}/$(basename ${file})"
-  echo "#include \"$path\"" >> extras/java/btllib.i
-done
-
-echo "%}
-
-%include <java.swg>
-%include <various.i>
-%include <std_string.i>
-%include <stdint.i>
-%include <stl.i>
-
-%include \"../extra_common.i\"
-%include \"extra.i\"
-" >> extras/java/btllib.i
-
-for file in ${include_files}; do
-  relative=$(scripts/get-include-relative ${file})
-  path="${relative}/$(basename ${file})"
-  echo "%include \"$path\"" >> extras/java/btllib.i
-done
-
-ln -sf $PWD/include extras/java/
-cd extras/java
-swig -java -package btllib -c++ -Iinclude btllib.i
-rm -f include
-
-# Add java files to meson build
-java_files=$(find . -maxdepth 1 -iname "*.java" | sed "s~\(.*\)~'\1'~" | tr '\n' , | sed 's~.$~~')
-meson_build=$(cat meson.build)
-echo "$meson_build" | sed "s~java_files.*=.*\[.*\]~java_files = [$java_files]~" >meson.build
+rm -f ${MESON_SOURCE_ROOT}/wrappers/python/btllib.py
 
 # Generate python swig files
 cd ${MESON_SOURCE_ROOT}
 
-include_files=$(scripts/get-include-files)
+include_files=$(scripts/get-files include)
 
 echo "%module btllib
 
 %{
 #define SWIG_FILE_WITH_INIT
-" > extras/python/btllib.i
+" > wrappers/python/btllib.i
 
 for file in ${include_files}; do
   relative=$(scripts/get-include-relative ${file})
   path="${relative}/$(basename ${file})"
-  echo "#include \"$path\"" >> extras/python/btllib.i
+  echo "#include \"$path\"" >> wrappers/python/btllib.i
 done
 
 echo "%}
@@ -88,18 +44,19 @@ echo "%}
 
 %include \"../extra_common.i\"
 %include \"extra.i\"
-" >> extras/python/btllib.i
+" >> wrappers/python/btllib.i
 
 for file in ${include_files}; do
   relative=$(scripts/get-include-relative ${file})
   path="${relative}/$(basename ${file})"
-  echo "%include \"$path\"" >> extras/python/btllib.i
+  echo "%include \"$path\"" >> wrappers/python/btllib.i
 done
 
-ln -sf $PWD/include extras/python/
-cd extras/python
+ln -sf $PWD/include wrappers/python/
+cd wrappers/python
 swig -python -py3 -fastproxy -fastdispatch -builtin -c++ -Iinclude btllib.i
 rm -f include
 
 # The following line is necessary because SWIG produces inconsistent code that cannot be compiled on all platforms. On some platforms, uint64_t is unsigned long int and unsigned long long int on others.
-sed -i 's~unsigned long long~uint64_t~g' btllib_wrap.cxx
+sed -i'.tmp' 's~unsigned long long~uint64_t~g' btllib_wrap.cxx
+rm -f btllib_wrap.cxx.tmp

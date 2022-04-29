@@ -1,4 +1,3 @@
-CXXFLAGS=-O3 -Wall -Wextra -Werror -Wno-unknown-pragmas -std=c++11 -pthread -Ibtllib/include
 
 all: indexlr \
 	btllib_compile
@@ -11,6 +10,10 @@ btllib_compile: btllib/python/btllib.py
 
 btllib/python/btllib.py:
 	cd btllib && ./compile-wrappers
+
+indexlr: btllib/recipes/indexlr.cpp
+	btllib/compile
+	cp btllib/install/bin/indexlr .
 
 # Check the C++ source code for errors.
 lint: clang-format clang-tidy

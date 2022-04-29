@@ -1,0 +1,135 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+from os.path import dirname, join, isdir, abspath
+import subprocess as sp
+import shutil
+import sys
+import base64
+import uuid
+import signal
+import threading
+import time
+
+DEFAULT_INSTALL_DIR = 'install'
+
+def get_cli_args():
+  # Create parser
+  parser = argparse.ArgumentParser(description='Compile btllib.')
+
+  # Add "prefix" argument
+  script_dir = abspath(dirname(__file__))
+  default_install_dir = join(script_dir, DEFAULT_INSTALL_DIR)
+  parser.add_argument('--prefix', '-p', type=str, default=default_install_dir, help='Prefix of the installation path.')
+
+  return parser.parse_args()
+
+def program_exists(program):
+  return sp.run([ f'command -v {program}' ], shell=True).returncode == 0
+
+def install_temp_deps(venv_path):
+  deps = [ 'meson', 'ninja', 'cmake' ]
+  missing_deps = []
+  for dep in deps:
+    if not program_exists(dep):
+      missing_deps.append(dep)
+  missing_deps = ' '.join(missing_deps)
+
+  if len(missing_deps) > 0:
+    print(f'Building virtual environment for missing dependencies: {missing_deps}', flush=True)
+
+    os.makedirs(f'{os.path.dirname(venv_path)}', exist_ok=True)
+
+    # Create virtual environment
+    if isdir(venv_path):
+      print(f'Using already existing virtual environment: {venv_path}', flush=True)
+    else:
+      sp.run([ f'python3 -m venv {venv_path}' ], shell=True)
+
+    sp.run([ f'''
+      . {venv_path}/bin/activate &&
+      pip3 install {missing_deps} &&
+      deactivate;
+    ''' ], shell=True, check=True)
+  else:
+    print("All build dependencies are present.", flush=True)
+
+def export_python_flags():
+  python3_config = join(sys.exec_prefix, 'bin', 'python3-config')
+
+  # Get python flags
+  cflags = sp.run([ f'{python3_config} --cflags' ], shell=True, capture_output=True, check=True, text=True).stdout.strip()
+  ldflags = sp.run([ f'{python3_config} --ldflags' ], shell=True, capture_output=True, check=True, text=True).stdout.strip()
+
+  # Print flags
+  print(f'Passing the following CFLAGS to Python: {cflags}', flush=True)
+  print(f'Passing the following LDFLAGS to Python: {ldflags}', flush=True)
+
+  # Export flags
+  os.environ['BTLLIB_PYTHON_CFLAGS'] = cflags
+  os.environ['BTLLIB_PYTHON_LDFLAGS'] = ldflags
+
+def _watch_process(process):
+  process.wait()
+  if process.returncode != 0:
+    print(f"{process.args} failed!", flush=True)
+    os.kill(os.getpid(), signal.SIGTERM)
+
+def watch_process(process):
+  threading.Thread(target=_watch_process, args=(process,), daemon=True).start()
+
+def autoclean(to_clean):
+  script_dir = abspath(dirname(__file__))
+  process = sp.Popen([ join(script_dir, 'auto-cleanup'), to_clean ])
+  watch_process(process)
+
+def get_random_name():
+  return base64.urlsafe_b64encode(uuid.uuid4().bytes).rstrip(b'=').replace(b'-', b'').decode('ascii')
+
+def get_build_dir():
+  build_dir_name = f'btllib-build-{get_random_name()}'
+  if 'TMPDIR' in os.environ:
+    prefix = os.environ['TMPDIR']
+  elif isdir('/tmp'):
+    prefix = '/tmp'
+  else:
+    prefix = ''
+  return join(prefix, build_dir_name)
+
+if __name__ == "__main__":
+  args = get_cli_args()
+
+  script_dir = abspath(dirname(__file__))
+  os.chdir(script_dir)
+
+  build_dir = get_build_dir()
+  autoclean(build_dir)
+
+  # Print build dir
+  print(f'Building btllib at: {build_dir}', flush=True)
+
+  # Check if previous build dir exists and remove it
+  if isdir(build_dir):
+    print(f'Removing previous build dir: {build_dir}', flush=True)
+    shutil.rmtree(build_dir, ignore_errors=True)
+
+  venv_path = join(build_dir, 'venv')
+  install_temp_deps(venv_path)
+
+  export_python_flags()
+
+  time.sleep(3)
+
+  sp.run([ f'''
+    if [ -f {venv_path}/bin/activate ]; then
+      . {venv_path}/bin/activate;
+    fi &&
+    meson setup --buildtype release --prefix={args.prefix} {build_dir} &&
+    cd {build_dir} &&
+    ninja install &&
+    cd .. &&
+    if [ -f {venv_path}/bin/activate ]; then
+      deactivate;
+    fi
+  ''' ], shell=True, check=True)

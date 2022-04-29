@@ -1,12 +1,12 @@
 #ifndef BTLLIB_INDEXLR_HPP
 #define BTLLIB_INDEXLR_HPP
 
-#include "bloom_filter.hpp"
-#include "nthash.hpp"
-#include "order_queue.hpp"
-#include "seq_reader.hpp"
-#include "status.hpp"
-#include "util.hpp"
+#include "btllib/bloom_filter.hpp"
+#include "btllib/nthash.hpp"
+#include "btllib/order_queue.hpp"
+#include "btllib/seq_reader.hpp"
+#include "btllib/status.hpp"
+#include "btllib/util.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -148,6 +148,7 @@ public:
   static const size_t MAX_SIMULTANEOUS_INDEXLRS = 256;
 
   /** For range-based for loop only. */
+  /// @cond HIDDEN_SYMBOLS
   class RecordIterator
   {
   public:
@@ -179,6 +180,7 @@ public:
     Indexlr& indexlr;
     Record record;
   };
+  /// @endcond
 
   RecordIterator begin() { return RecordIterator(*this, false); }
   RecordIterator end() { return RecordIterator(*this, true); }
@@ -313,6 +315,8 @@ inline Indexlr::Indexlr(std::string seqfile,
   check_error(!short_mode() && !long_mode(),
               "Indexlr: no mode selected, either short or long mode flag must "
               "be provided.");
+  check_error(short_mode() && long_mode(),
+              "Indexlr: short and long mode are mutually exclusive.");
   check_error(threads == 0,
               "Indexlr: Number of processing threads cannot be 0.");
   int id_counter = 0;
@@ -505,18 +509,16 @@ Indexlr::read()
   }
   auto& block = *(ready_blocks_array()[id % MAX_SIMULTANEOUS_INDEXLRS]);
   auto& current = ready_blocks_current()[id % MAX_SIMULTANEOUS_INDEXLRS];
-  if (current >= block.count) { // cppcheck-suppress danglingTempReference
-    block.count = 0;            // cppcheck-suppress danglingTempReference
-    output_queue.read(block);   // cppcheck-suppress danglingTempReference
-    if (block.count == 0) {     // cppcheck-suppress danglingTempReference
+  if (current >= block.count) {
+    block.count = 0;
+    output_queue.read(block);
+    if (block.count == 0) {
       output_queue.close();
-      // cppcheck-suppress danglingTempReference
       block = decltype(output_queue)::Block(reader.get_block_size());
       return Record();
     }
     current = 0;
   }
-  // cppcheck-suppress danglingTempReference
   return std::move(block.data[current++]);
 }
 
