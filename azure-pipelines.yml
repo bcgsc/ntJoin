@@ -32,8 +32,6 @@ jobs:
     displayName: Run pylint
   - script: make -C src all
     displayName: Compile C++ executables
-  - script: make -C src lint
-    displayName: Run clang-format and clang-tidy
   - script: make -C src check
     displayName: Test C++ executables
   - script: |
