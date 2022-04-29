@@ -1,15 +1,8 @@
 
-all: indexlr \
-	btllib_compile
+all: indexlr 
 
 clean:
 	rm -f indexlr btllib/python/*
-
-# Compile btllib wrappers
-btllib_compile: btllib/python/btllib.py
-
-btllib/python/btllib.py:
-	cd btllib && ./compile-wrappers
 
 indexlr: btllib/recipes/indexlr.cpp
 	btllib/compile
