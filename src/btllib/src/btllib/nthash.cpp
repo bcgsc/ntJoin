@@ -16,6 +16,7 @@ NtHash::NtHash(const char* seq,
   , hashes_array(new uint64_t[hash_num])
 {
   // Parameter sanity check
+  check_error(k == 0, "NtHash: k must be greater than 0");
   check_error(k > NTHASH_K_MAX,
               "NtHash: passed k value (" + std::to_string(k) +
                 ") is larger than allowed (" + std::to_string(NTHASH_K_MAX) +

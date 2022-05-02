@@ -12,116 +12,167 @@ import signal
 import threading
 import time
 
-DEFAULT_INSTALL_DIR = 'install'
+DEFAULT_INSTALL_DIR = "install"
 
-def get_cli_args():
-  # Create parser
-  parser = argparse.ArgumentParser(description='Compile btllib.')
 
-  # Add "prefix" argument
-  script_dir = abspath(dirname(__file__))
-  default_install_dir = join(script_dir, DEFAULT_INSTALL_DIR)
-  parser.add_argument('--prefix', '-p', type=str, default=default_install_dir, help='Prefix of the installation path.')
+def get_cli_args(btllib_dir):
+    # Create parser
+    parser = argparse.ArgumentParser(description="Compile btllib.")
 
-  return parser.parse_args()
+    # Add "prefix" argument
+    default_install_dir = join(btllib_dir, DEFAULT_INSTALL_DIR)
+    parser.add_argument(
+        "--prefix",
+        "-p",
+        type=str,
+        default=default_install_dir,
+        help="Prefix of the installation path.",
+    )
+
+    return parser.parse_args()
+
 
 def program_exists(program):
-  return sp.run([ f'command -v {program}' ], shell=True).returncode == 0
+    return sp.run([f"command -v {program}"], shell=True).returncode == 0
+
 
 def install_temp_deps(venv_path):
-  deps = [ 'meson', 'ninja', 'cmake' ]
-  missing_deps = []
-  for dep in deps:
-    if not program_exists(dep):
-      missing_deps.append(dep)
-  missing_deps = ' '.join(missing_deps)
+    deps = ["meson", "ninja", "cmake"]
+    missing_deps = []
+    for dep in deps:
+        if not program_exists(dep):
+            missing_deps.append(dep)
+    missing_deps = " ".join(missing_deps)
 
-  if len(missing_deps) > 0:
-    print(f'Building virtual environment for missing dependencies: {missing_deps}', flush=True)
+    if len(missing_deps) > 0:
+        print(
+            f"Building virtual environment for missing dependencies: {missing_deps}",
+            flush=True,
+        )
 
-    os.makedirs(f'{os.path.dirname(venv_path)}', exist_ok=True)
+        os.makedirs(f"{os.path.dirname(venv_path)}", exist_ok=True)
 
-    # Create virtual environment
-    if isdir(venv_path):
-      print(f'Using already existing virtual environment: {venv_path}', flush=True)
-    else:
-      sp.run([ f'python3 -m venv {venv_path}' ], shell=True)
+        # Create virtual environment
+        if isdir(venv_path):
+            print(
+                f"Using already existing virtual environment: {venv_path}", flush=True
+            )
+        else:
+            sp.run([f"python3 -m venv {venv_path}"], shell=True)
 
-    sp.run([ f'''
+        sp.run(
+            [
+                f"""
       . {venv_path}/bin/activate &&
       pip3 install {missing_deps} &&
       deactivate;
-    ''' ], shell=True, check=True)
-  else:
-    print("All build dependencies are present.", flush=True)
+    """
+            ],
+            shell=True,
+            check=True,
+        )
+    else:
+        print("All build dependencies are present.", flush=True)
+
 
 def export_python_flags():
-  python3_config = join(sys.exec_prefix, 'bin', 'python3-config')
+    python3_config = join(sys.exec_prefix, "bin", "python3-config")
 
-  # Get python flags
-  cflags = sp.run([ f'{python3_config} --cflags' ], shell=True, capture_output=True, check=True, text=True).stdout.strip()
-  ldflags = sp.run([ f'{python3_config} --ldflags' ], shell=True, capture_output=True, check=True, text=True).stdout.strip()
+    # Get python flags
+    cflags = sp.run(
+        [f"{python3_config} --cflags"],
+        shell=True,
+        capture_output=True,
+        check=True,
+        text=True,
+    ).stdout.strip()
+    ldflags = sp.run(
+        [f"{python3_config} --ldflags"],
+        shell=True,
+        capture_output=True,
+        check=True,
+        text=True,
+    ).stdout.strip()
 
-  # Print flags
-  print(f'Passing the following CFLAGS to Python: {cflags}', flush=True)
-  print(f'Passing the following LDFLAGS to Python: {ldflags}', flush=True)
+    # Print flags
+    print(f"Passing the following CFLAGS to Python: {cflags}", flush=True)
+    print(f"Passing the following LDFLAGS to Python: {ldflags}", flush=True)
 
-  # Export flags
-  os.environ['BTLLIB_PYTHON_CFLAGS'] = cflags
-  os.environ['BTLLIB_PYTHON_LDFLAGS'] = ldflags
+    # Export flags
+    os.environ["BTLLIB_PYTHON_CFLAGS"] = cflags
+    os.environ["BTLLIB_PYTHON_LDFLAGS"] = ldflags
 
-def _watch_process(process):
-  process.wait()
-  if process.returncode != 0:
-    print(f"{process.args} failed!", flush=True)
+
+def process_terminate():
+    """SIGTERM the calling process."""
     os.kill(os.getpid(), signal.SIGTERM)
 
-def watch_process(process):
-  threading.Thread(target=_watch_process, args=(process,), daemon=True).start()
 
-def autoclean(to_clean):
-  script_dir = abspath(dirname(__file__))
-  process = sp.Popen([ join(script_dir, 'auto-cleanup'), to_clean ])
-  watch_process(process)
+def watch_process(process):
+    """SIGTERM the calling process if the observed process dies with an error."""
+
+    def _watch_process(process):
+        process.wait()
+        if process.returncode != 0:
+            print(f"{process.args} failed!")
+            process_terminate()
+
+    threading.Thread(target=_watch_process, args=(process,), daemon=True).start()
+
+
+def autoclean(to_clean, btllib_dir):
+    process = sp.Popen([join(btllib_dir, "auto-cleanup"), to_clean])
+    watch_process(process)
+
 
 def get_random_name():
-  return base64.urlsafe_b64encode(uuid.uuid4().bytes).rstrip(b'=').replace(b'-', b'').decode('ascii')
+    return (
+        base64.urlsafe_b64encode(uuid.uuid4().bytes)
+        .rstrip(b"=")
+        .replace(b"-", b"")
+        .decode("ascii")
+    )
 
-def get_build_dir():
-  build_dir_name = f'btllib-build-{get_random_name()}'
-  if 'TMPDIR' in os.environ:
-    prefix = os.environ['TMPDIR']
-  elif isdir('/tmp'):
-    prefix = '/tmp'
-  else:
-    prefix = ''
-  return join(prefix, build_dir_name)
+
+def get_build_dir(btllib_dir):
+    build_dir_name = f"btllib-build-{get_random_name()}"
+    if isdir("/tmp"):
+        prefix = "/tmp"
+    elif "TMPDIR" in os.environ:
+        prefix = os.environ["TMPDIR"]
+    else:
+        prefix = btllib_dir
+    return join(prefix, build_dir_name)
+
 
 if __name__ == "__main__":
-  args = get_cli_args()
+    btllib_dir = abspath(dirname(__file__))
 
-  script_dir = abspath(dirname(__file__))
-  os.chdir(script_dir)
+    args = get_cli_args(btllib_dir)
 
-  build_dir = get_build_dir()
-  autoclean(build_dir)
+    os.chdir(btllib_dir)
 
-  # Print build dir
-  print(f'Building btllib at: {build_dir}', flush=True)
+    build_dir = get_build_dir(btllib_dir)
+    autoclean(build_dir, btllib_dir)
 
-  # Check if previous build dir exists and remove it
-  if isdir(build_dir):
-    print(f'Removing previous build dir: {build_dir}', flush=True)
-    shutil.rmtree(build_dir, ignore_errors=True)
+    # Print build dir
+    print(f"Building btllib at: {build_dir}", flush=True)
 
-  venv_path = join(build_dir, 'venv')
-  install_temp_deps(venv_path)
+    # Check if previous build dir exists and remove it
+    if isdir(build_dir):
+        print(f"Removing previous build dir: {build_dir}", flush=True)
+        shutil.rmtree(build_dir, ignore_errors=True)
 
-  export_python_flags()
+    venv_path = join(build_dir, "venv")
+    install_temp_deps(venv_path)
 
-  time.sleep(3)
+    export_python_flags()
 
-  sp.run([ f'''
+    time.sleep(3)
+
+    sp.run(
+        [
+            f"""
     if [ -f {venv_path}/bin/activate ]; then
       . {venv_path}/bin/activate;
     fi &&
@@ -132,4 +183,8 @@ if __name__ == "__main__":
     if [ -f {venv_path}/bin/activate ]; then
       deactivate;
     fi
-  ''' ], shell=True, check=True)
+  """
+        ],
+        shell=True,
+        check=True,
+    )
