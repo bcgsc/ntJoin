@@ -5,6 +5,7 @@ import subprocess
 import re
 
 def launch_ntjoin(cmd, prefix):
+    print("ntJoin command: ", cmd)
     cmd_shlex = shlex.split(cmd)
     return_code = subprocess.call(cmd_shlex)
     assert return_code == 0
@@ -129,7 +130,7 @@ def test_regions_ff_rr():
     paths = run_ntjoin("ref.multiple.fa", "scaf.misassembled.f-f.r-r.fa", "regions-ff-rr_test", window=500, n=1)
     assert len(paths) == 2
     assert paths[0] != paths[1]
-    expected_paths = ["2_1n-1_2p-:0-2176 20N 1_1p-2_2n-:2010-4489", "1_1p-2_2n+:0-1541 468N 2_1n-1_2p+:2676-4379"]
+    expected_paths = ["2_1n-1_2p-:0-2232 20N 1_1p-2_2n-:2110-4489", "1_1p-2_2n+:0-1568 477N 2_1n-1_2p+:2712-4379"]
     assert paths.pop().split("\t")[1] in expected_paths
     assert paths.pop().split("\t")[1] in expected_paths
 
@@ -144,7 +145,7 @@ def test_regions_fr_rf():
     paths = run_ntjoin("ref.multiple.fa", "scaf.misassembled.f-r.r-f.fa", "regions-fr-rf_test", 500, n=2)
     assert len(paths) == 2
     assert paths[0] != paths[1]
-    expected_paths = ["2_1n-1_2n-:0-2176 212N 1_1p-2_2p+:2017-4489", "1_1p-2_2p+:0-1617 198N 2_1n-1_2n-:2675-4379"]
+    expected_paths = ["2_1n-1_2n-:0-2232 253N 1_1p-2_2p+:2058-4489", "1_1p-2_2p+:0-1624 191N 2_1n-1_2n-:2518-4379"]
     assert paths.pop().split("\t")[1] in expected_paths
     assert paths.pop().split("\t")[1] in expected_paths
 
@@ -153,7 +154,7 @@ def test_regions_fr_rf_config():
     paths = run_ntjoin_config("test_config_single.csv", "scaf.misassembled.f-r.r-f.fa", "regions-fr-rf_test", 500, n=2)
     assert len(paths) == 2
     assert paths[0] != paths[1]
-    expected_paths = ["2_1n-1_2n-:0-2176 212N 1_1p-2_2p+:2017-4489", "1_1p-2_2p+:0-1617 198N 2_1n-1_2n-:2675-4379"]
+    expected_paths = ["2_1n-1_2n-:0-2232 253N 1_1p-2_2p+:2058-4489", "1_1p-2_2p+:0-1624 191N 2_1n-1_2n-:2518-4379"]
     assert paths.pop().split("\t")[1] in expected_paths
     assert paths.pop().split("\t")[1] in expected_paths
 
@@ -198,22 +199,22 @@ def test_mx_f_f_agp():
 def test_mx_f_f_overlap():
     "Testing ntJoin with assembly + reference, fwd-fwd orientation, overlap code on"
     paths = run_ntjoin_overlap("ref.fa", "scaf.f-f.overlapping.fa", "f-f_test_overlap")
-    assert paths.pop() == "ntJoin0\t1+:0-2037 20N 2+:38-2331"
+    assert paths.pop() == "ntJoin0\t1+:0-2033 20N 2+:34-2331"
 
 def test_mx_f_r_overlap():
     "Testing ntJoin with assembly + reference, fwd-rev orientation, overlap code on"
     paths = run_ntjoin_overlap("ref.fa", "scaf.f-r.overlapping.fa", "f-r_test_overlap")
-    assert paths.pop() == "ntJoin0\t1+:0-2037 20N 2-:0-2293"
+    assert paths.pop() == "ntJoin0\t1+:0-2033 20N 2-:0-2297"
 
 def test_mx_f_r_overlap_agp():
     "Testing ntJoin with assembly + reference, fwd-rev orientation, overlap code on, agp output"
     agp = run_ntjoin_agp("ref.fa", "scaf.f-r.overlapping.fa", "f-r_test_overlap_agp")
     assert len(agp) == 3
-    assert agp[0].strip() == "ntJoin0\t1\t2037\t1\tW\t1\t1\t2037\t+"
-    assert agp[1].strip() == "ntJoin0\t2038\t2057\t2\tN\t20\tscaffold\tyes\talign_genus"
-    assert agp[2].strip() == "ntJoin0\t2058\t4350\t3\tW\t2\t1\t2293\t-"
+    assert agp[0].strip() == "ntJoin0\t1\t2033\t1\tW\t1\t1\t2033\t+"
+    assert agp[1].strip() == "ntJoin0\t2034\t2053\t2\tN\t20\tscaffold\tyes\talign_genus"
+    assert agp[2].strip() == "ntJoin0\t2054\t4350\t3\tW\t2\t1\t2297\t-"
 
 def test_mx_r_r_overlap():
     "Testing ntJoin with assembly + reference, rev-rev orientation, overlap code on"
     paths = run_ntjoin_overlap("ref.fa", "scaf.r-r.overlapping.fa", "f-r_test_overlap")
-    assert paths.pop() == "ntJoin0\t1-:62-2099 20N 2-:0-2293"
+    assert paths.pop() == "ntJoin0\t1-:66-2099 20N 2-:0-2297"
