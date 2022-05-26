@@ -22,7 +22,9 @@ main()
   auto filename = get_random_name(64);
   bf.save(filename);
 
+  TEST_ASSERT(btllib::BloomFilter::is_bloom_file(filename));
   btllib::BloomFilter bf2(filename);
+
   TEST_ASSERT_EQ(bf2.get_hash_fn(), "ntHash");
 
   TEST_ASSERT(bf2.contains({ 1, 10, 100 }));

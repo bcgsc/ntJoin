@@ -7,6 +7,9 @@
 #include <random>
 #include <string>
 
+#define PRINT_TEST_NAME(TEST_NAME)                                             \
+  std::cerr << __FILE__ << ": Testing " << TEST_NAME << std::endl;
+
 #define TEST_ASSERT(x)                                                         \
   if (!(x)) {                                                                  \
     std::cerr << __FILE__ ":" << __LINE__ << ":TEST_ASSERT: " #x " is false"   \
@@ -30,8 +33,13 @@
 #define TEST_ASSERT_LE(x, y) TEST_ASSERT_RELATIONAL(x, y, <=)
 #define TEST_ASSERT_LT(x, y) TEST_ASSERT_RELATIONAL(x, y, <)
 
+#define TEST_ASSERT_ARRAY_EQ(x, y, size)                                       \
+  for (unsigned i = 0; i < size; i++) {                                        \
+    TEST_ASSERT_EQ(x[i], y[i])                                                 \
+  }
+
 inline int
-get_random(int min, int max)
+get_random(const int min, const int max)
 {
   static std::default_random_engine random_generator(
     std::chrono::system_clock::now().time_since_epoch().count() + 9999999);
@@ -40,7 +48,7 @@ get_random(int min, int max)
 }
 
 inline std::string
-get_random_seq(size_t size)
+get_random_seq(const size_t size)
 {
   static std::default_random_engine random_generator(
     std::chrono::system_clock::now().time_since_epoch().count() + 9999999);
@@ -70,7 +78,7 @@ split_seq_multiline(std::string seq)
 }
 
 inline std::string
-get_random_name(size_t size)
+get_random_name(const size_t size)
 {
   static std::default_random_engine random_generator(
     std::chrono::system_clock::now().time_since_epoch().count() + 9999999);

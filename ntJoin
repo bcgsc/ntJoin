@@ -113,7 +113,7 @@ gzip=gzip -f
 endif
 
 # Set-up PYTHON PATH
-PYTHONPATH=$(assemble_path)/src/btllib/python/
+PYTHONPATH=$(assemble_path)/src/btllib/install/lib/btllib/python
 
 help:
 	@echo ""
