@@ -118,6 +118,9 @@ ntJoin assemble target=my_scaffolds.fa target_weight=1 reference_config=config_f
 * We recommend setting the reference weight(s) to be higher than the target weight
 * If you are using a reference-grade assembly as the reference, set `n=2`, otherwise use the default `n=1`
 
+### Overlap feature
+* As of version 1.1.0, ntJoin can detect and trim overlaps between joined sequences. This feature is controlled by the `overlap` parameter, and is on `overlap=True` by default. To turn this behaviour off, specify `overlap=False`
+
 ## Installation Instructions
 #### Installing ntJoin using Brew
 ntJoin can be installed using [Homebrew](https://brew.sh) on macOS or [Linuxbrew](http://linuxbrew.sh) on Linux:
