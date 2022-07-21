@@ -146,6 +146,7 @@ make
 * [bedtools v2.29.2+](https://bedtools.readthedocs.io/en/latest/)
 * [samtools](https://github.com/samtools/samtools)
 * [zlib](https://www.zlib.net/)
+* [btllib](https://github.com/bcgsc/btllib)
 
 Python dependencies can be installed with:
 ```sh
