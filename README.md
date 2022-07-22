@@ -122,22 +122,21 @@ ntJoin assemble target=my_scaffolds.fa target_weight=1 reference_config=config_f
 * As of version 1.1.0, ntJoin can detect and trim overlaps between joined sequences. This feature is controlled by the `overlap` parameter, and is on `overlap=True` by default. To turn this behaviour off, specify `overlap=False`
 
 ## Installation Instructions
+
+#### Installing ntJoin using Conda
+```sh
+conda install -c bioconda -c conda-forge ntjoin=1.1.0
+```
+
 #### Installing ntJoin using Brew
 ntJoin can be installed using [Homebrew](https://brew.sh) on macOS or [Linuxbrew](http://linuxbrew.sh) on Linux:
 ```sh
 brew install brewsci/bio/ntjoin
 ```
 
-#### Installing ntJoin using Conda
-```sh
-conda install -c bioconda -c conda-forge ntjoin=1.0.8
-```
-
 #### Installing ntJoin from the source code
 ```sh
-git clone https://github.com/bcgsc/ntJoin.git
-cd ntJoin/src
-make
+curl -L --output ntJoin-1.1.0.tar.gz https://github.com/bcgsc/ntJoin/releases/download/v1.1.0/ntJoin-1.1.0.tar.gz && tar xvzf ntJoin-1.1.0.tar.gz 
 ```
 
 ## Dependencies
@@ -146,6 +145,7 @@ make
 * [bedtools v2.29.2+](https://bedtools.readthedocs.io/en/latest/)
 * [samtools](https://github.com/samtools/samtools)
 * [zlib](https://www.zlib.net/)
+* [btllib](https://github.com/bcgsc/btllib)
 
 Python dependencies can be installed with:
 ```sh

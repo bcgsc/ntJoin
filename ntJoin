@@ -112,8 +112,6 @@ else
 gzip=gzip -f
 endif
 
-# Set-up PYTHON PATH
-PYTHONPATH=$(assemble_path)/src/btllib/install/lib/btllib/python
 
 help:
 	@echo ""
@@ -189,12 +187,20 @@ version:
 	@echo "ntJoin v1.1.0"
 	@echo "Written by Lauren Coombe (lcoombe@bcgsc.ca)"
 
-.PHONY: help all version analysis assemble check_params jupiter
+check_install:
+ifeq ($(shell command -v indexlr),)
+        $(error ERROR: indexlr not found. Please ensure btllib is installed)
+endif
+ifneq ($(shell command -v 'python3 -c "import btllib"'),)
+        $(error ERROR: btllib not found. Please ensure btllib is installed)
+endif
+
+.PHONY: help all version analysis assemble check_params jupiter check_install
 .DELETE_ON_ERROR: $(prefix).n$(n).mx.dot
 .SECONDARY:
 
 %.k$(k).w$(w).tsv: %
-	$(log_time) $(assemble_path)/src/indexlr --long --pos -k $(k) -w $(w) -t $(t) $< > $@
+	$(log_time) indexlr --long --pos -k $(k) -w $(w) -t $(t) $< > $@
 
 %.fai: %
 	$(log_time) samtools faidx $<
@@ -218,7 +224,7 @@ ifeq ($(overlap), True)
 endif
 	
 $(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa: $(target).k$(k).w$(w).tsv $(min_ref_targets)
-	PYTHONPATH=$(PYTHONPATH) $(log_time)  $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	$(log_time)  $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
 	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) $(ntjoin_assembly_opts) $(min_ref_targets)
 
 $(target).k$(k).w$(w).n$(n).unassigned.scaffolds.fa: $(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa

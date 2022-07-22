@@ -1,7 +1,0 @@
-*
-!.gitignore
-!Makefile
-!count-footer.tex
-!count-header.tex
-!count.R
-!index-filter.config
