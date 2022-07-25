@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="ntJoin",
-    version="1.1.0",
+    version="1.1.1",
     author="Lauren Coombe",
     author_email="lcoombe@bcgsc.ca",
     description="Genome assembly scaffolder using minimizer graphs",
