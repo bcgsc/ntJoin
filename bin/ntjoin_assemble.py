@@ -61,7 +61,7 @@ class Ntjoin:
         mx_info = {}  # mx -> (contig, position)
         mxs = []  # List of lists of minimizers
         dup_mxs = set()  # Set of minimizers identified as duplicates
-        with open(tsv_filename, 'r') as tsv:
+        with open(tsv_filename, 'r', encoding="utf-8") as tsv:
             for line in tsv:
                 line = line.strip().split("\t")
                 if len(line) > 1:
@@ -74,7 +74,7 @@ class Ntjoin:
                         else:
                             mx_info[mx] = (line[0], int(pos))
 
-        mx_info = {mx: mx_info[mx] for mx in mx_info if mx not in dup_mxs}
+        mx_info = {mx: mx_entry_info for mx, mx_entry_info in mx_info.items() if mx not in dup_mxs}
         mxs_filt = []
         for mx_list in mxs:
             mx_list_filt = [mx for mx in mx_list if mx not in dup_mxs]
@@ -132,38 +132,37 @@ class Ntjoin:
     def print_graph(self, graph):
         "Prints the minimizer graph in dot format"
         out_graph = self.args.p + ".mx.dot"
-        outfile = open(out_graph, 'w')
-        print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stdout)
+        with open(out_graph, 'w',  encoding="utf-8") as outfile:
+            print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stdout)
 
-        outfile.write("graph G {\n")
+            outfile.write("graph G {\n")
 
-        colours = ["red", "green", "blue", "purple", "orange",
-                   "turquoise", "pink", "yellow", "orchid", "salmon"]
-        list_files = list(Ntjoin.list_mx_info.keys())
-        if len(list_files) > len(colours):
-            colours = ["red"]*len(list_files)
+            colours = ["red", "green", "blue", "purple", "orange",
+                    "turquoise", "pink", "yellow", "orchid", "salmon"]
+            list_files = list(Ntjoin.list_mx_info.keys())
+            if len(list_files) > len(colours):
+                colours = ["red"]*len(list_files)
 
-        for node in graph.vs():
-            mx_ctg_pos_labels = "\n".join([str(Ntjoin.list_mx_info[assembly][node['name']])
-                                           for assembly in Ntjoin.list_mx_info])
-            node_label = "\"%s\" [label=\"%s\n%s\"]" % (node['name'], node['name'], mx_ctg_pos_labels)
-            outfile.write("%s\n" % node_label)
+            for node in graph.vs():
+                mx_ctg_pos_labels = "\n".join([str(asm_mx_info[node['name']])
+                                            for _, asm_mx_info in Ntjoin.list_mx_info.items()])
+                node_label = f"\"{node['name']}\" [label=\"{node['name']}\n{mx_ctg_pos_labels}\"]"
+                outfile.write(f"{node_label}\n")
 
-        for edge in graph.es():
-            outfile.write("\"%s\" -- \"%s\"" %
-                          (self.vertex_name(graph, edge.source),
-                           self.vertex_name(graph, edge.target)))
-            weight = edge['weight']
-            support = edge['support']
-            if len(support) == 1:
-                colour = colours[list_files.index(support[0])]
-            elif len(support) == 2:
-                colour = "lightgrey"
-            else:
-                colour = "black"
-            outfile.write(" [weight=%s color=%s]\n" % (weight, colour))
+            for edge in graph.es():
+                outfile.write(f"\"{self.vertex_name(graph, edge.source)}\" --" \
+                            f"\"{self.vertex_name(graph, edge.target)}\"")
+                weight = edge['weight']
+                support = edge['support']
+                if len(support) == 1:
+                    colour = colours[list_files.index(support[0])]
+                elif len(support) == 2:
+                    colour = "lightgrey"
+                else:
+                    colour = "black"
+                outfile.write(f" [weight={weight} color={colour}]\n")
 
-        outfile.write("}\n")
+            outfile.write("}\n")
 
         print("\nfile_name\tnumber\tcolour")
         for i, filename in enumerate(list_files):
@@ -385,8 +384,8 @@ class Ntjoin:
         '''Given the possible sources of the graph, determine which is the source and the target
             Based on the assembly with the largest weight - orient others based on this assembly
         '''
-        max_wt_asm = [assembly for assembly in Ntjoin.weights
-                      if Ntjoin.weights[assembly] == max(Ntjoin.weights.values())].pop()
+        max_wt_asm = [assembly for assembly, asm_weight in Ntjoin.weights.items()
+                      if asm_weight == max(Ntjoin.weights.values())].pop()
         list_mx_info_maxwt = Ntjoin.list_mx_info[max_wt_asm]
         min_pos = min([list_mx_info_maxwt[self.vertex_name(graph, s)][1] for s in sources])
         max_pos = max([list_mx_info_maxwt[self.vertex_name(graph, s)][1] for s in sources])
@@ -586,7 +585,7 @@ class Ntjoin:
     @staticmethod
     def format_bedtools_genome(scaffolds):
         "Format a BED file and genome dictionary for bedtools"
-        bed_str = "\n".join(["%s\t%d\t%d" % (scaffold, 0, scaffolds[scaffold].length)
+        bed_str = "\n".join([f"{scaffold}\t{0}\t{scaffolds[scaffold].length}"
                              for scaffold in scaffolds])
         bed = pybedtools.BedTool(bed_str, from_string=True)
 
@@ -723,7 +722,7 @@ class Ntjoin:
         mx_info = defaultdict(dict)  # path_index -> mx -> pos
         mxs = {}  # path_index -> [mx]
         cur_path_index = 0
-        cur_valid_segments = {"{}_{}_{}".format(node.contig, node.start, node.end)
+        cur_valid_segments = {f"{node.contig}_{node.start}_{node.end}"
                                   for node in paths[cur_path_index]}
         with btllib.Indexlr(fasta_filename, self.args.overlap_k, self.args.overlap_w,
                             btllib.IndexlrFlag.LONG_MODE, self.args.btllib_t) as minimizers:
@@ -739,7 +738,7 @@ class Ntjoin:
                     mx_info = defaultdict(dict)  # path_index -> mx -> pos
                     mxs = {}  # path_index -> [mx]
                     cur_path_index += 1
-                    cur_valid_segments = {"{}_{}_{}".format(node.contig, node.start, node.end)
+                    cur_valid_segments = {f"{node.contig}_{node.start}_{node.end}"
                                               for node in paths[cur_path_index]}
 
                     if mx_entry.id in cur_valid_segments:
@@ -785,11 +784,11 @@ class Ntjoin:
         min_match = re.search(r'^(\S+)(.k\d+.w\d+)\.tsv', assembly)
         assembly_fa, params = min_match.group(1), min_match.group(2)
 
-        outfile = open(assembly_fa + params + ".n" +
-                       str(self.args.n) + ".assigned.scaffolds.fa", 'w')
-        pathfile = open(self.args.p + ".path", 'w')
+        outfile = open(assembly_fa + params + ".n" + # pylint: disable=consider-using-with
+                       str(self.args.n) + ".assigned.scaffolds.fa", 'w', encoding="utf-8")
+        pathfile = open(self.args.p + ".path", 'w', encoding="utf-8") # pylint: disable=consider-using-with
         if self.args.agp:
-            agpfile = open(self.args.p + ".agp", "w")
+            agpfile = open(self.args.p + ".agp", "w", encoding="utf-8") # pylint: disable=consider-using-with
         incorporated_segments = []  # List of Bed entries
 
         ct = 0
@@ -804,7 +803,7 @@ class Ntjoin:
 
         # Trim overlaps if option turned on
         if self.args.overlap:
-            path_segments_file = open(self.args.p + ".segments.fa", 'w')
+            path_segments_file = open(self.args.p + ".segments.fa", 'w', encoding="utf-8") # pylint: disable=consider-using-with
             filtered_paths = []
             for path in paths:
                 sequences = []
@@ -821,9 +820,7 @@ class Ntjoin:
                     my_seq = seq.strip("Nn")
                     my_seq = my_seq[:out_coords[0]] + "N"*(out_coords[1] - out_coords[0]) + my_seq[out_coords[1]:]
                     assert len(my_seq) == node.get_aligned_length()
-                    path_segments_file.write(">{}_{}_{} {}\n{}\n".format(node.contig, node.start,
-                                                                         node.end, node.raw_gap_size,
-                                                                         my_seq))
+                    path_segments_file.write(f">{node.contig}_{node.start}_{node.end} { node.raw_gap_size}\n{my_seq}\n")
                 filtered_paths.append(nodes)
             path_segments_file.close()
 
@@ -852,14 +849,12 @@ class Ntjoin:
             ctg_id = "ntJoin" + str(ct)
             ctg_sequence = self.join_sequences(sequences, path, path_segments)
 
-            outfile.write(">%s\n%s\n" %
-                          (ctg_id, ctg_sequence))
+            outfile.write(f">{ctg_id}\n{ctg_sequence}\n")
             incorporated_segments.extend(path_segments)
-            path_str = " ".join(["%s%s:%d-%d %dN" %
-                                 (node.contig, node.ori, node.get_adjusted_start(), node.get_adjusted_end(),
-                                  node.gap_size) for node in path])
+            path_str = " ".join([f"{node.contig}{node.ori}:{node.get_adjusted_start()}-" \
+                            f"{node.get_adjusted_end()} {node.gap_size}N" for node in path])
             path_str = re.sub(r'\s+\d+N$', r'', path_str)
-            pathfile.write("%s\t%s\n" % (ctg_id, path_str))
+            pathfile.write(f"{ctg_id}\t{path_str}\n")
             if self.args.agp:
                 self.write_agp(agpfile, ctg_id, path_str)
 
@@ -867,55 +862,53 @@ class Ntjoin:
         outfile.close()
 
         if self.args.agp:
-            outfile = self.print_unassigned(assembly, assembly_fa, incorporated_segments, outfile, params,
+            self.print_unassigned(assembly, assembly_fa, incorporated_segments, params,
                                             agpfile=agpfile)
         else:
-            outfile = self.print_unassigned(assembly, assembly_fa, incorporated_segments, outfile, params)
+            self.print_unassigned(assembly, assembly_fa, incorporated_segments, outfile, params)
 
-        outfile.close()
         pathfile.close()
         if self.args.agp:
             agpfile.close()
         if self.args.overlap:
-            cmd_shlex = shlex.split("rm {}".format(self.args.p + ".segments.fa"))
+            cmd_shlex = shlex.split(f"rm {self.args.p}.segments.fa")
             subprocess.call(cmd_shlex)
 
-    def print_unassigned(self, assembly, assembly_fa, incorporated_segments, outfile, params, agpfile=None):
+    def print_unassigned(self, assembly, assembly_fa, incorporated_segments, params, agpfile=None):
         "Also print out the sequences that were NOT scaffolded"
-        incorporated_segments_str = "\n".join(["%s\t%s\t%s" % (chrom, s, e)
+        incorporated_segments_str = "\n".join([f"{chrom}\t{s}\t{e}"
                                                for chrom, s, e in incorporated_segments])
         incorporated_segments_bed = pybedtools.BedTool(incorporated_segments_str,
                                                        from_string=True).sort()
         genome_bed, genome_dict = self.format_bedtools_genome(Ntjoin.scaffolds)
         missing_bed = genome_bed.complement(i=incorporated_segments_bed, g=genome_dict)
         missing_bed.saveas(self.args.p + "." + assembly + ".unassigned.bed")
-        outfile = open(assembly_fa + params + ".n" +
-                       str(self.args.n) + ".unassigned.scaffolds.fa", 'w')
-        cmd = "bedtools getfasta -fi %s -bed %s -fo -" % \
-              (assembly_fa, self.args.p + "." + assembly + ".unassigned.bed")
-        cmd_shlex = shlex.split(cmd)
-        out_fasta = subprocess.Popen(cmd_shlex, stdout=subprocess.PIPE, universal_newlines=True)
-        for header, seq, _, _ in read_fasta(iter(out_fasta.stdout.readline, '')):
-            if self.args.agp:
-                self.write_agp_unassigned(agpfile, header, seq)
-            seq = seq.strip().strip("Nn")
-            if seq:
-                outfile.write(">{header}\n{seq}\n".format(header=header, seq=seq))
-        out_fasta.wait()
-        if out_fasta.returncode != 0:
-            print("bedtools getfasta failed -- is bedtools on your PATH?")
-            print(out_fasta.stderr)
-            raise subprocess.CalledProcessError(out_fasta.returncode, cmd_shlex)
-        return outfile
+
+        with open(f"{assembly_fa}{params}.n{str(self.args.n)}.unassigned.scaffolds.fa",
+                 'w', encoding="utf-8") as outfile:
+            cmd = f"bedtools getfasta -fi {assembly_fa} -bed {self.args.p}.{assembly}.unassigned.bed -fo -"
+            cmd_shlex = shlex.split(cmd)
+            out_fasta = subprocess.Popen(cmd_shlex, stdout=subprocess.PIPE, universal_newlines=True)
+            for header, seq, _, _ in read_fasta(iter(out_fasta.stdout.readline, '')):
+                if self.args.agp:
+                    self.write_agp_unassigned(agpfile, header, seq)
+                seq = seq.strip().strip("Nn")
+                if seq:
+                    outfile.write(f">{header}\n{seq}\n")
+            out_fasta.wait()
+            if out_fasta.returncode != 0:
+                print("bedtools getfasta failed -- is bedtools on your PATH?")
+                print(out_fasta.stderr)
+                raise subprocess.CalledProcessError(out_fasta.returncode, cmd_shlex)
 
     @staticmethod
     def tally_intersecting_segments():
         "Tally ctgs with intersecting segments, and keep track of 'best'"
         incorporated_bed_list = []
-        for ctg in Ntjoin.incorporated_segments:
-            for bed_entry in Ntjoin.incorporated_segments[ctg]:
+        for _, bed_entry_list in Ntjoin.incorporated_segments.items():
+            for bed_entry in bed_entry_list:
                 incorporated_bed_list.append(bed_entry)
-        incorporated_bed_str = "\n".join(["%s\t%s\t%s" % (chrom, s, e)
+        incorporated_bed_str = "\n".join([f"{chrom}\t{s}\t{e}"
                                           for chrom, s, e in incorporated_bed_list])
         incorporated_segments_bed = pybedtools.BedTool(incorporated_bed_str,
                                                        from_string=True).sort()
@@ -931,8 +924,8 @@ class Ntjoin:
                 overlap_regions[bed.chrom].add_region(ntjoin_utils.Bed(contig=bed.chrom, start=bed.start, end=bed.end))
 
         overlap_regions_fix = {}
-        for overlap_contig in overlap_regions:
-            overlap_regions_fix[overlap_contig] = overlap_regions[overlap_contig].find_non_overlapping()
+        for overlap_contig, bed_region in overlap_regions.items():
+            overlap_regions_fix[overlap_contig] = bed_region.find_non_overlapping()
 
         return overlap_regions_fix
 
@@ -1055,7 +1048,7 @@ class Ntjoin:
         list_mx_info[self.args.s] = mxs_info
         list_mxs[self.args.s] = mxs
         weights[self.args.s] = self.args.l
-        weight_str = "\n".join(["%s: %s" % (assembly, weights[assembly]) for assembly in weights])
+        weight_str = "\n".join([f"{assembly}: {asm_weight}" for assembly, asm_weight in weights.items()])
         print("\nWeights of assemblies:\n", weight_str, "\n", sep="")
 
         Ntjoin.list_mx_info = list_mx_info

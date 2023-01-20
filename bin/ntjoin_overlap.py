@@ -73,7 +73,7 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, nodes):
                                                    median_length_from_end=np.median([mid_mx_dist_end_source,
                                                                                      mid_mx_dist_end_target])))
         else:
-            print("NOTE: non-singleton, {} source nodes".format(len(source_nodes)))
+            print(f"NOTE: non-singleton, {len(source_nodes)} source nodes")
     if not paths_components:
         return False
     path = sorted(paths_components, key=lambda x: (x.mapped_region_length, x.median_length_from_end,

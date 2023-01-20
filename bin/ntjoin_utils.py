@@ -23,7 +23,7 @@ class HiddenPrints:
 
     def __enter__(self):
         self._original_stdout = sys.stdout
-        sys.stdout = open(os.devnull, 'w')
+        sys.stdout = open(os.devnull, 'w', encoding="utf-8")
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         sys.stdout.close()
@@ -98,10 +98,9 @@ class PathNode:
         raise OrientationError()
 
     def __str__(self):
-        return "Contig:%s\tOrientation:%s\tStart-End:%d-%d\tLength:%s\tFirstmx:%s\tLastmx:%s\t" \
-               "Adjusted_start-end:%d-%d" \
-               % (self.contig, self.ori, self.start, self.end, self.contig_size,
-                  self.first_mx, self.terminal_mx, self.start_adjust, self.end_adjust)
+        return f"Contig:{self.contig}\tOrientation:{self.ori}\tStart-End:{self.start}-{self.end}\t"\
+                f"Length:{self.contig_size}\tFirstmx:{self.first_mx}\tLastmx:{self.terminal_mx}\t" \
+                f"Adjusted_start-end:{self.start_adjust}-{self.end_adjust}"
 
 class OrientationError(ValueError):
     "Orientation type error"
