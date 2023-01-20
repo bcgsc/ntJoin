@@ -865,7 +865,7 @@ class Ntjoin:
             self.print_unassigned(assembly, assembly_fa, incorporated_segments, params,
                                             agpfile=agpfile)
         else:
-            self.print_unassigned(assembly, assembly_fa, incorporated_segments, outfile, params)
+            self.print_unassigned(assembly, assembly_fa, incorporated_segments, params)
 
         pathfile.close()
         if self.args.agp:
