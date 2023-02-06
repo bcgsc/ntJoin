@@ -21,6 +21,7 @@ import btllib
 from read_fasta import read_fasta
 import ntjoin_utils
 import ntjoin_overlap
+import ntjoin_synteny
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 
@@ -427,7 +428,10 @@ class Ntjoin:
                         num_edges == len(subcomponent_graph.es()) and len(path) == len(set(path)):
                     # All the nodes/edges from the graph are in the simple path, no repeated nodes
                     path = self.convert_path_index_to_name(subcomponent_graph, path)
-                    ctg_path = self.format_path(path, self.args.s,
+                    if self.args.mode == "synteny":
+                        ctg_path = ntjoin_synteny.find_synteny_blocks(path, Ntjoin.list_mx_info, self.args.k)
+                    else:
+                        ctg_path = self.format_path(path, self.args.s,
                                                 subcomponent_graph)
                     return_paths.append(ctg_path)
         return return_paths
@@ -955,7 +959,7 @@ class Ntjoin:
             )
         parser.add_argument("-v", "--version", action='version', version='ntJoin v1.1.1')
 
-        subparsers = parser.add_subparsers()
+        subparsers = parser.add_subparsers(dest="mode")
         scaffold_parser = subparsers.add_parser("scaffold",
         help="Scaffold the input target assembly using the supplied reference(s)",
                     epilog="Note: Script expects that each input minimizer TSV file has a matching fasta file.\n"
@@ -1001,15 +1005,21 @@ class Ntjoin:
 
         synteny_parser = subparsers.add_parser("synteny", help="Extract syntenic blocks from input assemblies")
         synteny_parser.add_argument("FILES", nargs="+", help="Minimizer TSV files of input assemblies")
-        synteny_parser.add_argument("-n", help="Minimum edge weight [1]", default=1, type=int)
+        synteny_parser.add_argument("-n", help="Minimum edge weight [Number of input assemblies]", default=0, type=int)
         synteny_parser.add_argument("-p", help="Output prefix [out]",
                                     default="out", type=str, required=False)
+        synteny_parser.add_argument("-k", help="Kmer size used for minimizer step", required=True, type=int)
         synteny_parser.add_argument("-v", "--version", action='version', version='ntJoin v1.1.1')
 
+        if len(sys.argv) == 1:
+            parser.print_help()
+            sys.exit()
+            
         return parser.parse_args()
 
-    def print_parameters(self):
-        "Print the set parameters for the ntJoin run"
+    def print_parameters_scaffold(self):
+        "Print the set parameters for the ntJoin scaffolding run"
+        print("Running ntJoin scaffolding..")
         print("Parameters:")
         print("\tReference TSV files: ", self.args.FILES)
         print("\t-s ", self.args.s)
@@ -1036,10 +1046,40 @@ class Ntjoin:
             print("\t--overlap_w", self.args.overlap_w)
             print("\t--btllib_t", self.args.btllib_t)
 
+    def print_parameters_synteny(self):
+        "Pring the set parameters for the ntJoin synteny run"
+        if self.args.n == 0:
+            self.args.n = len(self.args.FILES)
+        print("Running ntJoin synteny detection...")
+        print("Parameters:")
+        print("\tMinimizer TSV files: ", self.args.FILES)
+        print("\t-n", self.args.n)
+        print("\t-p", self.args.p)
+        print("\t-k", self.args.k)
+
+
+    def print_parameters(self):
+        "Print the parameters for the ntJoin in the specified mode"
+        if self.args.mode == "scaffold":
+            self.print_parameters_scaffold()
+        elif self.args.mode == "synteny":
+            self.print_parameters_synteny()
+        else:
+            raise ValueError(f"Unexpected mode: {self.args.mode}")
+
+    def set_synteny_parameters(self):
+        "Set the default parameters for synteny mode"
+        self.args.r = " ".join(["1"] * len(self.args.FILES))
+        self.args.t = 1
+
     def main(self):
         "Run ntJoin graph stage"
         print("Running ntJoin v1.1.1 ...\n")
+        print(self.args, self.args.n)
         self.print_parameters()
+
+        if self.args.mode == "synteny":
+            self.set_synteny_parameters()
 
         # Parse the weights of each input reference assembly
         input_weights = [float(w) for w in re.split(r'\s+', self.args.r)]
@@ -1059,10 +1099,11 @@ class Ntjoin:
             list_mx_info[assembly] = mxs_info
             list_mxs[assembly] = mxs
             weights[assembly] = input_weights.pop(0)
-        mxs_info, mxs = self.read_minimizers(self.args.s)
-        list_mx_info[self.args.s] = mxs_info
-        list_mxs[self.args.s] = mxs
-        weights[self.args.s] = self.args.l
+        if self.args.mode == "scaffold":
+            mxs_info, mxs = self.read_minimizers(self.args.s)
+            list_mx_info[self.args.s] = mxs_info
+            list_mxs[self.args.s] = mxs
+            weights[self.args.s] = self.args.l
         weight_str = "\n".join([f"{assembly}: {asm_weight}" for assembly, asm_weight in weights.items()])
         print("\nWeights of assemblies:\n", weight_str, "\n", sep="")
 
@@ -1082,21 +1123,33 @@ class Ntjoin:
         graph = self.filter_graph_global(graph)
 
         # Find the min and max pos of minimizers for target assembly, per ctg
-        Ntjoin.mx_extremes = self.find_mx_min_max(graph, self.args.s)
+        if self.args.mode == "scaffold":
+            Ntjoin.mx_extremes = self.find_mx_min_max(graph, self.args.s)
 
         # Load target scaffolds into memory
-        min_match = re.search(r'^(\S+).k\d+.w\d+\.tsv', self.args.s)
-        if not min_match:
-            print("ERROR: Target assembly minimizer TSV file must follow the naming convention:")
-            print("\ttarget_assembly.fa.k<k>.w<w>.tsv, where <k> and <w> are parameters used for minimizering")
-            sys.exit(1)
-        assembly_fa = min_match.group(1)
-        scaffolds = self.read_fasta_file(assembly_fa)  # scaffold_id -> Scaffold
+        if self.args.mode == "scaffold":
+            min_match = re.search(r'^(\S+).k\d+.w\d+\.tsv', self.args.s)
+            if not min_match:
+                print("ERROR: Target assembly minimizer TSV file must follow the naming convention:")
+                print("\ttarget_assembly.fa.k<k>.w<w>.tsv, where <k> and <w> are parameters used for minimizering")
+                sys.exit(1)
+            assembly_fa = min_match.group(1)
+            scaffolds = self.read_fasta_file(assembly_fa)  # scaffold_id -> Scaffold
 
-        Ntjoin.scaffolds = scaffolds
+            Ntjoin.scaffolds = scaffolds
 
         # Find the paths through the graph
         paths, incorporated_segments = self.find_paths(graph)
+
+        if self.args.mode == "synteny":
+            with open(f"{self.args.p}.synteny_blocks.tsv", 'w', encoding="utf-8") as outfile:
+                block_num = 0
+                for subcomponent in paths:
+                    for block in subcomponent:
+                        outfile.write(block.get_block_string(block_num))
+                        block_num += 1
+            print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
+            sys.exit()
 
         Ntjoin.incorporated_segments = incorporated_segments
 
@@ -1114,6 +1167,7 @@ class Ntjoin:
     def __init__(self):
         "Create an ntJoin instance"
         self.args = self.parse_arguments()
+
 
 def main():
     "Run ntJoin"
