@@ -161,6 +161,8 @@ analysis: check_params_analysis \
 
 all: check_params assemble analysis
 
+synteny: $(prefix).synteny_blocks.tsv
+
 check_params:
 ifeq ($(references), None)
 ifeq ($(reference_config), None)
@@ -195,7 +197,7 @@ ifneq ($(shell command -v 'python3 -c "import btllib"'),)
         $(error ERROR: btllib not found. Please ensure btllib is installed)
 endif
 
-.PHONY: help all version analysis assemble check_params jupiter check_install
+.PHONY: help all version analysis assemble check_params jupiter check_install synteny
 .DELETE_ON_ERROR: $(prefix).n$(n).mx.dot
 .SECONDARY:
 
@@ -248,3 +250,7 @@ else
 	quast -t $(t) -o quast_$(prefix) -r $(ref) --fast --scaffold-gap-max-size 100000 --split-scaffolds \
 	$^
 endif
+
+# Synteny
+$(prefix).synteny_blocks.tsv: $(min_ref_targets)
+	$(assemble_path)/bin/ntjoin_assemble.py synteny $^ -k$(k) 
