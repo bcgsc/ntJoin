@@ -161,7 +161,8 @@ analysis: check_params_analysis \
 
 all: check_params assemble analysis
 
-synteny: $(prefix).synteny_blocks.tsv
+synteny: $(fai_ref_targets) \
+		$(prefix).synteny_blocks.tsv
 
 check_params:
 ifeq ($(references), None)
@@ -253,4 +254,4 @@ endif
 
 # Synteny
 $(prefix).synteny_blocks.tsv: $(min_ref_targets)
-	$(assemble_path)/bin/ntjoin_assemble.py synteny $^ -k$(k) 
+	$(assemble_path)/bin/ntjoin_assemble.py synteny $^ -k$(k) -w$(w)

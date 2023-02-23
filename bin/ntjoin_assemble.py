@@ -1009,6 +1009,7 @@ class Ntjoin:
         synteny_parser.add_argument("-p", help="Output prefix [out]",
                                     default="out", type=str, required=False)
         synteny_parser.add_argument("-k", help="Kmer size used for minimizer step", required=True, type=int)
+        synteny_parser.add_argument("-w", help="Window sie used for minimizers", required=True, type=int)
         synteny_parser.add_argument("-v", "--version", action='version', version='ntJoin v1.1.1')
 
         if len(sys.argv) == 1:
@@ -1148,7 +1149,10 @@ class Ntjoin:
                     for block in subcomponent:
                         outfile.write(block.get_block_string(block_num))
                         block_num += 1
-            print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
+            print(datetime.datetime.today(), ": Done initial synteny blocks", file=sys.stdout)
+            # Ready to start refining the synteny block coordinates
+            ntjoin_synteny.generate_additional_minimizers(paths, self.args.w)
+
             sys.exit()
 
         Ntjoin.incorporated_segments = incorporated_segments
