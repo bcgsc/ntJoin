@@ -132,6 +132,7 @@ def get_synteny_bed_lists(paths, w):
                     ntjoin_utils.Bed(assembly_block.contig_id,
                                     assembly_block.get_block_start() + w,
                                     assembly_block.get_block_end() + block.k - w))
+
     return synteny_beds
 
 def mask_assemblies_with_synteny_extents(synteny_beds):
@@ -144,11 +145,24 @@ def mask_assemblies_with_synteny_extents(synteny_beds):
         synteny_bed = pybedtools.BedTool(bed_str, from_string=True).sort()
         fa_filename = find_fa_name(assembly)
         synteny_bed.mask_fasta(fi=fa_filename, fo=f"{fa_filename}_masked.fa")
-        mx_to_fa_dict[assembly] = fa_filename
+        mx_to_fa_dict[assembly] = f"{fa_filename}_masked.fa"
     return mx_to_fa_dict
 
+def generate_new_minimizers(tsv_to_fa_dict, k, w, t):
+    "Given the masked fasta files, generate minimizers at new w for each"
+    list_mx_info = {}
+    list_mxs = {}
+    for assembly_tsv, assembly_masked in tsv_to_fa_dict.items():
+        indexlr_filename = ntjoin_utils.run_indexlr(assembly_masked, k, int(w/10), t)
+        mx_info, mxs_filt = ntjoin_utils.read_minimizers(indexlr_filename)
+        list_mx_info[assembly_tsv] = mx_info
+        list_mxs[assembly_tsv] = mxs_filt
+    return list_mx_info, list_mxs
 
-def generate_additional_minimizers(paths, w):
+
+def generate_additional_minimizers(paths, w, t):
     "Given the existing synteny blocks, generate minimizers for increased block resolution"
+    k = paths[0][0].k
     synteny_beds = get_synteny_bed_lists(paths, w)
     mx_to_fa_dict = mask_assemblies_with_synteny_extents(synteny_beds)
+    list_mx_info, list_mxs = generate_new_minimizers(mx_to_fa_dict, k, w, t)

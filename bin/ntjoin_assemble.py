@@ -56,33 +56,6 @@ class Ntjoin:
         return [Ntjoin.vertex_name(graph, vs) for vs in path]
 
     @staticmethod
-    def read_minimizers(tsv_filename):
-        "Read the minimizers from a file, removing duplicate minimizers"
-        print(datetime.datetime.today(), ": Reading minimizers", tsv_filename, file=sys.stdout)
-        mx_info = {}  # mx -> (contig, position)
-        mxs = []  # List of lists of minimizers
-        dup_mxs = set()  # Set of minimizers identified as duplicates
-        with open(tsv_filename, 'r', encoding="utf-8") as tsv:
-            for line in tsv:
-                line = line.strip().split("\t")
-                if len(line) > 1:
-                    mx_pos_split = line[1].split(" ")
-                    mxs.append([mx_pos.split(":")[0] for mx_pos in mx_pos_split])
-                    for mx_pos in mx_pos_split:
-                        mx, pos = mx_pos.split(":")
-                        if mx in mx_info:  # This is a duplicate, add to dup set, don't add to dict
-                            dup_mxs.add(mx)
-                        else:
-                            mx_info[mx] = (line[0], int(pos))
-
-        mx_info = {mx: mx_entry_info for mx, mx_entry_info in mx_info.items() if mx not in dup_mxs}
-        mxs_filt = []
-        for mx_list in mxs:
-            mx_list_filt = [mx for mx in mx_list if mx not in dup_mxs]
-            mxs_filt.append(mx_list_filt)
-        return mx_info, mxs_filt
-
-    @staticmethod
     def calc_total_weight(list_files, weights):
         "Calculate the total weight of an edge given the assembly support"
         return sum([weights[f] for f in list_files])
@@ -1009,7 +982,9 @@ class Ntjoin:
         synteny_parser.add_argument("-p", help="Output prefix [out]",
                                     default="out", type=str, required=False)
         synteny_parser.add_argument("-k", help="Kmer size used for minimizer step", required=True, type=int)
-        synteny_parser.add_argument("-w", help="Window sie used for minimizers", required=True, type=int)
+        synteny_parser.add_argument("-w", help="Window size used for minimizers", required=True, type=int)
+        synteny_parser.add_argument("--btllib_t", help="Number of threads for btllib wrapper functions "\
+                                    "(computing minimizers, reading fasta file) [4]", type=int, default=4)
         synteny_parser.add_argument("-v", "--version", action='version', version='ntJoin v1.1.1')
 
         if len(sys.argv) == 1:
@@ -1057,6 +1032,8 @@ class Ntjoin:
         print("\t-n", self.args.n)
         print("\t-p", self.args.p)
         print("\t-k", self.args.k)
+        print("\t-w", self.args.w)
+        print("\t--btllib_t", self.args.btllib_t)
 
 
     def print_parameters(self):
@@ -1096,12 +1073,12 @@ class Ntjoin:
         list_mxs = {}  # Dictionary: assembly -> [lists of mx]
         weights = {}  # Dictionary: assembly -> weight
         for assembly in self.args.FILES:
-            mxs_info, mxs = self.read_minimizers(assembly)
+            mxs_info, mxs = ntjoin_utils.read_minimizers(assembly)
             list_mx_info[assembly] = mxs_info
             list_mxs[assembly] = mxs
             weights[assembly] = input_weights.pop(0)
         if self.args.mode == "scaffold":
-            mxs_info, mxs = self.read_minimizers(self.args.s)
+            mxs_info, mxs = ntjoin_utils.read_minimizers(self.args.s)
             list_mx_info[self.args.s] = mxs_info
             list_mxs[self.args.s] = mxs
             weights[self.args.s] = self.args.l
@@ -1151,7 +1128,7 @@ class Ntjoin:
                         block_num += 1
             print(datetime.datetime.today(), ": Done initial synteny blocks", file=sys.stdout)
             # Ready to start refining the synteny block coordinates
-            ntjoin_synteny.generate_additional_minimizers(paths, self.args.w)
+            ntjoin_synteny.generate_additional_minimizers(paths, self.args.w, self.args.btllib_t)
 
             sys.exit()
 

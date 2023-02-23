@@ -6,6 +6,8 @@ Written by Lauren Coombe (@lcoombe)
 
 import datetime
 from collections import namedtuple
+import shlex
+import subprocess
 import sys
 import os
 
@@ -44,6 +46,40 @@ def filter_minimizers(list_mxs):
         return_mxs[assembly] = assembly_mxs_filtered
 
     return return_mxs
+
+def read_minimizers(tsv_filename):
+    "Read the minimizers from a file, removing duplicate minimizers"
+    print(datetime.datetime.today(), ": Reading minimizers", tsv_filename, file=sys.stdout)
+    mx_info = {}  # mx -> (contig, position)
+    mxs = []  # List of lists of minimizers
+    dup_mxs = set()  # Set of minimizers identified as duplicates
+    with open(tsv_filename, 'r', encoding="utf-8") as tsv:
+        for line in tsv:
+            line = line.strip().split("\t")
+            if len(line) > 1:
+                mx_pos_split = line[1].split(" ")
+                mxs.append([mx_pos.split(":")[0] for mx_pos in mx_pos_split])
+                for mx_pos in mx_pos_split:
+                    mx, pos = mx_pos.split(":")
+                    if mx in mx_info:  # This is a duplicate, add to dup set, don't add to dict
+                        dup_mxs.add(mx)
+                    else:
+                        mx_info[mx] = (line[0], int(pos))
+
+    mx_info = {mx: mx_entry_info for mx, mx_entry_info in mx_info.items() if mx not in dup_mxs}
+    mxs_filt = []
+    for mx_list in mxs:
+        mx_list_filt = [mx for mx in mx_list if mx not in dup_mxs]
+        mxs_filt.append(mx_list_filt)
+    return mx_info, mxs_filt
+
+def run_indexlr(assembly, k, w, t):
+    "Run indexlr on the given assembly with the specified k and w"
+    cmd = f"indexlr {assembly} --long --pos -k{k} -w{w} -t{t} -o {assembly}.k{k}.w{w}.tsv"
+    cmd = shlex.split(cmd)
+    ret_code = subprocess.call(cmd)
+    assert ret_code == 0
+    return f"{assembly}.k{k}.w{w}.tsv"
 
 
 # Defining helper classes
