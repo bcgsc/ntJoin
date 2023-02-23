@@ -5,11 +5,10 @@ Written by Lauren Coombe @lcoombe
 """
 
 from collections import namedtuple
-import ntjoin_utils
-import pybedtools
-from pybedtools.featurefuncs import extend_fields #pylint: disable=[no-name-in-module]
 import re
 import sys
+import ntjoin_utils
+import pybedtools
 
 # Named tuples
 Minimizer = namedtuple("Minimizer", ["mx", "position"])
@@ -26,7 +25,7 @@ class SyntenyBlock:
 
 
     def continue_block(self, mx, list_mx_info):
-        "Given the minimizer and preliminary blocks, return if synteny block should extend, else False"
+        "Given minimizer and preliminary blocks, return if synteny block should extend, else False"
         return all(mx_dict[mx][0] == self.assembly_blocks[assembly].contig_id \
             for assembly, mx_dict in list_mx_info.items())
 
@@ -78,7 +77,7 @@ class AssemblyBlock:
         self.contig_id = None
         self.minimizers = []
         self.ori = None
-    
+
     def get_block_start(self):
         "Get the starting coordinate of the assembly block"
         return min(self.minimizers[0].position, self.minimizers[-1].position)
@@ -119,12 +118,6 @@ def find_fa_name(assembly_mx_name):
     print("\ttarget_assembly.fa.k<k>.w<w>.tsv, where <k> and <w> are parameters used for minimizering")
     sys.exit(1)
 
-def add_name_bed(f):
-    "Add name feature to the BedTool"
-    f = extend_fields(f, 4)
-    f.name = "complement"
-    return f
-
 def get_synteny_bed_lists(paths, w):
     "Given a set of synteny blocks, return a dictionary with a Bed interval lists per contig, per assembly"
     synteny_beds = {}
@@ -159,12 +152,3 @@ def generate_additional_minimizers(paths, w):
     "Given the existing synteny blocks, generate minimizers for increased block resolution"
     synteny_beds = get_synteny_bed_lists(paths, w)
     mx_to_fa_dict = mask_assemblies_with_synteny_extents(synteny_beds)
-
-        
-
-
-
-
-
-
-
