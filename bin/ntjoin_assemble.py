@@ -17,11 +17,11 @@ import warnings
 import igraph as ig
 import pybedtools
 import pymannkendall as mk
-import btllib
 from read_fasta import read_fasta
 import ntjoin_utils
 import ntjoin_overlap
 import ntjoin_synteny
+import btllib
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 
@@ -61,10 +61,12 @@ class Ntjoin:
         return sum([weights[f] for f in list_files])
 
 
-    def build_graph(self, list_mxs, weights):
+    def build_graph(self, list_mxs, weights, graph=None, black_list=None):
         "Builds an undirected graph: nodes=minimizers; edges=between adjacent minimizers"
         print(datetime.datetime.today(), ": Building graph", file=sys.stdout)
-        graph = ig.Graph()
+
+        if graph is None:
+            graph = ig.Graph()
 
         vertices = set()
         edges = defaultdict(dict)  # source -> target -> [list assembly support]
@@ -81,9 +83,11 @@ class Ntjoin:
                         edges[assembly_mx_list[j]][assembly_mx_list[i]].append(assembly)
                     else:
                         edges[assembly_mx_list[i]][assembly_mx_list[j]] = [assembly]
-                    vertices.add(assembly_mx_list[i])
+                    if black_list is None or assembly_mx_list[i] not in black_list:
+                        vertices.add(assembly_mx_list[i])
                 if assembly_mx_list:
-                    vertices.add(assembly_mx_list[-1])
+                    if black_list is None or assembly_mx_list[-1] not in black_list:
+                        vertices.add(assembly_mx_list[-1])
 
         formatted_edges = [(s, t) for s in edges for t in edges[s]]
 
@@ -103,9 +107,13 @@ class Ntjoin:
         return graph
 
 
-    def print_graph(self, graph):
+    def print_graph(self, graph, out_prefix=None):
         "Prints the minimizer graph in dot format"
-        out_graph = self.args.p + ".mx.dot"
+        if out_prefix is None:
+            out_graph = self.args.p + ".mx.dot"
+        else:
+            out_graph = out_prefix + "mx.dot"
+
         with open(out_graph, 'w',  encoding="utf-8") as outfile:
             print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stdout)
 
@@ -389,7 +397,6 @@ class Ntjoin:
                 min_edge_weight <= max_edge_weight:
             component_graph = self.filter_graph(component_graph, min_edge_weight)
             min_edge_weight += 1
-
         for subcomponent in component_graph.components():
             subcomponent_graph = component_graph.subgraph(subcomponent)
             source_nodes = [node.index for node in subcomponent_graph.vs() if node.degree() == 1]
@@ -990,7 +997,7 @@ class Ntjoin:
         if len(sys.argv) == 1:
             parser.print_help()
             sys.exit()
-            
+
         return parser.parse_args()
 
     def print_parameters_scaffold(self):
@@ -1128,7 +1135,19 @@ class Ntjoin:
                         block_num += 1
             print(datetime.datetime.today(), ": Done initial synteny blocks", file=sys.stdout)
             # Ready to start refining the synteny block coordinates
-            ntjoin_synteny.generate_additional_minimizers(paths, self.args.w, self.args.btllib_t)
+            new_list_mxs, terminal_mxs = ntjoin_synteny.generate_additional_minimizers(paths, self.args.w, self.args.btllib_t, list_mx_info)
+            graph = self.build_graph(new_list_mxs, Ntjoin.weights, graph=graph, black_list = terminal_mxs)
+            self.print_graph(graph, out_prefix=f"{self.args.p}.extend.")
+            graph = self.filter_graph_global(graph)
+            paths, incorporated_segments = self.find_paths(graph)
+            print(datetime.datetime.today(), ": Done extended synteny blocks", file=sys.stdout)
+            with open(f"{self.args.p}.synteny_blocks.extended.tsv", 'w', encoding="utf-8") as outfile:
+                block_num = 0
+                for subcomponent in paths:
+                    for block in subcomponent:
+                        outfile.write(block.get_block_string(block_num))
+                        block_num += 1
+
 
             sys.exit()
 

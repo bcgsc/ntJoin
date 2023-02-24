@@ -4,9 +4,11 @@ ntJoin: Identifying synteny between genome assemblies using minimizer graphs
 Written by Lauren Coombe @lcoombe
 """
 
-from collections import namedtuple
+from collections import namedtuple, defaultdict
+import datetime
 import re
 import sys
+import intervaltree
 import ntjoin_utils
 import pybedtools
 
@@ -86,6 +88,14 @@ class AssemblyBlock:
         "Get the end coordinate of the assembly block"
         return max(self.minimizers[0].position, self.minimizers[-1].position)
 
+    def get_block_terminal_mx(self):
+        "Return the terminal minimizer hashes for the assembly block"
+        return self.contig_id, self.minimizers[0], self.minimizers[-1]
+
+    def get_block_internal_mx_hashes(self):
+        "Return the internal minimizer hashes for the assembly block"
+        return [mx_pos.mx for mx_pos in self.minimizers[1:-1]]
+
 
 def find_synteny_blocks(path, list_mx_info, k):
     "Given a path (sequence of mx), print the order/orientation/regions of contigs for an assembly"
@@ -107,7 +117,7 @@ def find_synteny_blocks(path, list_mx_info, k):
     prelim_blocks.determine_orientations()
     if prelim_blocks.all_oriented():
         out_blocks.append(prelim_blocks)
-
+    
     return out_blocks
 
 def find_fa_name(assembly_mx_name):
@@ -150,19 +160,87 @@ def mask_assemblies_with_synteny_extents(synteny_beds):
 
 def generate_new_minimizers(tsv_to_fa_dict, k, w, t):
     "Given the masked fasta files, generate minimizers at new w for each"
-    list_mx_info = {}
     list_mxs = {}
+    new_list_mxs_info = {}
     for assembly_tsv, assembly_masked in tsv_to_fa_dict.items():
-        indexlr_filename = ntjoin_utils.run_indexlr(assembly_masked, k, int(w/10), t)
+        indexlr_filename = ntjoin_utils.run_indexlr(assembly_masked, k, int(w/100), t) #!! TODO - fix magic number
         mx_info, mxs_filt = ntjoin_utils.read_minimizers(indexlr_filename)
-        list_mx_info[assembly_tsv] = mx_info
+        new_list_mxs_info[assembly_tsv] = mx_info
         list_mxs[assembly_tsv] = mxs_filt
-    return list_mx_info, list_mxs
+    return list_mxs, new_list_mxs_info
+
+def update_interval_tree(trees, assembly_name, ctg, mx1, mx2):
+    "Update the given dictionary of trees with the new extent"
+    start_pos = min(mx1.position, mx2.position)
+    end_pos = max(mx1.position, mx2.position)
+    if assembly_name not in trees or ctg not in assembly_name[trees]:
+        trees[assembly_name][ctg] = intervaltree.IntervalTree()
+    trees[assembly_name][ctg][start_pos+1:end_pos] = (mx1, mx2)
+
+def find_mx_in_blocks(paths):
+    "Given the synteny blocks, find the minimizers at the terminal ends of each block, and internal"
+    terminal_mxs = set()
+    internal_mxs = set()
+    intervaltrees = defaultdict(dict) # assembly -> contig -> IntervalTree of synteny block extents
+
+    for subcomponent in paths:
+        for block in subcomponent:
+            curr_mx_len = len(terminal_mxs)
+            for assembly, assembly_block in block.assembly_blocks.items():
+                contig, mx1, mx2 = assembly_block.get_block_terminal_mx()
+                terminal_mxs.add(mx1.mx)
+                terminal_mxs.add(mx2.mx)
+                update_interval_tree(intervaltrees, assembly, contig, mx1, mx2)
+                internal = assembly_block.get_block_internal_mx_hashes()
+                internal_mxs = internal_mxs.union(internal)
+            assert len(terminal_mxs) == (curr_mx_len + 2)
+    return terminal_mxs, internal_mxs, intervaltrees
+
+def filter_minimizers_synteny_blocks(list_mxs, black_list, intervaltrees, list_mx_info):
+    "Filter minimizers found in the mx black list"
+    return_mxs = {}
+    for assembly in list_mxs:
+        # assembly_mxs_filtered = [[mx for mx in mx_list if mx not in black_list and \
+        #                         intervaltrees[assembly][list_mx_info[assembly][mx][0]] [list_mx_info[assembly][mx][1]]
+        #                         for mx_list in list_mxs[assembly]]]
+        assembly_mxs_filtered = []
+        for mx_list in list_mxs[assembly]:
+            new_list = []
+            for mx in mx_list:
+                ctg, pos = list_mx_info[assembly][mx]
+                i_tree = intervaltrees[assembly][ctg]
+                if new_list:
+                    prev_pos = list_mx_info[assembly][new_list[-1]][1]
+                    start = min(prev_pos, pos)
+                    end = max(prev_pos, pos)
+                    if i_tree[start:end]: # Split the mx adjacency if it spans over a known synteny block
+                        assembly_mxs_filtered.append(new_list)
+                        new_list = []
+                if mx not in black_list and not i_tree[pos]:
+                    new_list.append(mx)
+            assembly_mxs_filtered.append(new_list)
+
+        return_mxs[assembly] = assembly_mxs_filtered
+    return return_mxs
+
+def update_list_mx_info(list_mxs, list_mx_info, new_list_mx_info):
+    "Update the directory containing mx -> contig, position associations"
+    valid_mxs = set({mx for _, list_mx_val in list_mxs.items() \
+                    for list_mx in list_mx_val for mx in list_mx})
+    for assembly, mx_dict in new_list_mx_info.items():
+        for mx in mx_dict:
+            if mx in valid_mxs and mx not in list_mx_info[assembly]:
+                list_mx_info[assembly][mx] = mx_dict[mx]
 
 
-def generate_additional_minimizers(paths, w, t):
+def generate_additional_minimizers(paths, w, t, list_mx_info):
     "Given the existing synteny blocks, generate minimizers for increased block resolution"
     k = paths[0][0].k
     synteny_beds = get_synteny_bed_lists(paths, w)
     mx_to_fa_dict = mask_assemblies_with_synteny_extents(synteny_beds)
-    list_mx_info, list_mxs = generate_new_minimizers(mx_to_fa_dict, k, w, t)
+    list_mxs, new_list_mx_info = generate_new_minimizers(mx_to_fa_dict, k, w, t)
+    terminal_mx, internal_mx, interval_trees = find_mx_in_blocks(paths) # !! TODO - only need internal?
+    list_mxs = filter_minimizers_synteny_blocks(list_mxs, internal_mx, interval_trees, new_list_mx_info)
+    list_mxs = ntjoin_utils.filter_minimizers(list_mxs) # Filter for mx in all assemblies
+    update_list_mx_info(list_mxs, list_mx_info, new_list_mx_info)
+    return list_mxs, terminal_mx
