@@ -5,7 +5,6 @@ Written by Lauren Coombe @lcoombe
 """
 
 from collections import namedtuple, defaultdict
-import datetime
 import re
 import sys
 import intervaltree
@@ -117,7 +116,7 @@ def find_synteny_blocks(path, list_mx_info, k):
     prelim_blocks.determine_orientations()
     if prelim_blocks.all_oriented():
         out_blocks.append(prelim_blocks)
-    
+
     return out_blocks
 
 def find_fa_name(assembly_mx_name):
@@ -163,7 +162,7 @@ def generate_new_minimizers(tsv_to_fa_dict, k, w, t):
     list_mxs = {}
     new_list_mxs_info = {}
     for assembly_tsv, assembly_masked in tsv_to_fa_dict.items():
-        indexlr_filename = ntjoin_utils.run_indexlr(assembly_masked, k, int(w/100), t) #!! TODO - fix magic number
+        indexlr_filename = ntjoin_utils.run_indexlr(assembly_masked, k, w, t) #!! TODO - fix magic number
         mx_info, mxs_filt = ntjoin_utils.read_minimizers(indexlr_filename)
         new_list_mxs_info[assembly_tsv] = mx_info
         list_mxs[assembly_tsv] = mxs_filt
@@ -233,13 +232,13 @@ def update_list_mx_info(list_mxs, list_mx_info, new_list_mx_info):
                 list_mx_info[assembly][mx] = mx_dict[mx]
 
 
-def generate_additional_minimizers(paths, w, t, list_mx_info):
+def generate_additional_minimizers(paths, new_w, prev_w, t, list_mx_info):
     "Given the existing synteny blocks, generate minimizers for increased block resolution"
     k = paths[0][0].k
-    synteny_beds = get_synteny_bed_lists(paths, w)
+    synteny_beds = get_synteny_bed_lists(paths, prev_w)
     mx_to_fa_dict = mask_assemblies_with_synteny_extents(synteny_beds)
-    list_mxs, new_list_mx_info = generate_new_minimizers(mx_to_fa_dict, k, w, t)
-    terminal_mx, internal_mx, interval_trees = find_mx_in_blocks(paths) # !! TODO - only need internal?
+    list_mxs, new_list_mx_info = generate_new_minimizers(mx_to_fa_dict, k, new_w, t)
+    terminal_mx, internal_mx, interval_trees = find_mx_in_blocks(paths)
     list_mxs = filter_minimizers_synteny_blocks(list_mxs, internal_mx, interval_trees, new_list_mx_info)
     list_mxs = ntjoin_utils.filter_minimizers(list_mxs) # Filter for mx in all assemblies
     update_list_mx_info(list_mxs, list_mx_info, new_list_mx_info)

@@ -22,6 +22,9 @@ references_list=$(references)
 reference_weights_list=$(reference_weights)
 endif
 
+# synteny - w block extensions
+w_sizes=$(synteny_ws)
+
 min_ref_targets=$(addsuffix .k$(k).w$(w).tsv, $(references_list))
 fai_ref_targets=$(addsuffix .fai, $(references_list))
 
@@ -254,4 +257,4 @@ endif
 
 # Synteny
 $(prefix).synteny_blocks.tsv: $(min_ref_targets)
-	$(assemble_path)/bin/ntjoin_assemble.py synteny $^ -k$(k) -w$(w)
+	$(assemble_path)/bin/ntjoin_assemble.py synteny $^ -k$(k) -w$(w) --w-rounds $(w_sizes)
