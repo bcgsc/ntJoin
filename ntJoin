@@ -23,7 +23,7 @@ reference_weights_list=$(reference_weights)
 endif
 
 # synteny - w block extensions
-w_sizes=$(synteny_ws)
+w_sizes=100 10 5
 
 min_ref_targets=$(addsuffix .k$(k).w$(w).tsv, $(references_list))
 fai_ref_targets=$(addsuffix .fai, $(references_list))

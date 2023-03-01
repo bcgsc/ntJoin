@@ -151,6 +151,8 @@ def mask_assemblies_with_synteny_extents(synteny_beds):
         bed_str = [f"{ctg}\t{bed.start}\t{bed.end}\tSYNTENY" for ctg in contig_dict \
                     for bed in contig_dict[ctg]]
         bed_str = "\n".join(bed_str)
+        print(assembly, "++")
+        print(bed_str)
         synteny_bed = pybedtools.BedTool(bed_str, from_string=True).sort()
         fa_filename = find_fa_name(assembly)
         synteny_bed.mask_fasta(fi=fa_filename, fo=f"{fa_filename}_masked.fa")
@@ -172,7 +174,7 @@ def update_interval_tree(trees, assembly_name, ctg, mx1, mx2):
     "Update the given dictionary of trees with the new extent"
     start_pos = min(mx1.position, mx2.position)
     end_pos = max(mx1.position, mx2.position)
-    if assembly_name not in trees or ctg not in assembly_name[trees]:
+    if assembly_name not in trees or ctg not in trees[assembly_name]:
         trees[assembly_name][ctg] = intervaltree.IntervalTree()
     trees[assembly_name][ctg][start_pos+1:end_pos] = (mx1, mx2)
 

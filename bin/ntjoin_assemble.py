@@ -67,6 +67,10 @@ class Ntjoin:
 
         if graph is None:
             graph = ig.Graph()
+            prev_edge_attributes = {}
+        else:
+            prev_edge_attributes = {e.index: {"support": e['support'],
+                                                "weight": e['weight']} for e in graph.es()}
 
         vertices = set()
         edges = defaultdict(dict)  # source -> target -> [list assembly support]
@@ -102,6 +106,7 @@ class Ntjoin:
                                                           "weight": self.calc_total_weight(edges[s][t],
                                                                                            weights)}
                            for s in edges for t in edges[s]}
+        edge_attributes.update(prev_edge_attributes)
         self.set_edge_attributes(graph, edge_attributes)
 
         return graph
@@ -1163,7 +1168,15 @@ class Ntjoin:
             graph = self.build_graph(new_list_mxs, Ntjoin.weights, graph=graph, black_list=terminal_mxs)
             self.print_graph(graph, out_prefix=f"{self.args.p}.extend.")
             graph = self.filter_graph_global(graph)
+            self.print_graph(graph, out_prefix=f"{self.args.p}.extend_filtered.")
             paths, _ = self.find_paths(graph)
+            with open(f"{self.args.p}.synteny_blocks.extended.tsv", 'w', encoding="utf-8") as outfile:
+                block_num = 0
+                for subcomponent in paths:
+                    for block in subcomponent:
+                        outfile.write(block.get_block_string(block_num))
+                        block_num += 1
+
         print(datetime.datetime.today(), ": Done extended synteny blocks", file=sys.stdout)
         with open(f"{self.args.p}.synteny_blocks.extended.tsv", 'w', encoding="utf-8") as outfile:
             block_num = 0
