@@ -185,6 +185,9 @@ def update_interval_tree(trees, assembly_name, ctg, mx1, mx2):
     end_pos = max(mx1.position, mx2.position)
     if assembly_name not in trees or ctg not in trees[assembly_name]:
         trees[assembly_name][ctg] = intervaltree.IntervalTree()
+    if trees[assembly_name][ctg][start_pos+1:end_pos]: # Checking that this doesn't overlap with anything
+        print("WARNING: detected overlapping segments:", assembly_name, ctg, start_pos+1, end_pos,
+                file=sys.stderr)
     trees[assembly_name][ctg][start_pos+1:end_pos] = (mx1, mx2)
 
 def find_mx_in_blocks(paths):
@@ -205,6 +208,16 @@ def find_mx_in_blocks(paths):
                 internal_mxs = internal_mxs.union(internal)
             assert len(terminal_mxs) == (curr_mx_len + 2)
     return terminal_mxs, internal_mxs, intervaltrees
+
+def check_non_overlapping(paths):
+    "Given the paths, do final check to ensure intervals are not overlapping, will print warnings if that's the case"
+    intervaltrees = defaultdict(dict) # assembly -> contig -> IntervalTree of synteny block extents
+    for subcomponent in paths:
+        for block in subcomponent:
+            for assembly, assembly_block in block.assembly_blocks.items():
+                contig, mx1, mx2 = assembly_block.get_block_terminal_mx()
+                update_interval_tree(intervaltrees, assembly, contig, mx1, mx2)
+
 
 def filter_minimizers_synteny_blocks(list_mxs, black_list, intervaltrees, list_mx_info):
     "Filter minimizers found in the mx black list"
