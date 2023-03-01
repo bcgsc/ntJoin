@@ -999,6 +999,7 @@ class Ntjoin:
                                     "(computing minimizers, reading fasta file) [4]", type=int, default=4)
         synteny_parser.add_argument("--w-rounds", help="decreasing list of 'w' values to use for refining ends",
                                     default=[100, 10, 5], nargs="+", type=int)
+        synteny_parser.add_argument("--dev", action="store_true", help="Developer mode - retain intermediate files")
         synteny_parser.add_argument("-v", "--version", action='version', version='ntJoin v1.1.1')
 
         if len(sys.argv) == 1:
@@ -1068,7 +1069,6 @@ class Ntjoin:
     def main(self):
         "Run ntJoin graph stage"
         print("Running ntJoin v1.1.1 ...\n")
-        print(self.args, self.args.n)
         self.print_parameters()
 
         if self.args.mode == "synteny":
@@ -1163,12 +1163,11 @@ class Ntjoin:
         "Ready to start refining the synteny block coordinates"
         prev_w = self.args.w
         for new_w in self.args.w_rounds:
+            print(datetime.datetime.today(), ": Extending synteny blocks with w =", new_w, file=sys.stdout)
             new_list_mxs, terminal_mxs = ntjoin_synteny.generate_additional_minimizers(
-                    paths, new_w, prev_w, self.args.btllib_t, list_mx_info)
+                    paths, new_w, prev_w, self.args.btllib_t, list_mx_info, self.args.dev)
             graph = self.build_graph(new_list_mxs, Ntjoin.weights, graph=graph, black_list=terminal_mxs)
-            self.print_graph(graph, out_prefix=f"{self.args.p}.extend.")
             graph = self.filter_graph_global(graph)
-            self.print_graph(graph, out_prefix=f"{self.args.p}.extend_filtered.")
             paths, _ = self.find_paths(graph)
             with open(f"{self.args.p}.synteny_blocks.extended.tsv", 'w', encoding="utf-8") as outfile:
                 block_num = 0

@@ -6,6 +6,8 @@ Written by Lauren Coombe @lcoombe
 
 from collections import namedtuple, defaultdict
 import re
+import shlex
+import subprocess
 import sys
 import intervaltree
 import ntjoin_utils
@@ -128,7 +130,7 @@ def find_fa_name(assembly_mx_name):
     sys.exit(1)
 
 def get_synteny_bed_lists(paths):
-    "Given a set of synteny blocks, return a dictionary with a Bed interval lists per contig, per assembly"
+    "Given a set of synteny blocks, return a dictionary with a BED interval list per contig, per assembly"
     synteny_beds = {}
     for subcomponent in paths:
         for block in subcomponent:
@@ -157,15 +159,24 @@ def mask_assemblies_with_synteny_extents(synteny_beds, w):
         mx_to_fa_dict[assembly] = f"{fa_filename}_masked.fa"
     return mx_to_fa_dict
 
-def generate_new_minimizers(tsv_to_fa_dict, k, w, t):
+def delete_w_iteration_files(*filenames):
+    "Delete the given files for the specific lower w iteration"
+    for filename in filenames:
+        cmd = shlex.split(f"rm {filename}")
+        ret_code = subprocess.call(cmd)
+        assert ret_code == 0
+
+def generate_new_minimizers(tsv_to_fa_dict, k, w, t, retain_files=False):
     "Given the masked fasta files, generate minimizers at new w for each"
     list_mxs = {}
     new_list_mxs_info = {}
     for assembly_tsv, assembly_masked in tsv_to_fa_dict.items():
-        indexlr_filename = ntjoin_utils.run_indexlr(assembly_masked, k, w, t) #!! TODO - fix magic number
+        indexlr_filename = ntjoin_utils.run_indexlr(assembly_masked, k, w, t)
         mx_info, mxs_filt = ntjoin_utils.read_minimizers(indexlr_filename)
         new_list_mxs_info[assembly_tsv] = mx_info
         list_mxs[assembly_tsv] = mxs_filt
+        if not retain_files:
+            delete_w_iteration_files(indexlr_filename, assembly_masked)
     return list_mxs, new_list_mxs_info
 
 def update_interval_tree(trees, assembly_name, ctg, mx1, mx2):
@@ -229,12 +240,12 @@ def update_list_mx_info(list_mxs, list_mx_info, new_list_mx_info):
                 list_mx_info[assembly][mx] = mx_dict[mx]
 
 
-def generate_additional_minimizers(paths, new_w, prev_w, t, list_mx_info):
+def generate_additional_minimizers(paths, new_w, prev_w, t, list_mx_info, dev=False):
     "Given the existing synteny blocks, generate minimizers for increased block resolution"
     k = paths[0][0].k
     synteny_beds = get_synteny_bed_lists(paths)
     mx_to_fa_dict = mask_assemblies_with_synteny_extents(synteny_beds, prev_w)
-    list_mxs, new_list_mx_info = generate_new_minimizers(mx_to_fa_dict, k, new_w, t)
+    list_mxs, new_list_mx_info = generate_new_minimizers(mx_to_fa_dict, k, new_w, t, retain_files=dev)
     terminal_mx, internal_mx, interval_trees = find_mx_in_blocks(paths)
     list_mxs = filter_minimizers_synteny_blocks(list_mxs, internal_mx, interval_trees, new_list_mx_info)
     list_mxs = ntjoin_utils.filter_minimizers(list_mxs) # Filter for mx in all assemblies
