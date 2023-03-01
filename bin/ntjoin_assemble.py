@@ -1176,6 +1176,7 @@ class Ntjoin:
                     for block in subcomponent:
                         outfile.write(block.get_block_string(block_num))
                         block_num += 1
+            prev_w = new_w
 
         print(datetime.datetime.today(), ": Done extended synteny blocks", file=sys.stdout)
         with open(f"{self.args.p}.synteny_blocks.extended.tsv", 'w', encoding="utf-8") as outfile:

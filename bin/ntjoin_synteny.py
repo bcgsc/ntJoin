@@ -127,7 +127,7 @@ def find_fa_name(assembly_mx_name):
     print("\ttarget_assembly.fa.k<k>.w<w>.tsv, where <k> and <w> are parameters used for minimizering")
     sys.exit(1)
 
-def get_synteny_bed_lists(paths, w):
+def get_synteny_bed_lists(paths):
     "Given a set of synteny blocks, return a dictionary with a Bed interval lists per contig, per assembly"
     synteny_beds = {}
     for subcomponent in paths:
@@ -139,22 +139,20 @@ def get_synteny_bed_lists(paths, w):
                     synteny_beds[assembly][assembly_block.contig_id] = []
                 synteny_beds[assembly][assembly_block.contig_id].append(
                     ntjoin_utils.Bed(assembly_block.contig_id,
-                                    assembly_block.get_block_start() + w,
-                                    assembly_block.get_block_end() + block.k - w))
+                                    assembly_block.get_block_start(),
+                                    assembly_block.get_block_end() + block.k))
 
     return synteny_beds
 
-def mask_assemblies_with_synteny_extents(synteny_beds):
+def mask_assemblies_with_synteny_extents(synteny_beds, w):
     "Mask each reference assembly with determined synteny blocks"
     mx_to_fa_dict = {}
     for assembly, contig_dict in synteny_beds.items():
         bed_str = [f"{ctg}\t{bed.start}\t{bed.end}\tSYNTENY" for ctg in contig_dict \
-                    for bed in contig_dict[ctg]]
+                    for bed in contig_dict[ctg] if bed.end - bed.start > 2*w]
         bed_str = "\n".join(bed_str)
-        print(assembly, "++")
-        print(bed_str)
-        synteny_bed = pybedtools.BedTool(bed_str, from_string=True).sort()
         fa_filename = find_fa_name(assembly)
+        synteny_bed = pybedtools.BedTool(bed_str, from_string=True).slop(g=f"{fa_filename}.fai", l=-1*w, r=-1*w).sort()
         synteny_bed.mask_fasta(fi=fa_filename, fo=f"{fa_filename}_masked.fa")
         mx_to_fa_dict[assembly] = f"{fa_filename}_masked.fa"
     return mx_to_fa_dict
@@ -201,9 +199,6 @@ def filter_minimizers_synteny_blocks(list_mxs, black_list, intervaltrees, list_m
     "Filter minimizers found in the mx black list"
     return_mxs = {}
     for assembly in list_mxs:
-        # assembly_mxs_filtered = [[mx for mx in mx_list if mx not in black_list and \
-        #                         intervaltrees[assembly][list_mx_info[assembly][mx][0]] [list_mx_info[assembly][mx][1]]
-        #                         for mx_list in list_mxs[assembly]]]
         assembly_mxs_filtered = []
         for mx_list in list_mxs[assembly]:
             new_list = []
@@ -237,8 +232,8 @@ def update_list_mx_info(list_mxs, list_mx_info, new_list_mx_info):
 def generate_additional_minimizers(paths, new_w, prev_w, t, list_mx_info):
     "Given the existing synteny blocks, generate minimizers for increased block resolution"
     k = paths[0][0].k
-    synteny_beds = get_synteny_bed_lists(paths, prev_w)
-    mx_to_fa_dict = mask_assemblies_with_synteny_extents(synteny_beds)
+    synteny_beds = get_synteny_bed_lists(paths)
+    mx_to_fa_dict = mask_assemblies_with_synteny_extents(synteny_beds, prev_w)
     list_mxs, new_list_mx_info = generate_new_minimizers(mx_to_fa_dict, k, new_w, t)
     terminal_mx, internal_mx, interval_trees = find_mx_in_blocks(paths)
     list_mxs = filter_minimizers_synteny_blocks(list_mxs, internal_mx, interval_trees, new_list_mx_info)
