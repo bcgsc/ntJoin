@@ -4,157 +4,27 @@ ntJoin: Scaffolding assemblies using reference assemblies and minimizer graphs
 Written by Lauren Coombe (@lcoombe)
 """
 
-import argparse
 import datetime
-import multiprocessing
 import re
-from collections import Counter
-from collections import defaultdict
+from collections import Counter, defaultdict
 import shlex
 import subprocess
 import sys
 import warnings
-import igraph as ig
 import pybedtools
 import pymannkendall as mk
 from read_fasta import read_fasta
 import ntjoin_utils
 import ntjoin_overlap
-import ntjoin_synteny
+import ntjoin
+import path_node
+from overlap_region import OverlapRegion
 import btllib
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 
-class Ntjoin:
+class NtjoinScaffolder(ntjoin.Ntjoin):
     "ntJoin: Scaffolding assemblies using reference assemblies and minimizer graphs"
-
-    # Helper functions for interfacing with python-igraph
-    @staticmethod
-    def vertex_index(graph, name):
-        "Returns vertex index based on vertex name"
-        return graph.vs.find(name).index
-
-    @staticmethod
-    def vertex_name(graph, index):
-        "Returns vertex name based on vertex id"
-        return graph.vs[index]['name']
-
-    @staticmethod
-    def edge_index(graph, source_name, target_name):
-        "Returns graph edge index based on source/target names"
-        return graph.get_eid(source_name, target_name)
-
-    @staticmethod
-    def set_edge_attributes(graph, edge_attributes):
-        "Sets the edge attributes for a python-igraph graph"
-        graph.es()["support"] = [edge_attributes[e]['support'] for e in sorted(edge_attributes.keys())]
-        graph.es()["weight"] = [edge_attributes[e]['weight'] for e in sorted(edge_attributes.keys())]
-
-    @staticmethod
-    def convert_path_index_to_name(graph, path):
-        "Convert path of vertex indices to path of vertex names"
-        return [Ntjoin.vertex_name(graph, vs) for vs in path]
-
-    @staticmethod
-    def calc_total_weight(list_files, weights):
-        "Calculate the total weight of an edge given the assembly support"
-        return sum([weights[f] for f in list_files])
-
-
-    def build_graph(self, list_mxs, weights, graph=None, black_list=None):
-        "Builds an undirected graph: nodes=minimizers; edges=between adjacent minimizers"
-        print(datetime.datetime.today(), ": Building graph", file=sys.stdout)
-
-        if graph is None:
-            graph = ig.Graph()
-            prev_edge_attributes = {}
-        else:
-            prev_edge_attributes = {e.index: {"support": e['support'],
-                                                "weight": e['weight']} for e in graph.es()}
-
-        vertices = set()
-        edges = defaultdict(dict)  # source -> target -> [list assembly support]
-
-        for assembly in list_mxs:
-            for assembly_mx_list in list_mxs[assembly]:
-                for i, j in zip(range(0, len(assembly_mx_list)),
-                                range(1, len(assembly_mx_list))):
-                    if assembly_mx_list[i] in edges and \
-                            assembly_mx_list[j] in edges[assembly_mx_list[i]]:
-                        edges[assembly_mx_list[i]][assembly_mx_list[j]].append(assembly)
-                    elif assembly_mx_list[j] in edges and \
-                            assembly_mx_list[i] in edges[assembly_mx_list[j]]:
-                        edges[assembly_mx_list[j]][assembly_mx_list[i]].append(assembly)
-                    else:
-                        edges[assembly_mx_list[i]][assembly_mx_list[j]] = [assembly]
-                    if black_list is None or assembly_mx_list[i] not in black_list:
-                        vertices.add(assembly_mx_list[i])
-                if assembly_mx_list:
-                    if black_list is None or assembly_mx_list[-1] not in black_list:
-                        vertices.add(assembly_mx_list[-1])
-
-        formatted_edges = [(s, t) for s in edges for t in edges[s]]
-
-        print(datetime.datetime.today(), ": Adding vertices", file=sys.stdout)
-        graph.add_vertices(list(vertices))
-
-        print(datetime.datetime.today(), ": Adding edges", file=sys.stdout)
-        graph.add_edges(formatted_edges)
-
-        print(datetime.datetime.today(), ": Adding attributes", file=sys.stdout)
-        edge_attributes = {self.edge_index(graph, s, t): {"support": edges[s][t],
-                                                          "weight": self.calc_total_weight(edges[s][t],
-                                                                                           weights)}
-                           for s in edges for t in edges[s]}
-        edge_attributes.update(prev_edge_attributes)
-        self.set_edge_attributes(graph, edge_attributes)
-
-        return graph
-
-
-    def print_graph(self, graph, out_prefix=None):
-        "Prints the minimizer graph in dot format"
-        if out_prefix is None:
-            out_graph = self.args.p + ".mx.dot"
-        else:
-            out_graph = out_prefix + "mx.dot"
-
-        with open(out_graph, 'w',  encoding="utf-8") as outfile:
-            print(datetime.datetime.today(), ": Printing graph", out_graph, sep=" ", file=sys.stdout)
-
-            outfile.write("graph G {\n")
-
-            colours = ["red", "green", "blue", "purple", "orange",
-                    "turquoise", "pink", "yellow", "orchid", "salmon"]
-            list_files = list(Ntjoin.list_mx_info.keys())
-            if len(list_files) > len(colours):
-                colours = ["red"]*len(list_files)
-
-            for node in graph.vs():
-                mx_ctg_pos_labels = "\n".join([str(asm_mx_info[node['name']])
-                                            for _, asm_mx_info in Ntjoin.list_mx_info.items()])
-                node_label = f"\"{node['name']}\" [label=\"{node['name']}\n{mx_ctg_pos_labels}\"]"
-                outfile.write(f"{node_label}\n")
-
-            for edge in graph.es():
-                outfile.write(f"\"{self.vertex_name(graph, edge.source)}\" --" \
-                            f"\"{self.vertex_name(graph, edge.target)}\"")
-                weight = edge['weight']
-                support = edge['support']
-                if len(support) == 1:
-                    colour = colours[list_files.index(support[0])]
-                elif len(support) == 2:
-                    colour = "lightgrey"
-                else:
-                    colour = "black"
-                outfile.write(f" [weight={weight} color={colour}]\n")
-
-            outfile.write("}\n")
-
-        print("\nfile_name\tnumber\tcolour")
-        for i, filename in enumerate(list_files):
-            print(filename, i, colours[i], sep="\t")
-        print("")
 
     def determine_orientation(self, positions):
         "Given a list of minimizer positions, determine the orientation of the contig"
@@ -206,23 +76,23 @@ class Ntjoin:
         # Are situations where there is not a direct edge if an unoriented contig was in-between
         path = graph.get_shortest_paths(u_mx, v_mx, output="vpath")[0]
         supporting_assemblies = set.intersection(
-            *map(set, [graph.es()[self.edge_index(graph, s, t)]['support']
+            *map(set, [graph.es()[ntjoin_utils.edge_index(graph, s, t)]['support']
                        for s, t in zip(path, path[1:])]))
         if not supporting_assemblies:
             return self.args.g, self.args.g
 
-        distances = [abs(Ntjoin.list_mx_info[assembly][v_mx][1] - Ntjoin.list_mx_info[assembly][u_mx][1])
+        distances = [abs(self.list_mx_info[assembly][v_mx][1] - self.list_mx_info[assembly][u_mx][1])
                      for assembly in supporting_assemblies]
         mean_dist = int(sum(distances)/len(distances)) - self.args.k
         # Correct for the overhanging sequence before/after terminal minimizers
         if u.ori == "+":
-            a = u.end - Ntjoin.list_mx_info[cur_assembly][u_mx][1] - self.args.k
+            a = u.end - self.list_mx_info[cur_assembly][u_mx][1] - self.args.k
         else:
-            a = Ntjoin.list_mx_info[cur_assembly][u_mx][1] - u.start
+            a = self.list_mx_info[cur_assembly][u_mx][1] - u.start
         if v.ori == "+":
-            b = Ntjoin.list_mx_info[cur_assembly][v_mx][1] - v.start
+            b = self.list_mx_info[cur_assembly][v_mx][1] - v.start
         else:
-            b = v.end - Ntjoin.list_mx_info[cur_assembly][v_mx][1] - self.args.k
+            b = v.end - self.list_mx_info[cur_assembly][v_mx][1] - self.args.k
 
         try:
             assert a >= 0
@@ -230,8 +100,8 @@ class Ntjoin:
         except AssertionError as assert_error:
             print("ERROR: Gap distance estimation less than 0", "Vertex 1:", u, "Vertex 2:", v,
                   sep="\n")
-            print("Minimizer positions:", Ntjoin.list_mx_info[cur_assembly][u_mx][1],
-                  Ntjoin.list_mx_info[cur_assembly][v_mx][1])
+            print("Minimizer positions:", self.list_mx_info[cur_assembly][u_mx][1],
+                  self.list_mx_info[cur_assembly][v_mx][1])
             print("Estimated distance: ", mean_dist)
             raise ValueError from assert_error
 
@@ -252,7 +122,7 @@ class Ntjoin:
         return False
 
 
-    def merge_relocations(self, path):
+    def merge_relocations(self, path, incorporated_segments):
         "If a path has adjacent collinear intervals of the same contig, merge them"
         if len(path) < 2:
             return path
@@ -261,16 +131,16 @@ class Ntjoin:
             if node_i.contig == node_j.contig:
                 if node_i.ori == "+" and node_j.ori == "+" and node_i.end <= node_j.start:
                     if self.is_new_region_overlapping(node_i.start, node_j.end, node_i, node_j,
-                                                      Ntjoin.incorporated_segments[node_i.contig]):
+                                                      incorporated_segments[node_i.contig]):
                         return_path.append(node_j)
                         continue
-                    Ntjoin.incorporated_segments[node_i.contig].add(ntjoin_utils.Bed(contig=return_path[-1].contig,
+                    incorporated_segments[node_i.contig].add(ntjoin_utils.Bed(contig=return_path[-1].contig,
                                                                         start=return_path[-1].start,
                                                                         end=node_j.end))
-                    Ntjoin.incorporated_segments[node_i.contig].remove(ntjoin_utils.Bed(contig=return_path[-1].contig,
+                    incorporated_segments[node_i.contig].remove(ntjoin_utils.Bed(contig=return_path[-1].contig,
                                                                            start=return_path[-1].start,
                                                                            end=return_path[-1].end))
-                    Ntjoin.incorporated_segments[node_j.contig].remove(ntjoin_utils.Bed(contig=node_j.contig,
+                    incorporated_segments[node_j.contig].remove(ntjoin_utils.Bed(contig=node_j.contig,
                                                                            start=node_j.start,
                                                                            end=node_j.end))
                     return_path[-1].end = node_j.end
@@ -278,16 +148,16 @@ class Ntjoin:
                     return_path[-1].gap_size = node_j.gap_size
                 elif node_i.ori == "-" and node_j.ori == "-" and node_i.start >= node_j.end:
                     if self.is_new_region_overlapping(node_j.start, node_i.end, node_i, node_j,
-                                                      Ntjoin.incorporated_segments[node_i.contig]):
+                                                      incorporated_segments[node_i.contig]):
                         return_path.append(node_j)
                         continue
-                    Ntjoin.incorporated_segments[node_i.contig].add(ntjoin_utils.Bed(contig=return_path[-1].contig,
+                    incorporated_segments[node_i.contig].add(ntjoin_utils.Bed(contig=return_path[-1].contig,
                                                                         start=node_j.start,
                                                                         end=return_path[-1].end))
-                    Ntjoin.incorporated_segments[node_i.contig].remove(ntjoin_utils.Bed(contig=return_path[-1].contig,
+                    incorporated_segments[node_i.contig].remove(ntjoin_utils.Bed(contig=return_path[-1].contig,
                                                                            start=return_path[-1].start,
                                                                            end=return_path[-1].end))
-                    Ntjoin.incorporated_segments[node_j.contig].remove(ntjoin_utils.Bed(contig=node_j.contig,
+                    incorporated_segments[node_j.contig].remove(ntjoin_utils.Bed(contig=node_j.contig,
                                                                            start=node_j.start,
                                                                            end=node_j.end))
                     return_path[-1].start = node_j.start
@@ -307,7 +177,7 @@ class Ntjoin:
         curr_ctg, prev_mx, first_mx = None, None, None
         positions = []
         for mx in path:
-            ctg, pos = Ntjoin.list_mx_info[assembly][mx]
+            ctg, pos = self.list_mx_info[assembly][mx]
             if ctg is curr_ctg:
                 positions.append(pos)
             else:
@@ -315,13 +185,13 @@ class Ntjoin:
                 if curr_ctg is not None:
                     ori = self.determine_orientation(positions)
                     if ori != "?":  # Don't add to path if orientation couldn't be determined
-                        out_path.append(ntjoin_utils.PathNode(contig=curr_ctg, ori=ori,
+                        out_path.append(path_node.PathNode(contig=curr_ctg, ori=ori,
                                                  start=self.calc_start_coord(positions,
-                                                                             Ntjoin.mx_extremes[curr_ctg][0]),
+                                                                             self.mx_extremes[curr_ctg][0]),
                                                  end=self.calc_end_coord(positions,
-                                                                         Ntjoin.mx_extremes[curr_ctg][1],
-                                                                         Ntjoin.scaffolds[curr_ctg].length),
-                                                 contig_size=Ntjoin.scaffolds[curr_ctg].length,
+                                                                         self.mx_extremes[curr_ctg][1],
+                                                                         self.scaffolds[curr_ctg].length),
+                                                 contig_size=self.scaffolds[curr_ctg].length,
                                                  first_mx=first_mx,
                                                  terminal_mx=prev_mx))
                 curr_ctg = ctg
@@ -330,13 +200,13 @@ class Ntjoin:
             prev_mx = mx
         ori = self.determine_orientation(positions)
         if ori != "?":
-            out_path.append(ntjoin_utils.PathNode(contig=curr_ctg, ori=ori,
+            out_path.append(path_node.PathNode(contig=curr_ctg, ori=ori,
                                      start=self.calc_start_coord(positions,
-                                                                 Ntjoin.mx_extremes[curr_ctg][0]),
+                                                                 self.mx_extremes[curr_ctg][0]),
                                      end=self.calc_end_coord(positions,
-                                                             Ntjoin.mx_extremes[curr_ctg][1],
-                                                             Ntjoin.scaffolds[curr_ctg].length),
-                                     contig_size=Ntjoin.scaffolds[curr_ctg].length,
+                                                             self.mx_extremes[curr_ctg][1],
+                                                             self.scaffolds[curr_ctg].length),
+                                     contig_size=self.scaffolds[curr_ctg].length,
                                      first_mx=first_mx,
                                      terminal_mx=prev_mx))
         for u, v in zip(out_path, out_path[1:]):
@@ -345,81 +215,6 @@ class Ntjoin:
             u.set_raw_gap_size(raw_gap_size)
 
         return out_path
-
-    @staticmethod
-    def filter_graph(graph, min_weight):
-        "Filter the graph by edge weights on edges incident to branch nodes"
-        branch_nodes = [node.index for node in graph.vs() if node.degree() > 2]
-        to_remove_edges = [edge for node in branch_nodes for edge in graph.incident(node)
-                           if graph.es()[edge]['weight'] < min_weight]
-        new_graph = graph.copy()
-        new_graph.delete_edges(to_remove_edges)
-        return new_graph
-
-    def filter_graph_global(self, graph):
-        "Filter the graph globally based on minimum edge weight"
-        print(datetime.datetime.today(), ": Filtering the graph", file=sys.stdout)
-        if self.args.n <= min(Ntjoin.weights.values()):
-            return graph
-        to_remove_edges = [edge.index for edge in graph.es()
-                           if edge['weight'] < self.args.n]
-        new_graph = graph.copy()
-        new_graph.delete_edges(to_remove_edges)
-        return new_graph
-
-    def determine_source_vertex(self, sources, graph):
-        '''Given the possible sources of the graph, determine which is the source and the target
-            Based on the assembly with the largest weight - orient others based on this assembly
-        '''
-        max_wt_asm = [assembly for assembly, asm_weight in Ntjoin.weights.items()
-                      if asm_weight == max(Ntjoin.weights.values())].pop()
-        list_mx_info_maxwt = Ntjoin.list_mx_info[max_wt_asm]
-        min_pos = min([list_mx_info_maxwt[self.vertex_name(graph, s)][1] for s in sources])
-        max_pos = max([list_mx_info_maxwt[self.vertex_name(graph, s)][1] for s in sources])
-        source = [s for s in sources
-                  if list_mx_info_maxwt[self.vertex_name(graph, s)][1] == min_pos].pop()
-        target = [s for s in sources
-                  if list_mx_info_maxwt[self.vertex_name(graph, s)][1] == max_pos].pop()
-        return source, target
-
-    @staticmethod
-    def is_graph_linear(graph):
-        "Given a graph, return True if all the components are linear"
-        for component in graph.components():
-            component_graph = graph.subgraph(component)
-            if not all(u.degree() < 3 for u in component_graph.vs()):
-                return False
-        return True
-
-
-    def find_paths_process(self, component):
-        "Find paths given a component of the graph"
-        return_paths = []
-        min_edge_weight = self.args.n
-        max_edge_weight = sum(Ntjoin.weights.values())
-        component_graph = Ntjoin.gin.subgraph(component)
-        while not self.is_graph_linear(component_graph) and \
-                min_edge_weight <= max_edge_weight:
-            component_graph = self.filter_graph(component_graph, min_edge_weight)
-            min_edge_weight += 1
-        for subcomponent in component_graph.components():
-            subcomponent_graph = component_graph.subgraph(subcomponent)
-            source_nodes = [node.index for node in subcomponent_graph.vs() if node.degree() == 1]
-            if len(source_nodes) == 2:
-                source, target = self.determine_source_vertex(source_nodes, subcomponent_graph)
-                path = subcomponent_graph.get_shortest_paths(source, target)[0]
-                num_edges = len(path) - 1
-                if len(path) == len(subcomponent_graph.vs()) and \
-                        num_edges == len(subcomponent_graph.es()) and len(path) == len(set(path)):
-                    # All the nodes/edges from the graph are in the simple path, no repeated nodes
-                    path = self.convert_path_index_to_name(subcomponent_graph, path)
-                    if self.args.mode == "synteny":
-                        ctg_path = ntjoin_synteny.find_synteny_blocks(path, Ntjoin.list_mx_info, self.args.k)
-                    else:
-                        ctg_path = self.format_path(path, self.args.s,
-                                                subcomponent_graph)
-                    return_paths.append(ctg_path)
-        return return_paths
 
     @staticmethod
     def tally_incorporated_segments(incorporated_list, path):
@@ -432,35 +227,6 @@ class Ntjoin:
             incorporated_list[path_node.contig].add(ntjoin_utils.Bed(contig=path_node.contig,
                                                         start=path_node.start,
                                                         end=path_node.end))
-
-    def find_paths(self, graph):
-        "Finds paths per input assembly file"
-        print(datetime.datetime.today(), ": Finding paths", file=sys.stdout)
-        Ntjoin.gin = graph
-        components = graph.components()
-        print("\nTotal number of components in graph:", len(components), "\n", sep=" ", file=sys.stdout)
-
-        if self.args.t == 1:
-            paths = [self.find_paths_process(component) for component in components]
-        else:
-            with multiprocessing.Pool(self.args.t) as pool:
-                paths = pool.map(self.find_paths_process, components)
-
-        paths_return = []
-        incorporated_segments = {}
-        for path_list in paths:
-            for path in path_list:
-                paths_return.append(path)
-                self.tally_incorporated_segments(incorporated_segments, path)
-
-        Ntjoin.incorporated_segments = incorporated_segments
-
-        paths_return_merged = []
-        for path in paths_return:
-            path = self.merge_relocations(path)
-            paths_return_merged.append(path)
-
-        return paths_return_merged, incorporated_segments
 
 
     @staticmethod
@@ -496,7 +262,7 @@ class Ntjoin:
             return True
         return False
 
-    def adjust_paths(self, paths, scaffolds):
+    def adjust_paths(self, paths, scaffolds, incorporated_segments):
         "Given the found paths, removes duplicate regions to avoid cutting sequences (no_cut=True option)"
         contig_regions = {}  # contig_id -> [list of PathNode]
         for path in paths:
@@ -511,7 +277,7 @@ class Ntjoin:
             for i, node in enumerate(path):
                 if not self.is_subsumed(i, path, contig_regions):
                     new_path.append(node)
-            new_path = self.merge_relocations(new_path)
+            new_path = self.merge_relocations(new_path, incorporated_segments)
             intermediate_paths.append(new_path)
 
         new_paths = []
@@ -555,19 +321,12 @@ class Ntjoin:
             sys.exit(1)
         return scaffolds
 
-    @staticmethod
-    def reverse_complement(sequence):
-        "Reverse complements a given sequence"
-        translation_table = str.maketrans(
-            "ACGTUNMRWSYKVHDBacgtunmrwsykvhdb",
-            "TGCAANKYWSRMBDHVtgcaankywsrmbdhv")
-        return sequence[::-1].translate(translation_table)
 
     @staticmethod
     def get_fasta_segment(path_node, sequence):
         "Given a PathNode and the contig sequence, return the corresponding sequence"
         if path_node.ori == "-":
-            return Ntjoin.reverse_complement(sequence[path_node.start:path_node.end]) + \
+            return ntjoin_utils.reverse_complement(sequence[path_node.start:path_node.end]) + \
                    "N"*path_node.gap_size
         return sequence[path_node.start:path_node.end] + "N"*path_node.gap_size
 
@@ -765,7 +524,7 @@ class Ntjoin:
         return return_sequence
 
 
-    def print_scaffolds(self, paths, intersecting_regions):
+    def print_scaffolds(self, paths, intersecting_regions, prev_incorporated_segments):
         "Given the paths, print out the scaffolds fasta"
         print(datetime.datetime.today(), ": Printing output scaffolds", file=sys.stdout)
         assembly = self.args.s
@@ -785,7 +544,7 @@ class Ntjoin:
 
         # Deal with merging relocations
         for i, path in enumerate(paths):
-            new_path = self.merge_relocations(path)
+            new_path = self.merge_relocations(path, prev_incorporated_segments)
             new_path = self.remove_overlapping_regions(new_path, intersecting_regions)
             self.check_terminal_node_gap_zero(new_path)
             paths[i] = new_path
@@ -800,7 +559,7 @@ class Ntjoin:
                 for node in path:
                     if node.ori == "?":
                         continue
-                    sequences.append(self.get_fasta_segment(node, Ntjoin.scaffolds[node.contig].sequence))
+                    sequences.append(self.get_fasta_segment(node, self.scaffolds[node.contig].sequence))
                     nodes.append(node)
                 if len(sequences) < 2:
                     continue
@@ -823,7 +582,7 @@ class Ntjoin:
             for node in path:
                 if node.ori == "?":
                     continue
-                sequences.append(self.get_fasta_segment(node, Ntjoin.scaffolds[node.contig].sequence))
+                sequences.append(self.get_fasta_segment(node, self.scaffolds[node.contig].sequence))
                 path_segments.append(ntjoin_utils.Bed(contig=node.contig, start=node.start,
                                                       end=node.end))
                 nodes.append(node)
@@ -869,7 +628,7 @@ class Ntjoin:
                                                for chrom, s, e in incorporated_segments])
         incorporated_segments_bed = pybedtools.BedTool(incorporated_segments_str,
                                                        from_string=True).sort()
-        genome_bed, genome_dict = self.format_bedtools_genome(Ntjoin.scaffolds)
+        genome_bed, genome_dict = self.format_bedtools_genome(self.scaffolds)
         missing_bed = genome_bed.complement(i=incorporated_segments_bed, g=genome_dict)
         missing_bed.saveas(self.args.p + "." + assembly + ".unassigned.bed")
 
@@ -891,10 +650,10 @@ class Ntjoin:
                 raise subprocess.CalledProcessError(out_fasta.returncode, cmd_shlex)
 
     @staticmethod
-    def tally_intersecting_segments():
+    def tally_intersecting_segments(incorporated_segments):
         "Tally ctgs with intersecting segments, and keep track of 'best'"
         incorporated_bed_list = []
-        for _, bed_entry_list in Ntjoin.incorporated_segments.items():
+        for _, bed_entry_list in incorporated_segments.items():
             for bed_entry in bed_entry_list:
                 incorporated_bed_list.append(bed_entry)
         incorporated_bed_str = "\n".join([f"{chrom}\t{s}\t{e}"
@@ -909,7 +668,7 @@ class Ntjoin:
         for bed in bed_intersect:
             if bed.count > 1:
                 if bed.chrom not in overlap_regions:
-                    overlap_regions[bed.chrom] = ntjoin_utils.OverlapRegion()
+                    overlap_regions[bed.chrom] = OverlapRegion()
                 overlap_regions[bed.chrom].add_region(ntjoin_utils.Bed(contig=bed.chrom, start=bed.start, end=bed.end))
 
         overlap_regions_fix = {}
@@ -918,16 +677,15 @@ class Ntjoin:
 
         return overlap_regions_fix
 
-    @staticmethod
-    def find_mx_min_max(graph, target):
+    def find_mx_min_max(self, target):
         "Given a dictionary in the form mx->(ctg, pos), find the min/max mx position per ctg"
         mx_extremes = {} # ctg -> (min_pos, max_pos)
-        for mx in Ntjoin.list_mx_info[target]:
+        for mx in self.list_mx_info[target]:
             try:
-                graph.vs().find(mx)
+                self.graph.vs().find(mx)
             except ValueError:
                 continue
-            ctg, pos = Ntjoin.list_mx_info[target][mx]
+            ctg, pos = self.list_mx_info[target][mx]
             if ctg in mx_extremes:
                 mx_extremes[ctg] = (min(mx_extremes[ctg][0], pos),
                                     max(mx_extremes[ctg][1], pos))
@@ -935,78 +693,23 @@ class Ntjoin:
                 mx_extremes[ctg] = (pos, pos)
         return mx_extremes
 
+    def format_adjust_paths(self, paths):
+        "Format and adjust the paths for relocations, incorporated sections"
+        return_paths = []
+        incorporated_segments = {}
+        for path_list in paths:
+            for path, sub_graph in path_list:
+                ctg_path = self.format_path(path, self.args.s, sub_graph)
+                return_paths.append(ctg_path)
+                self.tally_incorporated_segments(incorporated_segments, ctg_path)
 
-    @staticmethod
-    def parse_arguments():
-        "Parse ntJoin arguments"
-        parser = argparse.ArgumentParser(
-            description="ntJoin: Genome analysis using reference assemblies and minimizer graphs",
-            )
-        parser.add_argument("-v", "--version", action='version', version='ntJoin v1.1.1')
+        paths_return_merged = []
+        for path in return_paths:
+            path = self.merge_relocations(path, incorporated_segments)
+            paths_return_merged.append(path)
 
-        subparsers = parser.add_subparsers(dest="mode")
-        scaffold_parser = subparsers.add_parser("scaffold",
-        help="Scaffold the input target assembly using the supplied reference(s)",
-                    epilog="Note: Script expects that each input minimizer TSV file has a matching fasta file.\n"
-                   "Example: myscaffolds.fa.k32.w1000.tsv - myscaffolds.fa is the expected matching fasta",
-            formatter_class=argparse.RawTextHelpFormatter)
-        scaffold_parser.add_argument("FILES", nargs="+", help="Minimizer TSV files of references")
-        scaffold_parser.add_argument("-s", help="Target scaffolds minimizer TSV file", required=True)
-        scaffold_parser.add_argument("-l", help="Weight of target genome assembly [1]",
-                            required=False, default=1, type=float)
-        scaffold_parser.add_argument("-r",
-                            help="List of reference assembly weights (in quotes, separated by spaces, "
-                                 "in same order as minimizer TSV files)",
-                            required=True, type=str)
-        scaffold_parser.add_argument("-p", help="Output prefix [out]", default="out",
-                            type=str, required=False)
-        scaffold_parser.add_argument("-n", help="Minimum edge weight [1]", default=1, type=int)
-        scaffold_parser.add_argument("-k", help="Kmer size used for minimizer step", required=True, type=int)
-        scaffold_parser.add_argument("-g", help="Minimum gap size (bp)", required=False, default=20, type=int)
-        scaffold_parser.add_argument("-G", help="Maximum gap size (bp) (0 if no maximum threshold)", required=False,
-                            default=0, type=int)
-        scaffold_parser.add_argument("--mkt", help="Use Mann-Kendall Test to orient contigs (slower, overrides m)",
-                            action='store_true')
-        scaffold_parser.add_argument('-m', help="Require at least m %% of minimizer positions to be "
-                                       "increasing/decreasing to assign contig orientation [90]\n "
-                                       "Note: Only used with --mkt is NOT specified", default=90, type=int)
-        scaffold_parser.add_argument('-t', help="Number of threads for multiprocessing [1]", default=1, type=int)
-        scaffold_parser.add_argument("-v", "--version", action='version', version='ntJoin v1.1.1')
-        scaffold_parser.add_argument("--agp", help="Output AGP file describing scaffolds", action="store_true")
-        scaffold_parser.add_argument("--no_cut", help="Do not cut input contigs, place in most representative path",
-                            action="store_true")
-        scaffold_parser.add_argument("--overlap", help="Attempt to detect and trim overlapping joined sequences",
-                            action="store_true")
-        scaffold_parser.add_argument("--overlap_gap",
-                            help="Length of gap introduced between overlapping, trimmed segments [20]",
-                            type=int, default=20)
-        scaffold_parser.add_argument("--overlap_k", help="Kmer size used for overlap minimizer step [15]",
-                            type=int, default=15)
-        scaffold_parser.add_argument("--overlap_w", help="Window size used for overlap minimizer step [10]",
-                            type=int, default=10)
-        scaffold_parser.add_argument("--btllib_t", help="Number of threads for btllib wrapper functions "
-                                               "(computing minimizers, reading fasta file) [4]",
-                            type=int, default=4)
+        return paths_return_merged, incorporated_segments
 
-        synteny_parser = subparsers.add_parser("synteny", help="Extract syntenic blocks from input assemblies")
-        synteny_parser.add_argument("FILES", nargs="+", help="Minimizer TSV files of input assemblies")
-        synteny_parser.add_argument("-n", help="Minimum edge weight [Number of input assemblies]", default=0, type=int)
-        synteny_parser.add_argument("-p", help="Output prefix [out]",
-                                    default="out", type=str, required=False)
-        synteny_parser.add_argument("-k", help="Kmer size used for minimizer step", required=True, type=int)
-        synteny_parser.add_argument("-w", help="Window size used for minimizers", required=True, type=int)
-        synteny_parser.add_argument("--btllib_t", help="Number of threads for btllib wrapper functions "\
-                                    "(computing minimizers, reading fasta file) [4]", type=int, default=4)
-        synteny_parser.add_argument("--w-rounds", help="decreasing list of 'w' values to use for refining ends",
-                                    default=[100, 10, 5], nargs="+", type=int)
-        synteny_parser.add_argument("--dev", action="store_true", help="Developer mode - retain intermediate files")
-        synteny_parser.add_argument("-v", "--version", action='version', version='ntJoin v1.1.1')
-
-        if len(sys.argv) == 1:
-            parser.print_help()
-            sys.exit()
-
-        return parser.parse_args()
 
     def print_parameters_scaffold(self):
         "Print the set parameters for the ntJoin scaffolding run"
@@ -1037,162 +740,73 @@ class Ntjoin:
             print("\t--overlap_w", self.args.overlap_w)
             print("\t--btllib_t", self.args.btllib_t)
 
-    def print_parameters_synteny(self):
-        "Pring the set parameters for the ntJoin synteny run"
-        if self.args.n == 0:
-            self.args.n = len(self.args.FILES)
-        print("Running ntJoin synteny detection...")
-        print("Parameters:")
-        print("\tMinimizer TSV files: ", self.args.FILES)
-        print("\t-n", self.args.n)
-        print("\t-p", self.args.p)
-        print("\t-k", self.args.k)
-        print("\t-w", self.args.w)
-        print("\t--btllib_t", self.args.btllib_t)
-        print("\t--w-rounds", self.args.w_rounds)
 
+    def main_scaffolder(self):
+        "Run ntJoin scaffolding stage"
+        print("Running ntJoin scaffolding ...\n")
 
-    def print_parameters(self):
-        "Print the parameters for the ntJoin in the specified mode"
-        if self.args.mode == "scaffold":
-            self.print_parameters_scaffold()
-        elif self.args.mode == "synteny":
-            self.print_parameters_synteny()
-        else:
-            raise ValueError(f"Unexpected mode: {self.args.mode}")
+        self.load_minimizers()
 
-    def set_synteny_parameters(self):
-        "Set the default parameters for synteny mode"
-        self.args.r = " ".join(["1"] * len(self.args.FILES))
-        self.args.t = 1
+        # Generate minimizer graph, and get paths through the graph
+        paths = self.make_minimizer_graph_and_paths()
 
-    def main(self):
-        "Run ntJoin graph stage"
-        print("Running ntJoin v1.1.1 ...\n")
-        self.print_parameters()
-
-        if self.args.mode == "synteny":
-            self.set_synteny_parameters()
-
-        # Parse the weights of each input reference assembly
-        input_weights = [float(w) for w in re.split(r'\s+', self.args.r)]
-        if len(input_weights) != len(self.args.FILES):
-            print("ERROR: The length of supplied reference weights (-r) and "
-                  "number of assembly minimizer TSV inputs must be equal.")
-            print("Supplied lengths of arguments:")
-            print("Weights (-r):", len(input_weights), "Minimizer TSV files:", len(self.args.FILES), sep=" ")
-            sys.exit(1)
-
-        # Read in the minimizers for each assembly
-        list_mx_info = {}  # Dictionary of dictionaries: assembly -> mx -> (contig, position)
-        list_mxs = {}  # Dictionary: assembly -> [lists of mx]
-        weights = {}  # Dictionary: assembly -> weight
-        for assembly in self.args.FILES:
-            mxs_info, mxs = ntjoin_utils.read_minimizers(assembly)
-            list_mx_info[assembly] = mxs_info
-            list_mxs[assembly] = mxs
-            weights[assembly] = input_weights.pop(0)
-        if self.args.mode == "scaffold":
-            mxs_info, mxs = ntjoin_utils.read_minimizers(self.args.s)
-            list_mx_info[self.args.s] = mxs_info
-            list_mxs[self.args.s] = mxs
-            weights[self.args.s] = self.args.l
-        weight_str = "\n".join([f"{assembly}: {asm_weight}" for assembly, asm_weight in weights.items()])
-        print("\nWeights of assemblies:\n", weight_str, "\n", sep="")
-
-        Ntjoin.list_mx_info = list_mx_info
-        Ntjoin.weights = weights
-
-        # Filter minimizers - Keep only if found in all assemblies
-        list_mxs = ntjoin_utils.filter_minimizers(list_mxs)
-
-        # Build a graph: Nodes = mx; Edges between adjacent mx in the assemblies
-        graph = self.build_graph(list_mxs, Ntjoin.weights)
-
-        # Print the DOT graph
-        self.print_graph(graph)
-
-        # Filter the graph edges by minimum weight
-        graph = self.filter_graph_global(graph)
-
-        # Find the min and max pos of minimizers for target assembly, per ctg
-        if self.args.mode == "scaffold":
-            Ntjoin.mx_extremes = self.find_mx_min_max(graph, self.args.s)
+        self.mx_extremes = self.find_mx_min_max(self.args.s)
 
         # Load target scaffolds into memory
-        if self.args.mode == "scaffold":
-            min_match = re.search(r'^(\S+).k\d+.w\d+\.tsv', self.args.s)
-            if not min_match:
-                print("ERROR: Target assembly minimizer TSV file must follow the naming convention:")
-                print("\ttarget_assembly.fa.k<k>.w<w>.tsv, where <k> and <w> are parameters used for minimizering")
-                sys.exit(1)
-            assembly_fa = min_match.group(1)
-            scaffolds = self.read_fasta_file(assembly_fa)  # scaffold_id -> Scaffold
-
-            Ntjoin.scaffolds = scaffolds
+        min_match = re.search(r'^(\S+).k\d+.w\d+\.tsv', self.args.s)
+        if not min_match:
+            print("ERROR: Target assembly minimizer TSV file must follow the naming convention:")
+            print("\ttarget_assembly.fa.k<k>.w<w>.tsv, where <k> and <w> are parameters used for minimizering")
+            sys.exit(1)
+        assembly_fa = min_match.group(1)
+        self.scaffolds = self.read_fasta_file(assembly_fa)  # scaffold_id -> Scaffold
 
         # Find the paths through the graph
-        paths, incorporated_segments = self.find_paths(graph)
+        paths = self.find_paths()
 
-        if self.args.mode == "synteny":
-            with open(f"{self.args.p}.synteny_blocks.tsv", 'w', encoding="utf-8") as outfile:
-                block_num = 0
-                for subcomponent in paths:
-                    for block in subcomponent:
-                        outfile.write(block.get_block_string(block_num))
-                        block_num += 1
-            print(datetime.datetime.today(), ": Done initial synteny blocks", file=sys.stdout)
-            self.refine_block_coordinates(list_mx_info, graph, paths)
-
-            sys.exit()
-
-        Ntjoin.incorporated_segments = incorporated_segments
+        # Format the paths to PathNodes, tally incorporated segments
+        paths, incorporated_segments = self.format_adjust_paths(paths)
 
         if self.args.no_cut:
-            paths = self.adjust_paths(paths, scaffolds)
+            paths = self.adjust_paths(paths, self.scaffolds, incorporated_segments)
 
         # Tally any regions that overlap
-        intersecting_regions = self.tally_intersecting_segments()
+        intersecting_regions = self.tally_intersecting_segments(incorporated_segments)
 
         # Print the final scaffolds
-        self.print_scaffolds(paths, intersecting_regions)
+        self.print_scaffolds(paths, intersecting_regions, incorporated_segments)
 
         print(datetime.datetime.today(), ": DONE!", file=sys.stdout)
 
-    def refine_block_coordinates(self, list_mx_info, graph, paths):
-        "Ready to start refining the synteny block coordinates"
-        prev_w = self.args.w
-        for new_w in self.args.w_rounds:
-            print(datetime.datetime.today(), ": Extending synteny blocks with w =", new_w, file=sys.stdout)
-            new_list_mxs, terminal_mxs = ntjoin_synteny.generate_additional_minimizers(
-                    paths, new_w, prev_w, self.args.btllib_t, list_mx_info, self.args.dev)
-            graph = self.build_graph(new_list_mxs, Ntjoin.weights, graph=graph, black_list=terminal_mxs)
-            graph = self.filter_graph_global(graph)
-            paths, _ = self.find_paths(graph)
-            with open(f"{self.args.p}.synteny_blocks.extended.tsv", 'w', encoding="utf-8") as outfile:
-                block_num = 0
-                for subcomponent in paths:
-                    for block in subcomponent:
-                        outfile.write(block.get_block_string(block_num))
-                        block_num += 1
-            prev_w = new_w
+    def set_weights(self):
+        "Parse the supplied weights"
+        weights = [float(w) for w in re.split(r'\s+', self.args.r)]
+        if len(weights) != len(self.args.FILES):
+            print("ERROR: The length of supplied reference weights (-r) and "
+                  "number of assembly minimizer TSV inputs must be equal.")
+            print("Supplied lengths of arguments:")
+            print("Weights (-r):", len(weights), "Minimizer TSV files:", len(self.args.FILES), sep=" ")
+            sys.exit(1)
+        return weights
 
-        print(datetime.datetime.today(), ": Done extended synteny blocks", file=sys.stdout)
-        with open(f"{self.args.p}.synteny_blocks.extended.tsv", 'w', encoding="utf-8") as outfile:
-            block_num = 0
-            for subcomponent in paths:
-                for block in subcomponent:
-                    outfile.write(block.get_block_string(block_num))
-                    block_num += 1
+    def load_minimizers(self):
+        "Load in minimizers for ntJoin scaffolding mode"
+        weights = {}  # Dictionary: assembly -> weight
+        for assembly in self.args.FILES:
+            mxs_info, mxs = ntjoin_utils.read_minimizers(assembly)
+            self.list_mx_info[assembly] = mxs_info
+            self.list_mxs[assembly] = mxs
+            weights[assembly] = self.weights_list.pop(0)
+        mxs_info, mxs = ntjoin_utils.read_minimizers(self.args.s)
+        self.list_mx_info[self.args.s] = mxs_info
+        self.list_mxs[self.args.s] = mxs
+        weights[self.args.s] = self.args.l
+        self.weights = weights
 
-    def __init__(self):
-        "Create an ntJoin instance"
-        self.args = self.parse_arguments()
-
-
-def main():
-    "Run ntJoin"
-    Ntjoin().main()
-
-if __name__ == "__main__":
-    main()
+    def __init__(self, args):
+        "Create an ntJoin instance for scaffolding"
+        super().__init__(args)
+        self.weights_list = self.set_weights()
+        self.print_parameters_scaffold()
+        self.mx_extremes = {} # ctg -> (min_pos, max_pos)
+        self.scaffolds = {} # scaffold_id -> Scaffold

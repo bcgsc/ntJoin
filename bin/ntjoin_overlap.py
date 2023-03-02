@@ -5,7 +5,6 @@ Detect and trim overlapping adjacent sequences
 from collections import namedtuple
 import numpy as np
 import ntjoin_utils
-import ntjoin_assemble
 
 
 MappedPathInfo = namedtuple("MappedPathInfo",
@@ -26,7 +25,7 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, nodes):
     list_mxs_pair = filter_minimizers_position(list_mxs_pair, source, target, list_mx_info, nodes)
 
     with ntjoin_utils.HiddenPrints():
-        graph = ntjoin_assemble.Ntjoin.build_graph(ntjoin_assemble.Ntjoin(), list_mxs_pair, weights)
+        graph = ntjoin_utils.build_graph(list_mxs_pair, weights)
     graph = filter_graph_global(graph, 2)
 
     paths_components = []
@@ -36,12 +35,12 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, nodes):
         singleton_nodes = [node.index for node in component_graph.vs() if node.degree() == 0]
         if len(source_nodes) == 2:
             source_node, target_node = source_nodes
-            if ntjoin_assemble.Ntjoin.vertex_name(component_graph, source_node) > \
-                    ntjoin_assemble.Ntjoin.vertex_name(component_graph, target_node):
+            if ntjoin_utils.vertex_name(component_graph, source_node) > \
+                    ntjoin_utils.vertex_name(component_graph, target_node):
                 source_node, target_node = target_node, source_node
             paths = component_graph.get_shortest_paths(source_node, target_node)
             assert len(paths) == 1
-            path = [ntjoin_assemble.Ntjoin.vertex_name(component_graph, mx) for mx in paths[0]]
+            path = [ntjoin_utils.vertex_name(component_graph, mx) for mx in paths[0]]
             start_mx, end_mx = path[0], path[-1]
             source_start, target_start = [list_mx_info[assembly][start_mx]
                                           for assembly in [source, target]]
@@ -64,7 +63,7 @@ def merge_overlapping(list_mxs, list_mx_info, source, target, nodes):
                                                        [mid_mx_dist_end_source, mid_mx_dist_end_target])))
         elif singleton_nodes:
             assert len(singleton_nodes) == 1
-            mid_mx = ntjoin_assemble.Ntjoin.vertex_name(component_graph, singleton_nodes[0])
+            mid_mx = ntjoin_utils.vertex_name(component_graph, singleton_nodes[0])
             mid_mx_dist_end_source = get_dist_from_end(source, list_mx_info[source][mid_mx],
                                                        nodes[source].get_aligned_length())
             mid_mx_dist_end_target = get_dist_from_end(target, list_mx_info[target][mid_mx],
