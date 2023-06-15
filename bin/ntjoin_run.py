@@ -6,7 +6,6 @@ Written by Lauren Coombe (@lcoombe)
 """
 import argparse
 import sys
-from ntjoin_synteny import NtjoinSynteny
 from ntjoin_assemble import NtjoinScaffolder
 
 def parse_arguments():
@@ -60,19 +59,6 @@ def parse_arguments():
                                             "(computing minimizers, reading fasta file) [4]",
                         type=int, default=4)
 
-    synteny_parser = subparsers.add_parser("synteny", help="Extract syntenic blocks from input assemblies")
-    synteny_parser.add_argument("FILES", nargs="+", help="Minimizer TSV files of input assemblies")
-    synteny_parser.add_argument("-n", help="Minimum edge weight [Number of input assemblies]", default=0, type=int)
-    synteny_parser.add_argument("-p", help="Output prefix [out]",
-                                default="out", type=str, required=False)
-    synteny_parser.add_argument("-k", help="Kmer size used for minimizer step", required=True, type=int)
-    synteny_parser.add_argument("-w", help="Window size used for minimizers", required=True, type=int)
-    synteny_parser.add_argument("--btllib_t", help="Number of threads for btllib wrapper functions "\
-                                "(computing minimizers, reading fasta file) [4]", type=int, default=4)
-    synteny_parser.add_argument("--w-rounds", help="decreasing list of 'w' values to use for refining ends",
-                                default=[100, 10, 5], nargs="+", type=int)
-    synteny_parser.add_argument("--dev", action="store_true", help="Developer mode - retain intermediate files")
-    synteny_parser.add_argument("-v", "--version", action='version', version='ntJoin v1.1.1')
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -83,12 +69,8 @@ def parse_arguments():
 def main():
     "Run ntJoin"
     args = parse_arguments()
-    if args.mode == "scaffold":
-        NtjoinScaffolder(args).main_scaffolder()
-    elif args.mode == "synteny":
-        NtjoinSynteny(args).main_synteny()
-    else:
-        raise ValueError(f"Unexpected mode: {args.mode}")
+    NtjoinScaffolder(args).main_scaffolder()
+
 
 if __name__ == "__main__":
     main()

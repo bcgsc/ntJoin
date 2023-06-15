@@ -22,8 +22,6 @@ references_list=$(references)
 reference_weights_list=$(reference_weights)
 endif
 
-# synteny - w block extensions
-w_sizes=100 10 5
 
 min_ref_targets=$(addsuffix .k$(k).w$(w).tsv, $(references_list))
 fai_ref_targets=$(addsuffix .fai, $(references_list))
@@ -164,8 +162,6 @@ analysis: check_params_analysis \
 
 all: check_params assemble analysis
 
-synteny: $(fai_ref_targets) \
-		$(prefix).synteny_blocks.tsv
 
 check_params:
 ifeq ($(references), None)
@@ -201,7 +197,7 @@ ifneq ($(shell command -v 'python3 -c "import btllib"'),)
         $(error ERROR: btllib not found. Please ensure btllib is installed)
 endif
 
-.PHONY: help all version analysis assemble check_params jupiter check_install synteny
+.PHONY: help all version analysis assemble check_params jupiter check_install
 .DELETE_ON_ERROR: $(prefix).n$(n).mx.dot
 .SECONDARY:
 
@@ -255,6 +251,3 @@ else
 	$^
 endif
 
-# Synteny
-$(prefix).synteny_blocks.tsv: $(min_ref_targets)
-	$(assemble_path)/bin/ntjoin_run.py synteny $^ -k$(k) -w$(w) --w-rounds $(w_sizes)
