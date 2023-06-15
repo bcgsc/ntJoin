@@ -13,13 +13,13 @@ import sys
 import warnings
 import pybedtools
 import pymannkendall as mk
+import btllib
 from read_fasta import read_fasta
 import ntjoin_utils
 import ntjoin_overlap
 import ntjoin
-import path_node
+from path_node import PathNode
 from overlap_region import OverlapRegion
-import btllib
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 
@@ -185,7 +185,7 @@ class NtjoinScaffolder(ntjoin.Ntjoin):
                 if curr_ctg is not None:
                     ori = self.determine_orientation(positions)
                     if ori != "?":  # Don't add to path if orientation couldn't be determined
-                        out_path.append(path_node.PathNode(contig=curr_ctg, ori=ori,
+                        out_path.append(PathNode(contig=curr_ctg, ori=ori,
                                                  start=self.calc_start_coord(positions,
                                                                              self.mx_extremes[curr_ctg][0]),
                                                  end=self.calc_end_coord(positions,
@@ -200,7 +200,7 @@ class NtjoinScaffolder(ntjoin.Ntjoin):
             prev_mx = mx
         ori = self.determine_orientation(positions)
         if ori != "?":
-            out_path.append(path_node.PathNode(contig=curr_ctg, ori=ori,
+            out_path.append(PathNode(contig=curr_ctg, ori=ori,
                                      start=self.calc_start_coord(positions,
                                                                  self.mx_extremes[curr_ctg][0]),
                                      end=self.calc_end_coord(positions,
@@ -414,10 +414,10 @@ class NtjoinScaffolder(ntjoin.Ntjoin):
                                 node.start == path_segments[0].start and \
                                 node.end == path_segments[0].end:
                     if node.ori == "+":
-                        path[i].start += len_diff
+                        node.start += len_diff
                     else:
-                        path[i].end -= len_diff
-                    assert len(sequence_start_strip) - path[i].gap_size == path[i].end - path[i].start
+                        node.end -= len_diff
+                    assert len(sequence_start_strip) - node.gap_size == node.end - node.start
                     break
 
         sequence_end_strip = sequences_list[-1].rstrip("Nn") # Strip from 3'
@@ -743,12 +743,13 @@ class NtjoinScaffolder(ntjoin.Ntjoin):
 
     def main_scaffolder(self):
         "Run ntJoin scaffolding stage"
-        print("Running ntJoin scaffolding ...\n")
 
-        self.load_minimizers()
+        self.load_minimizers_scaffold()
 
         # Generate minimizer graph, and get paths through the graph
-        paths = self.make_minimizer_graph_and_paths()
+        self.make_minimizer_graph()
+
+        self.graph = self.filter_graph_global(self.graph)
 
         self.mx_extremes = self.find_mx_min_max(self.args.s)
 
@@ -789,19 +790,15 @@ class NtjoinScaffolder(ntjoin.Ntjoin):
             sys.exit(1)
         return weights
 
-    def load_minimizers(self):
+    def load_minimizers_scaffold(self):
         "Load in minimizers for ntJoin scaffolding mode"
-        weights = {}  # Dictionary: assembly -> weight
-        for assembly in self.args.FILES:
-            mxs_info, mxs = ntjoin_utils.read_minimizers(assembly)
-            self.list_mx_info[assembly] = mxs_info
-            self.list_mxs[assembly] = mxs
-            weights[assembly] = self.weights_list.pop(0)
+        # Load in minimizers for references
+        self.load_minimizers()
+        # Now, add minimizers for reference
         mxs_info, mxs = ntjoin_utils.read_minimizers(self.args.s)
         self.list_mx_info[self.args.s] = mxs_info
         self.list_mxs[self.args.s] = mxs
-        weights[self.args.s] = self.args.l
-        self.weights = weights
+        self.weights[self.args.s] = self.args.l
 
     def __init__(self, args):
         "Create an ntJoin instance for scaffolding"

@@ -202,7 +202,7 @@ endif
 .SECONDARY:
 
 %.k$(k).w$(w).tsv: %
-	$(log_time) indexlr --long --pos -k $(k) -w $(w) -t $(t) $< > $@
+	$(log_time) indexlr --seq --long --pos -k $(k) -w $(w) -t $(t) $< > $@
 
 %.fai: %
 	$(log_time) samtools faidx $<
