@@ -39,8 +39,8 @@ class Ntjoin:
                 colours = ["red"]*len(list_files)
 
             for node in graph.vs():
-                mx_ctg_pos_labels = "\n".join([str(asm_mx_info[node['name']])
-                                            for _, asm_mx_info in self.list_mx_info.items()])
+                mx_ctg_pos_labels = "\n".join([f"{file_name}_{asm_mx_info[node['name']]}"
+                                            for file_name, asm_mx_info in self.list_mx_info.items()])
                 node_label = f"\"{node['name']}\" [label=\"{node['name']}\n{mx_ctg_pos_labels}\"]"
                 outfile.write(f"{node_label}\n")
 
@@ -62,7 +62,7 @@ class Ntjoin:
         print("\nfile_name\tnumber\tcolour")
         for i, filename in enumerate(list_files):
             print(filename, i, colours[i], sep="\t")
-        print("")
+        print("", flush=True)
 
 
     @staticmethod
@@ -77,7 +77,7 @@ class Ntjoin:
 
     def filter_graph_global(self, graph):
         "Filter the graph globally based on minimum edge weight"
-        print(datetime.datetime.today(), ": Filtering the graph", file=sys.stdout)
+        print(datetime.datetime.today(), ": Filtering the graph", file=sys.stdout, flush=True)
         if self.args.n <= min(self.weights.values()):
             return graph
         to_remove_edges = [edge.index for edge in graph.es()
@@ -93,8 +93,8 @@ class Ntjoin:
         max_wt_asm = [assembly for assembly, asm_weight in self.weights.items()
                       if asm_weight == max(self.weights.values())].pop()
         list_mx_info_maxwt = self.list_mx_info[max_wt_asm]
-        min_pos = min([list_mx_info_maxwt[ntjoin_utils.vertex_name(graph, s)][1] for s in sources])
-        max_pos = max([list_mx_info_maxwt[ntjoin_utils.vertex_name(graph, s)][1] for s in sources])
+        min_pos = min((list_mx_info_maxwt[ntjoin_utils.vertex_name(graph, s)][1] for s in sources))
+        max_pos = max((list_mx_info_maxwt[ntjoin_utils.vertex_name(graph, s)][1] for s in sources))
         source = [s for s in sources
                   if list_mx_info_maxwt[ntjoin_utils.vertex_name(graph, s)][1] == min_pos].pop()
         target = [s for s in sources
@@ -140,7 +140,7 @@ class Ntjoin:
         "Finds paths through the minimizer graph"
         print(datetime.datetime.today(), ": Finding paths", file=sys.stdout)
         components = self.graph.components()
-        print("\nTotal number of components in graph:", len(components), "\n", sep=" ", file=sys.stdout)
+        print("\nTotal number of components in graph:", len(components), "\n", sep=" ", file=sys.stdout, flush=True)
 
         if self.args.t == 1:
             paths = [self.find_paths_process(component) for component in components]
@@ -150,14 +150,24 @@ class Ntjoin:
 
         return paths
 
+    def load_minimizers(self, repeat_bf=False):
+        "Load in minimizers for ntJoin scaffolding mode"
+        weights = {}  # Dictionary: assembly -> weight
+        for assembly in self.args.FILES:
+            mxs_info, mxs = ntjoin_utils.read_minimizers(assembly, repeat_bf)
+            self.list_mx_info[assembly] = mxs_info
+            self.list_mxs[assembly] = mxs
+            weights[assembly] = self.weights_list.pop(0)
+        self.weights = weights
 
-    def make_minimizer_graph_and_paths(self):
+
+    def make_minimizer_graph(self):
         "Run ntJoin graph stage"
         print(datetime.datetime.today(), ": Generating ntJoin minimizer graph ...\n")
 
         # Print the weights of the input assemblies
         weight_str = "\n".join([f"{assembly}: {asm_weight}" for assembly, asm_weight in self.weights.items()])
-        print("\nWeights of assemblies:\n", weight_str, "\n", sep="")
+        print("\nWeights of assemblies:\n", weight_str, "\n", sep="", flush=True)
 
         # Filter minimizers - Keep only if found in all assemblies
         list_mxs = ntjoin_utils.filter_minimizers(self.list_mxs)
@@ -167,9 +177,6 @@ class Ntjoin:
 
         # Print the DOT graph
         self.print_graph(self.graph)
-
-        # Filter the graph edges by minimum weight
-        self.graph = self.filter_graph_global(self.graph)
 
 
     def ntjoin_find_paths(self):
@@ -184,3 +191,4 @@ class Ntjoin:
         self.graph = None
         self.args = args
         self.weights = {}
+        self.weights_list = []

@@ -10,7 +10,10 @@ import shlex
 import subprocess
 import sys
 import os
+import re
+import math
 import igraph as ig
+import btllib
 
 
 # Defining namedtuples
@@ -53,7 +56,20 @@ def set_edge_attributes(graph, edge_attributes):
 
 def calc_total_weight(list_files, weights):
     "Calculate the total weight of an edge given the assembly support"
-    return sum([weights[f] for f in list_files])
+    return sum((weights[f] for f in list_files))
+
+def remove_flagged_edges(graph, remove_edges):
+    "Remove the listed edges from the given graph"
+    new_graph = graph.copy()
+    new_graph.delete_edges(remove_edges)
+    return new_graph
+
+def check_total_degree_vertex(vertex_id, graph, num_assemblies):
+    "Return the total weights of incident edges for the given vertex"
+    total_weight = sum((e["weight"] for e in graph.es()[graph.incident(vertex_id)]))
+    assert total_weight % num_assemblies == 0
+    return total_weight
+
 
 def build_graph(list_mxs, weights, graph=None, black_list=None):
     "Builds an undirected graph: nodes=minimizers; edges=between adjacent minimizers"
@@ -90,16 +106,27 @@ def build_graph(list_mxs, weights, graph=None, black_list=None):
     formatted_edges = [(s, t) for s in edges for t in edges[s]]
 
     print(datetime.datetime.today(), ": Adding vertices", file=sys.stdout)
+    if prev_edge_attributes:
+        existing_vertices = {vertex['name'] for vertex in graph.vs()}
+        vertices = {vertex for vertex in vertices if vertex not in existing_vertices}
     graph.add_vertices(list(vertices))
 
     print(datetime.datetime.today(), ": Adding edges", file=sys.stdout)
+    if prev_edge_attributes:
+        existing_edges = {(vertex_name(graph, edge.source), vertex_name(graph, edge.target))
+                          for edge in graph.es()}
+        max_expected_incident_weights = len(list_mxs)*2
+        formatted_edges = [(s, t) for s, t in formatted_edges
+                           if (s, t) not in existing_edges and (t, s) not in existing_edges and
+                           check_total_degree_vertex(s, graph, len(list_mxs)) < max_expected_incident_weights and
+                           check_total_degree_vertex(t, graph, len(list_mxs)) < max_expected_incident_weights]
     graph.add_edges(formatted_edges)
 
     print(datetime.datetime.today(), ": Adding attributes", file=sys.stdout)
     edge_attributes = {edge_index(graph, s, t): {"support": edges[s][t],
                                                 "weight": calc_total_weight(edges[s][t],
                                                                             weights)}
-                        for s in edges for t in edges[s]}
+                        for s, t in formatted_edges}
     edge_attributes.update(prev_edge_attributes)
     set_edge_attributes(graph, edge_attributes)
 
@@ -129,7 +156,7 @@ def filter_minimizers(list_mxs):
 
     return return_mxs
 
-def read_minimizers(tsv_filename):
+def read_minimizers(tsv_filename, repeat_bf=False):
     "Read the minimizers from a file, removing duplicate minimizers"
     print(datetime.datetime.today(), ": Reading minimizers", tsv_filename, file=sys.stdout)
     mx_info = {}  # mx -> (contig, position)
@@ -142,23 +169,50 @@ def read_minimizers(tsv_filename):
                 mx_pos_split = line[1].split(" ")
                 mxs.append([mx_pos.split(":")[0] for mx_pos in mx_pos_split])
                 for mx_pos in mx_pos_split:
-                    mx, pos = mx_pos.split(":")
-                    if mx in mx_info:  # This is a duplicate, add to dup set, don't add to dict
+                    mx, pos, seq = mx_pos.split(":")
+                    if mx in mx_info or (repeat_bf and repeat_bf.contains(seq)):  # Duplicate, add to dup set
                         dup_mxs.add(mx)
                     else:
                         mx_info[mx] = (line[0], int(pos))
 
     mx_info = {mx: mx_entry_info for mx, mx_entry_info in mx_info.items() if mx not in dup_mxs}
+
     mxs_filt = []
     for mx_list in mxs:
         mx_list_filt = [mx for mx in mx_list if mx not in dup_mxs]
         mxs_filt.append(mx_list_filt)
     return mx_info, mxs_filt
 
-def run_indexlr(assembly, k, w, t):
+def run_indexlr(assembly, k, w, t, **kwargs):
     "Run indexlr on the given assembly with the specified k and w"
-    cmd = f"indexlr {assembly} --long --pos -k{k} -w{w} -t{t} -o {assembly}.k{k}.w{w}.tsv"
+    extra_args = " ".join([f"-{key} {val}" for key, val in kwargs.items()])
+    cmd = f"indexlr {assembly} --seq --long --pos -k{k} -w{w} -t{t} {extra_args} -o {assembly}.k{k}.w{w}.tsv"
     cmd = shlex.split(cmd)
     ret_code = subprocess.call(cmd)
     assert ret_code == 0
     return f"{assembly}.k{k}.w{w}.tsv"
+
+def parse_bf_size(bf_size_str, parser):
+    "Parse the BF size from the given string"
+    str_match = re.search(r'^(\d+)([BkMG])$', bf_size_str)
+    if not str_match:
+        parser.print_help()
+        parser.error(f"Invalid input value for --bf: {bf_size_str}")
+    num, units = int(str_match.group(1)), str_match.group(2)
+    if units == "B":
+        return num
+    if units == "k":
+        return int(num*1e3)
+    if units == "M":
+        return int(num*1e6)
+    return int(num*1e9)
+
+def approximate_bf_size(genome_file, fpr, threads):
+    "Approximate the BF size to use based on the genome size and provided FPR"
+    genome_size = 0
+    with btllib.SeqReader(genome_file, btllib.SeqReaderFlag.LONG_MODE, threads) as reader:
+        for record in reader:
+            genome_size += len(record.seq)
+    size_bits = math.ceil((-1*genome_size) / (math.log(1 - fpr)))
+    print(f"Calculated Bloom filter size: {int(size_bits/8)} bytes")
+    return int(size_bits/8)
