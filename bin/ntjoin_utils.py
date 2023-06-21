@@ -191,28 +191,3 @@ def run_indexlr(assembly, k, w, t, **kwargs):
     ret_code = subprocess.call(cmd)
     assert ret_code == 0
     return f"{assembly}.k{k}.w{w}.tsv"
-
-def parse_bf_size(bf_size_str, parser):
-    "Parse the BF size from the given string"
-    str_match = re.search(r'^(\d+)([BkMG])$', bf_size_str)
-    if not str_match:
-        parser.print_help()
-        parser.error(f"Invalid input value for --bf: {bf_size_str}")
-    num, units = int(str_match.group(1)), str_match.group(2)
-    if units == "B":
-        return num
-    if units == "k":
-        return int(num*1e3)
-    if units == "M":
-        return int(num*1e6)
-    return int(num*1e9)
-
-def approximate_bf_size(genome_file, fpr, threads):
-    "Approximate the BF size to use based on the genome size and provided FPR"
-    genome_size = 0
-    with btllib.SeqReader(genome_file, btllib.SeqReaderFlag.LONG_MODE, threads) as reader:
-        for record in reader:
-            genome_size += len(record.seq)
-    size_bits = math.ceil((-1*genome_size) / (math.log(1 - fpr)))
-    print(f"Calculated Bloom filter size: {int(size_bits/8)} bytes")
-    return int(size_bits/8)
