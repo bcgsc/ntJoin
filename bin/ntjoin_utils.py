@@ -10,10 +10,7 @@ import shlex
 import subprocess
 import sys
 import os
-import re
-import math
 import igraph as ig
-import btllib
 
 
 # Defining namedtuples
