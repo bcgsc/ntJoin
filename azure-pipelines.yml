@@ -21,8 +21,9 @@ jobs:
     displayName: Install clang-format and clang-tidy
   - script: |
       source activate ntjoin_CI
-      conda install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda python=3.9 pylint samtools=1.14
-      conda install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda --file requirements.txt
+      conda install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda python=3.9 mamba
+      mamba install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda pylint samtools
+      mamba install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda --file requirements.txt
     displayName: Install Anaconda packages
   - script: |
       source activate ntjoin_CI
@@ -32,10 +33,16 @@ jobs:
     displayName: Run pylint
   - script: |
       source activate ntjoin_CI
-      conda install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda pytest bedtools samtools
+      mamba install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda pytest
       cd tests
       pytest -vs ntjoin_test.py
     displayName: Run pytests
+  - script: |
+      source activate ntjoin_CI
+      mamba install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda pybedtools=0.9.0
+      cd tests
+      pytest -vs ntjoin_test.py
+    displayName: Run pytests with lower pybedtools version
 
 - job: macOS_default_clang
   pool:
@@ -49,12 +56,19 @@ jobs:
 
   - script: |
       source activate ntjoin_CI
-      conda install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda python=3.9 pylint samtools=1.14
-      conda install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda --file requirements.txt
+      conda install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda python=3.9 mamba
+      mamba install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda pylint samtools
+      mamba install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda --file requirements.txt
     displayName: Install Anaconda packages
   - script: |
       source activate ntjoin_CI
-      conda install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda pytest bedtools samtools
+      mamba install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda pytest
       cd tests
       pytest -vs ntjoin_test.py
     displayName: Run pytests
+  - script: |
+      source activate ntjoin_CI
+      mamba install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda pybedtools=0.9.0
+      cd tests
+      pytest -vs ntjoin_test.py
+    displayName: Run pytests with lower pybedtools version
