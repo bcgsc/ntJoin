@@ -62,7 +62,7 @@ jobs:
     displayName: Install Anaconda packages
   - script: |
       source activate ntjoin_CI
-      mamba install --yes --quie -c conda-forge -c bioconda pytest
+      mamba install --yes --quiet -c conda-forge -c bioconda pytest
       cd tests
       pytest -vs ntjoin_test.py
     displayName: Run pytests
