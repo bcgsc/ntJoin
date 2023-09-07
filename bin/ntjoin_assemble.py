@@ -878,9 +878,14 @@ class Ntjoin:
         "Also print out the sequences that were NOT scaffolded"
         incorporated_segments_str = "\n".join([f"{chrom}\t{s}\t{e}"
                                                for chrom, s, e in incorporated_segments])
-        incorporated_segments_bed = pybedtools.BedTool(incorporated_segments_str,
-                                                       from_string=True).sort()
         genome_bed, genome_dict = self.format_bedtools_genome(Ntjoin.scaffolds)
+        # Needed to deal with failure in complement step seen with pybedtools 0.9.1+
+        if pybedtools.__version__ < "0.9.1":
+            incorporated_segments_bed = pybedtools.BedTool(incorporated_segments_str,
+                                                           from_string=True).sort()
+        else:
+            incorporated_segments_bed = pybedtools.BedTool(incorporated_segments_str,
+                                                           from_string=True).sort(genome=genome_dict)
         missing_bed = genome_bed.complement(i=incorporated_segments_bed, g=genome_dict)
         missing_bed.saveas(self.args.p + "." + assembly + ".unassigned.bed")
 
