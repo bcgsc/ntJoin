@@ -39,7 +39,9 @@ jobs:
     displayName: Run pytests
   - script: |
       source activate ntjoin_CI
+      python3 -c 'import pybedtools; print(pybedtools.__version__)'
       mamba install --yes --quiet -c conda-forge -c bioconda pybedtools=0.9.0
+      python3 -c 'import pybedtools; print(pybedtools.__version__)'
       cd tests
       pytest -vs ntjoin_test.py
     displayName: Run pytests with lower pybedtools version
@@ -68,7 +70,9 @@ jobs:
     displayName: Run pytests
   - script: |
       source activate ntjoin_CI
+      python3 -c 'import pybedtools; print(pybedtools.__version__)'
       mamba install --yes --quiet -c conda-forge -c bioconda pybedtools=0.9.0
+      python3 -c 'import pybedtools; print(pybedtools.__version__)'
       cd tests
       pytest -vs ntjoin_test.py
     displayName: Run pytests with lower pybedtools version
