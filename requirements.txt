@@ -1,4 +1,4 @@
 python-igraph
 pybedtools
 pymannkendall
-btllib <=1.4.10
+btllib

@@ -1,0 +1,10 @@
+tests/*dot
+tests/*path
+tests/*agp
+tests/*fai
+tests/*assigned*fa
+tests/*all*fa
+tests/*tsv
+tests/*bed
+tests/*time
+*tar.gz
