@@ -125,7 +125,7 @@ ntJoin assemble target=my_scaffolds.fa target_weight=1 reference_config=config_f
 
 #### Installing ntJoin using Conda
 ```sh
-conda install -c bioconda -c conda-forge ntjoin=1.1.1
+conda install -c bioconda -c conda-forge ntjoin=1.1.2
 ```
 
 #### Installing ntJoin using Brew
@@ -136,7 +136,7 @@ brew install brewsci/bio/ntjoin
 
 #### Installing ntJoin from the source code
 ```sh
-curl -L --output ntJoin-1.1.1.tar.gz https://github.com/bcgsc/ntJoin/releases/download/v1.1.1/ntJoin-1.1.1.tar.gz && tar xvzf ntJoin-1.1.1.tar.gz 
+curl -L --output ntJoin-1.1.2.tar.gz https://github.com/bcgsc/ntJoin/releases/download/v1.1.2/ntJoin-1.1.2.tar.gz && tar xvzf ntJoin-1.1.2.tar.gz 
 ```
 
 ## Dependencies
@@ -145,7 +145,7 @@ curl -L --output ntJoin-1.1.1.tar.gz https://github.com/bcgsc/ntJoin/releases/do
 * [bedtools v2.29.2+](https://bedtools.readthedocs.io/en/latest/)
 * [samtools](https://github.com/samtools/samtools)
 * [zlib](https://www.zlib.net/)
-* [btllib](https://github.com/bcgsc/btllib) v1.4.10 or lower
+* [btllib](https://github.com/bcgsc/btllib)
 
 Python dependencies can be installed with:
 ```sh
