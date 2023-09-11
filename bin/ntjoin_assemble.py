@@ -722,6 +722,8 @@ class Ntjoin:
         mx_info = defaultdict(dict)  # path_index -> mx -> pos
         mxs = {}  # path_index -> [mx]
         cur_path_index = 0
+        if not paths:
+            return # If list of paths is empty
         cur_valid_segments = {f"{node.contig}_{node.start}_{node.end}"
                                   for node in paths[cur_path_index]}
         with btllib.Indexlr(fasta_filename, self.args.overlap_k, self.args.overlap_w,
