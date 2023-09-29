@@ -18,6 +18,7 @@ import igraph as ig
 import pybedtools
 import pymannkendall as mk
 import btllib
+from packaging import version
 from read_fasta import read_fasta
 import ntjoin_utils
 import ntjoin_overlap
@@ -882,7 +883,7 @@ class Ntjoin:
                                                for chrom, s, e in incorporated_segments])
         genome_bed, genome_dict = self.format_bedtools_genome(Ntjoin.scaffolds)
         # Needed to deal with failure in complement step seen with pybedtools 0.9.1+
-        if pybedtools.__version__ < "0.9.1":
+        if version.parse(pybedtools.__version__) < version.parse("0.9.1"):
             incorporated_segments_bed = pybedtools.BedTool(incorporated_segments_str,
                                                            from_string=True).sort()
         else:
