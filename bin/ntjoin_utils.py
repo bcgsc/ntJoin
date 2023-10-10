@@ -61,11 +61,17 @@ def remove_flagged_edges(graph, remove_edges):
     new_graph.delete_edges(remove_edges)
     return new_graph
 
-def check_total_degree_vertex(vertex_id, graph, num_assemblies):
+def check_total_degree_vertex(vertex_id, graph):
     "Return the total weights of incident edges for the given vertex"
     total_weight = sum((e["weight"] for e in graph.es()[graph.incident(vertex_id)]))
-    assert total_weight % num_assemblies == 0
     return total_weight
+
+def check_graph_incident_weights(graph, num_assemblies):
+    "Check that the incident edges per vertex are as expected"
+    for node_idx in graph.vs():
+        sum_incident_edges = check_total_degree_vertex(node_idx, graph)
+        assert sum_incident_edges  <= 2*num_assemblies
+        assert sum_incident_edges %  num_assemblies == 0
 
 
 def check_added_edges_incident_weights(graph, edges, num_assemblies):
@@ -73,8 +79,12 @@ def check_added_edges_incident_weights(graph, edges, num_assemblies):
     max_expected_edges = num_assemblies*2
     flagged_edges = []
     for s, t in edges:
-        if check_total_degree_vertex(s, graph, num_assemblies) > max_expected_edges or \
-            check_total_degree_vertex(t, graph, num_assemblies) > max_expected_edges:
+        source_sum_edges = check_total_degree_vertex(s, graph)
+        target_sum_edges = check_total_degree_vertex(t, graph)
+        if source_sum_edges > max_expected_edges or \
+            target_sum_edges > max_expected_edges or \
+            source_sum_edges % num_assemblies != 0 or \
+            target_sum_edges % num_assemblies != 0:
             flagged_edges.append(edge_index(graph, s, t))
     if flagged_edges:
         return remove_flagged_edges(graph, flagged_edges)
@@ -139,7 +149,7 @@ def build_graph(list_mxs, weights, graph=None, black_list=None):
 
     if prev_edge_attributes:
         graph = check_added_edges_incident_weights(graph, formatted_edges, len(list_mxs))
-
+    check_graph_incident_weights(graph, len(list_mxs))
     return graph
 
 # Other helper functions
@@ -176,6 +186,7 @@ def read_minimizers(tsv_filename, repeat_bf=False):
         for line in tsv:
             line = line.strip().split("\t")
             if len(line) > 1:
+                contig = line[0]
                 mx_pos_split = line[1].split(" ")
                 mxs.append([mx_pos.split(":")[0] for mx_pos in mx_pos_split])
                 for mx_pos in mx_pos_split:
@@ -183,7 +194,7 @@ def read_minimizers(tsv_filename, repeat_bf=False):
                     if mx in mx_info or (repeat_bf and repeat_bf.contains(seq)):  # Duplicate, add to dup set
                         dup_mxs.add(mx)
                     else:
-                        mx_info[mx] = (line[0], int(pos))
+                        mx_info[mx] = (contig, int(pos))
 
     mx_info = {mx: mx_entry_info for mx, mx_entry_info in mx_info.items() if mx not in dup_mxs}
 
