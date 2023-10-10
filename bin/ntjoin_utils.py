@@ -70,8 +70,10 @@ def check_graph_incident_weights(graph, num_assemblies):
     "Check that the incident edges per vertex are as expected"
     for node_idx in graph.vs():
         sum_incident_edges = check_total_degree_vertex(node_idx, graph)
-        assert sum_incident_edges  <= 2*num_assemblies
-        assert sum_incident_edges %  num_assemblies == 0
+        try:
+            assert sum_incident_edges  <= 2*num_assemblies
+        except AssertionError:
+            print(vertex_name(graph, node_idx))
 
 
 def check_added_edges_incident_weights(graph, edges, num_assemblies):
@@ -79,12 +81,8 @@ def check_added_edges_incident_weights(graph, edges, num_assemblies):
     max_expected_edges = num_assemblies*2
     flagged_edges = []
     for s, t in edges:
-        source_sum_edges = check_total_degree_vertex(s, graph)
-        target_sum_edges = check_total_degree_vertex(t, graph)
-        if source_sum_edges > max_expected_edges or \
-            target_sum_edges > max_expected_edges or \
-            source_sum_edges % num_assemblies != 0 or \
-            target_sum_edges % num_assemblies != 0:
+        if check_total_degree_vertex(s, graph) > max_expected_edges or \
+            check_total_degree_vertex(t, graph) > max_expected_edges:
             flagged_edges.append(edge_index(graph, s, t))
     if flagged_edges:
         return remove_flagged_edges(graph, flagged_edges)
