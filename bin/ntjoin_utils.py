@@ -73,7 +73,7 @@ def check_graph_incident_weights(graph, num_assemblies):
         try:
             assert sum_incident_edges  <= 2*num_assemblies
         except AssertionError:
-            print(vertex_name(graph, node_idx))
+            print("Edge weights incident to", vertex_name(graph, node_idx), "higher than expected")
 
 
 def check_added_edges_incident_weights(graph, edges, num_assemblies):
