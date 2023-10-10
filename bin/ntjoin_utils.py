@@ -69,7 +69,7 @@ def check_total_degree_vertex(vertex_id, graph):
 
 def check_added_edges_incident_weights(graph, edges, weights):
     "Checks the added edges in the graph, filtering any that have too many incident edges, if needed"
-    max_expected_edges = sum(weights.keys())*2
+    max_expected_edges = sum(weights.values())*2
     flagged_edges = []
     for s, t in edges:
         if check_total_degree_vertex(s, graph) > max_expected_edges or \
