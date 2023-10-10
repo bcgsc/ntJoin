@@ -69,7 +69,7 @@ def check_total_degree_vertex(vertex_id, graph):
 def check_graph_incident_weights(graph, num_assemblies):
     "Check that the incident edges per vertex are as expected"
     for node_idx in graph.vs():
-        sum_incident_edges = check_total_degree_vertex(node_idx, graph)
+        sum_incident_edges = check_total_degree_vertex(node_idx.index, graph)
         try:
             assert sum_incident_edges  <= 2*num_assemblies
         except AssertionError:
