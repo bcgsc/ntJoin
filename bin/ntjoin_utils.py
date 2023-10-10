@@ -66,19 +66,10 @@ def check_total_degree_vertex(vertex_id, graph):
     total_weight = sum((e["weight"] for e in graph.es()[graph.incident(vertex_id)]))
     return total_weight
 
-def check_graph_incident_weights(graph, num_assemblies):
-    "Check that the incident edges per vertex are as expected"
-    for node_idx in graph.vs():
-        sum_incident_edges = check_total_degree_vertex(node_idx.index, graph)
-        try:
-            assert sum_incident_edges  <= 2*num_assemblies
-        except AssertionError:
-            print("Edge weights incident to", vertex_name(graph, node_idx.index), "higher than expected")
 
-
-def check_added_edges_incident_weights(graph, edges, num_assemblies):
+def check_added_edges_incident_weights(graph, edges, weights):
     "Checks the added edges in the graph, filtering any that have too many incident edges, if needed"
-    max_expected_edges = num_assemblies*2
+    max_expected_edges = sum(weights.keys())*2
     flagged_edges = []
     for s, t in edges:
         if check_total_degree_vertex(s, graph) > max_expected_edges or \
@@ -146,8 +137,7 @@ def build_graph(list_mxs, weights, graph=None, black_list=None):
     set_edge_attributes(graph, edge_attributes)
 
     if prev_edge_attributes:
-        graph = check_added_edges_incident_weights(graph, formatted_edges, len(list_mxs))
-    check_graph_incident_weights(graph, len(list_mxs))
+        graph = check_added_edges_incident_weights(graph, formatted_edges, weights)
     return graph
 
 # Other helper functions
