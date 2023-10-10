@@ -68,6 +68,19 @@ def check_total_degree_vertex(vertex_id, graph, num_assemblies):
     return total_weight
 
 
+def check_added_edges_incident_weights(graph, edges, num_assemblies):
+    "Checks the added edges in the graph, filtering any that have too many incident edges, if needed"
+    max_expected_edges = num_assemblies*2
+    flagged_edges = []
+    for s, t in edges:
+        if check_total_degree_vertex(s, graph, num_assemblies) > max_expected_edges or \
+            check_total_degree_vertex(t, graph, num_assemblies) > max_expected_edges:
+            flagged_edges.append(edge_index(graph, s, t))
+    if flagged_edges:
+        return remove_flagged_edges(graph, flagged_edges)
+    return graph
+
+
 def build_graph(list_mxs, weights, graph=None, black_list=None):
     "Builds an undirected graph: nodes=minimizers; edges=between adjacent minimizers"
     print(datetime.datetime.today(), ": Building graph", file=sys.stdout)
@@ -112,11 +125,8 @@ def build_graph(list_mxs, weights, graph=None, black_list=None):
     if prev_edge_attributes:
         existing_edges = {(vertex_name(graph, edge.source), vertex_name(graph, edge.target))
                           for edge in graph.es()}
-        max_expected_incident_weights = len(list_mxs)*2
         formatted_edges = [(s, t) for s, t in formatted_edges
-                           if (s, t) not in existing_edges and (t, s) not in existing_edges and
-                           check_total_degree_vertex(s, graph, len(list_mxs)) < max_expected_incident_weights and
-                           check_total_degree_vertex(t, graph, len(list_mxs)) < max_expected_incident_weights]
+                           if (s, t) not in existing_edges and (t, s) not in existing_edges]
     graph.add_edges(formatted_edges)
 
     print(datetime.datetime.today(), ": Adding attributes", file=sys.stdout)
@@ -126,6 +136,9 @@ def build_graph(list_mxs, weights, graph=None, black_list=None):
                         for s, t in formatted_edges}
     edge_attributes.update(prev_edge_attributes)
     set_edge_attributes(graph, edge_attributes)
+
+    if prev_edge_attributes:
+        graph = check_added_edges_incident_weights(graph, formatted_edges, len(list_mxs))
 
     return graph
 
