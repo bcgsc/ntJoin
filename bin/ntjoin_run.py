@@ -52,7 +52,6 @@ def parse_arguments():
     parser.add_argument("--btllib_t", help="Number of threads for btllib wrapper functions "
                                             "(computing minimizers, reading fasta file) [4]",
                         type=int, default=4)
-    parser.add_argument("-v", "--version", action='version', version='ntJoin v1.1.1')
 
 
     if len(sys.argv) == 1:
