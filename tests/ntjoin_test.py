@@ -218,3 +218,8 @@ def test_mx_r_r_overlap():
     "Testing ntJoin with assembly + reference, rev-rev orientation, overlap code on"
     paths = run_ntjoin_overlap("ref.fa", "scaf.r-r.overlapping.fa", "f-r_test_overlap")
     assert paths.pop() == "ntJoin0\t1-:66-2099 20N 2-:0-2297"
+
+def test_more_sequences():
+    "Testing ntJoin with more sequences - to catch pybedtools error seen with 0.9.1+"
+    paths = run_ntjoin_overlap("ref.longer.fa", "scaf.more_seqs.fa", "more_seqs_test")
+    assert len(paths) == 1

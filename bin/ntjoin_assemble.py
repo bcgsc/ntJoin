@@ -14,6 +14,7 @@ import warnings
 import pybedtools
 import pymannkendall as mk
 import btllib
+from packaging import version
 from read_fasta import read_fasta
 import ntjoin_utils
 import ntjoin_overlap
@@ -470,6 +471,8 @@ class NtjoinScaffolder(ntjoin.Ntjoin):
         mx_info = defaultdict(dict)  # path_index -> mx -> pos
         mxs = {}  # path_index -> [mx]
         cur_path_index = 0
+        if not paths:
+            return # If list of paths is empty
         cur_valid_segments = {f"{node.contig}_{node.start}_{node.end}"
                                   for node in paths[cur_path_index]}
         with btllib.Indexlr(fasta_filename, self.args.overlap_k, self.args.overlap_w,
@@ -626,9 +629,14 @@ class NtjoinScaffolder(ntjoin.Ntjoin):
         "Also print out the sequences that were NOT scaffolded"
         incorporated_segments_str = "\n".join([f"{chrom}\t{s}\t{e}"
                                                for chrom, s, e in incorporated_segments])
-        incorporated_segments_bed = pybedtools.BedTool(incorporated_segments_str,
-                                                       from_string=True).sort()
         genome_bed, genome_dict = self.format_bedtools_genome(self.scaffolds)
+        # Needed to deal with failure in complement step seen with pybedtools 0.9.1+
+        if version.parse(pybedtools.__version__) < version.parse("0.9.1"):
+            incorporated_segments_bed = pybedtools.BedTool(incorporated_segments_str,
+                                                           from_string=True).sort()
+        else:
+            incorporated_segments_bed = pybedtools.BedTool(incorporated_segments_str,
+                                                           from_string=True).sort(genome=genome_dict)
         missing_bed = genome_bed.complement(i=incorporated_segments_bed, g=genome_dict)
         missing_bed.saveas(self.args.p + "." + assembly + ".unassigned.bed")
 
@@ -739,7 +747,6 @@ class NtjoinScaffolder(ntjoin.Ntjoin):
             print("\t--overlap_k", self.args.overlap_k)
             print("\t--overlap_w", self.args.overlap_w)
             print("\t--btllib_t", self.args.btllib_t)
-
 
     def main_scaffolder(self):
         "Run ntJoin scaffolding stage"
