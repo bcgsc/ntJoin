@@ -22,6 +22,7 @@ references_list=$(references)
 reference_weights_list=$(reference_weights)
 endif
 
+
 min_ref_targets=$(addsuffix .k$(k).w$(w).tsv, $(references_list))
 fai_ref_targets=$(addsuffix .fai, $(references_list))
 
@@ -161,6 +162,7 @@ analysis: check_params_analysis \
 
 all: check_params assemble analysis
 
+
 check_params:
 ifeq ($(references), None)
 ifeq ($(reference_config), None)
@@ -200,7 +202,7 @@ endif
 .SECONDARY:
 
 %.k$(k).w$(w).tsv: %
-	$(log_time) indexlr --long --pos -k $(k) -w $(w) -t $(t) $< > $@
+	$(log_time) indexlr --seq --long --pos -k $(k) -w $(w) -t $(t) $< > $@
 
 %.fai: %
 	$(log_time) samtools faidx $<
@@ -224,7 +226,7 @@ ifeq ($(overlap), True)
 endif
 	
 $(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa: $(target).k$(k).w$(w).tsv $(min_ref_targets)
-	$(log_time)  $(assemble_path)/bin/ntjoin_assemble.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
+	$(log_time)  $(assemble_path)/bin/ntjoin_run.py -p $(prefix) -n $(n) -s $< -l $(target_weight) \
 	-r "$(reference_weights_list)" -k $(k) -g $(g) -G $(G) -t $(assemble_t) $(ntjoin_assembly_opts) $(min_ref_targets)
 
 $(target).k$(k).w$(w).n$(n).unassigned.scaffolds.fa: $(target).k$(k).w$(w).n$(n).assigned.scaffolds.fa
@@ -248,3 +250,4 @@ else
 	quast -t $(t) -o quast_$(prefix) -r $(ref) --fast --scaffold-gap-max-size 100000 --split-scaffolds \
 	$^
 endif
+

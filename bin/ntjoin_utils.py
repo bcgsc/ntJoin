@@ -5,9 +5,12 @@ Written by Lauren Coombe (@lcoombe)
 """
 
 import datetime
-from collections import namedtuple
+from collections import namedtuple, defaultdict
+import shlex
+import subprocess
 import sys
 import os
+import igraph as ig
 
 
 # Defining namedtuples
@@ -15,6 +18,7 @@ Bed = namedtuple("Bed", ["contig", "start", "end"])
 Agp = namedtuple("Unassigned_bed", ["new_id", "contig", "start", "end"])
 Scaffold = namedtuple("Scaffold", ["id", "length", "sequence"])
 EdgeGraph = namedtuple("EdgeGraph", ["source", "target", "raw_gap_est"])
+Minimizer = namedtuple("Minimizer", ["mx", "position"])
 
 class HiddenPrints:
     "Adapted from: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print"
@@ -29,7 +33,122 @@ class HiddenPrints:
         sys.stdout.close()
         sys.stdout = self._original_stdout
 
-# Helper functions
+# Helper functions for interfacing with python-igraph
+def vertex_index(graph, name):
+    "Returns vertex index based on vertex name"
+    return graph.vs.find(name).index
+
+def vertex_name(graph, index):
+    "Returns vertex name based on vertex id"
+    return graph.vs[index]['name']
+
+def edge_index(graph, source_name, target_name):
+    "Returns graph edge index based on source/target names"
+    return graph.get_eid(source_name, target_name)
+
+def set_edge_attributes(graph, edge_attributes):
+    "Sets the edge attributes for a python-igraph graph"
+    graph.es()["support"] = [edge_attributes[e]['support'] for e in sorted(edge_attributes.keys())]
+    graph.es()["weight"] = [edge_attributes[e]['weight'] for e in sorted(edge_attributes.keys())]
+
+def calc_total_weight(list_files, weights):
+    "Calculate the total weight of an edge given the assembly support"
+    return sum((weights[f] for f in list_files))
+
+def remove_flagged_edges(graph, remove_edges):
+    "Remove the listed edges from the given graph"
+    new_graph = graph.copy()
+    new_graph.delete_edges(remove_edges)
+    return new_graph
+
+def check_total_degree_vertex(vertex_id, graph):
+    "Return the total weights of incident edges for the given vertex"
+    total_weight = sum((e["weight"] for e in graph.es()[graph.incident(vertex_id)]))
+    return total_weight
+
+
+def check_added_edges_incident_weights(graph, edges, weights):
+    "Checks the added edges in the graph, filtering any that have too many incident edges, if needed"
+    max_expected_edges = sum(weights.values())*2
+    flagged_edges = []
+    for s, t in edges:
+        if check_total_degree_vertex(s, graph) > max_expected_edges or \
+            check_total_degree_vertex(t, graph) > max_expected_edges:
+            flagged_edges.append(edge_index(graph, s, t))
+    if flagged_edges:
+        return remove_flagged_edges(graph, flagged_edges)
+    return graph
+
+
+def build_graph(list_mxs, weights, graph=None, black_list=None):
+    "Builds an undirected graph: nodes=minimizers; edges=between adjacent minimizers"
+    print(datetime.datetime.today(), ": Building graph", file=sys.stdout)
+
+    if graph is None:
+        graph = ig.Graph()
+        prev_edge_attributes = {}
+    else:
+        prev_edge_attributes = {e.index: {"support": e['support'],
+                                            "weight": e['weight']} for e in graph.es()}
+
+    vertices = set()
+    edges = defaultdict(dict)  # source -> target -> [list assembly support]
+
+    for assembly in list_mxs:
+        for assembly_mx_list in list_mxs[assembly]:
+            for i, j in zip(range(0, len(assembly_mx_list)),
+                            range(1, len(assembly_mx_list))):
+                if assembly_mx_list[i] in edges and \
+                        assembly_mx_list[j] in edges[assembly_mx_list[i]]:
+                    edges[assembly_mx_list[i]][assembly_mx_list[j]].append(assembly)
+                elif assembly_mx_list[j] in edges and \
+                        assembly_mx_list[i] in edges[assembly_mx_list[j]]:
+                    edges[assembly_mx_list[j]][assembly_mx_list[i]].append(assembly)
+                else:
+                    edges[assembly_mx_list[i]][assembly_mx_list[j]] = [assembly]
+                if black_list is None or assembly_mx_list[i] not in black_list:
+                    vertices.add(assembly_mx_list[i])
+            if assembly_mx_list:
+                if black_list is None or assembly_mx_list[-1] not in black_list:
+                    vertices.add(assembly_mx_list[-1])
+
+    formatted_edges = [(s, t) for s in edges for t in edges[s]]
+
+    print(datetime.datetime.today(), ": Adding vertices", file=sys.stdout)
+    if prev_edge_attributes:
+        existing_vertices = {vertex['name'] for vertex in graph.vs()}
+        vertices = {vertex for vertex in vertices if vertex not in existing_vertices}
+    graph.add_vertices(list(vertices))
+
+    print(datetime.datetime.today(), ": Adding edges", file=sys.stdout)
+    if prev_edge_attributes:
+        existing_edges = {(vertex_name(graph, edge.source), vertex_name(graph, edge.target))
+                          for edge in graph.es()}
+        formatted_edges = [(s, t) for s, t in formatted_edges
+                           if (s, t) not in existing_edges and (t, s) not in existing_edges]
+    graph.add_edges(formatted_edges)
+
+    print(datetime.datetime.today(), ": Adding attributes", file=sys.stdout)
+    edge_attributes = {edge_index(graph, s, t): {"support": edges[s][t],
+                                                "weight": calc_total_weight(edges[s][t],
+                                                                            weights)}
+                        for s, t in formatted_edges}
+    edge_attributes.update(prev_edge_attributes)
+    set_edge_attributes(graph, edge_attributes)
+
+    if prev_edge_attributes:
+        graph = check_added_edges_incident_weights(graph, formatted_edges, weights)
+    return graph
+
+# Other helper functions
+
+def reverse_complement(sequence):
+    "Reverse complements a given sequence"
+    translation_table = str.maketrans(
+        "ACGTUNMRWSYKVHDBacgtunmrwsykvhdb",
+        "TGCAANKYWSRMBDHVtgcaankywsrmbdhv")
+    return sequence[::-1].translate(translation_table)
+
 def filter_minimizers(list_mxs):
     "Filters out minimizers that are not found in all assemblies"
     print(datetime.datetime.today(), ": Filtering minimizers", file=sys.stdout)
@@ -45,151 +164,39 @@ def filter_minimizers(list_mxs):
 
     return return_mxs
 
-
-# Defining helper classes
-class PathNode:
-    "Defines a node in a path of contig regions"
-    def __init__(self, contig, ori, start, end, contig_size,
-                 first_mx, terminal_mx, gap_size=0, raw_gap_size=0):
-        self.contig = contig
-        self.ori = ori
-        self.start = start
-        self.end = end
-        self.contig_size = contig_size
-        self.first_mx = first_mx
-        self.terminal_mx = terminal_mx
-        self.gap_size = gap_size
-        self.raw_gap_size = raw_gap_size
-        self.start_adjust = 0
-        self.end_adjust = 0  # Adjust for trimming
-
-    def set_gap_size(self, gap_size):
-        "Set the gap size of the path node"
-        self.gap_size = gap_size
-
-    def set_raw_gap_size(self, raw_gap_size):
-        "Set the 'raw' gap size. Equal to gap_size if > min_gap_size"
-        self.raw_gap_size = raw_gap_size
-
-    def get_aligned_length(self):
-        "Get the aligned length based on start/end coordinates"
-        return self.end - self.start
-
-    def get_end_adjusted_coordinate(self):
-        "Return the adjusted end coordinate"
-        if self.end_adjust == 0:
-            return self.get_aligned_length()
-        return self.end_adjust
-
-    def get_adjusted_start(self):
-        "Return the start coordinate of segment, adjusted for any trimming"
-        if self.ori == "+":
-            return self.start + self.start_adjust
-        if self.ori == "-":
-            return self.start + (self.get_aligned_length() - self.get_end_adjusted_coordinate())
-        raise OrientationError()
-
-    def get_adjusted_end(self):
-        "Return the end coordinate of the segment, adjusted for any trimming"
-        if self.ori == "+":
-            return self.end - (self.get_aligned_length() - self.get_end_adjusted_coordinate())
-        if self.ori == "-":
-            return self.end - self.start_adjust
-        raise OrientationError()
-
-    def __str__(self):
-        return f"Contig:{self.contig}\tOrientation:{self.ori}\tStart-End:{self.start}-{self.end}\t"\
-                f"Length:{self.contig_size}\tFirstmx:{self.first_mx}\tLastmx:{self.terminal_mx}\t" \
-                f"Adjusted_start-end:{self.start_adjust}-{self.end_adjust}"
-
-class OrientationError(ValueError):
-    "Orientation type error"
-    def __init__(self):
-        self.message = "Orientation must be + or -"
-        super().__init__(self.message)
-
-class OverlapRegion:
-    "Overlapping regions in a contig to fix"
-    def __init__(self):
-        self.regions = []
-        self.best_region = None
-
-    def add_region(self, bed_region):
-        "Add a new region to the overlapping set"
-        if self.best_region is None or \
-                        (bed_region.end - bed_region.start) > \
-                        (self.best_region.end - self.best_region.start):
-            self.best_region = bed_region
-        self.regions.append(bed_region)
-        assert bed_region.contig == self.best_region.contig
-
-    @staticmethod
-    def are_overlapping(region1, region2):
-        "Returns True if the given regions are overlapping"
-        return region1.start <= region2.end and region2.start <= region1.end
-
-    @staticmethod
-    def is_subsumed(region1, region2):
-        "Returns True is region 1 is subsumed in region2"
-        return region1.start >= region2.start and region1.end <= region2.end
-
-    def find_non_overlapping(self):
-        "Given overlapping regions, resolve to remove overlaps"
-        return_regions = {} # Bed -> (replacement Bed) or None
-        if not self.regions or self.best_region is None:
-            return None
-        for bed_region in self.regions:
-            if bed_region == self.best_region:
-                return_regions[bed_region] = bed_region
-            elif self.is_subsumed(bed_region, self.best_region):
-                # Subsumed region in the best region
-                return_regions[bed_region] = None
-            elif self.are_overlapping(bed_region, self.best_region):
-                # Overlaps with best region, but isn't subsumed
-                if bed_region.start <= self.best_region.start:
-                    new_region = Bed(contig=bed_region.contig, start=bed_region.start,
-                                     end=self.best_region.start - 1)
-                elif bed_region.end >= self.best_region.end:
-                    new_region = Bed(contig=bed_region.contig, start=self.best_region.end + 1,
-                                     end=bed_region.end)
-                return_regions[bed_region] = new_region
-            else:
-                return_regions[bed_region] = bed_region
-
-        # Double check if any still overlaps. If so, adjust smaller of the overlapping regions.
-        existing_overlaps = True
-        while existing_overlaps:
-            sorted_regions = sorted([(b, a) for b, a in return_regions.items() if a is not None], key=lambda x: x[1])
-            i, j = 0, 1
-            existing_overlaps = False
-            while j < len(sorted_regions):
-                region1_before, region2_before = sorted_regions[i][0], sorted_regions[j][0]
-                region1_after, region2_after = sorted_regions[i][1], sorted_regions[j][1]
-                if region1_after is None or region2_after is None:
-                    i += 1
-                    j += 1
-                    continue
-                if self.are_overlapping(region1_after, region2_after):
-                    existing_overlaps = True
-                    if self.is_subsumed(region1_after, region2_after):
-                        # Region 1 is subsumed in region 2 - Remove region 1
-                        return_regions[region1_before] = None
-                    elif self.is_subsumed(region2_after, region1_after):
-                        # Region 2 is subsumed in region 1 - Remove region 2
-                        return_regions[region2_before] = None
-                    elif (region1_after.end - region1_after.start) > (region2_after.end - region2_after.start):
-                        # Adjust region 2 start
-                        return_regions[region2_before] = Bed(contig=region2_after.contig, start=region1_after.end + 1,
-                                                             end=region2_after.end)
-                    elif (region1_after.end - region1_after.start) <= (region2_after.end - region2_after.start):
-                        # Adjust region 1 end
-                        return_regions[region1_before] = Bed(contig=region1_after.contig, start=region1_after.start,
-                                                             end=region2_after.start - 1)
+def read_minimizers(tsv_filename, repeat_bf=False):
+    "Read the minimizers from a file, removing duplicate minimizers"
+    print(datetime.datetime.today(), ": Reading minimizers", tsv_filename, file=sys.stdout)
+    mx_info = {}  # mx -> (contig, position)
+    mxs = []  # List of lists of minimizers
+    dup_mxs = set()  # Set of minimizers identified as duplicates
+    with open(tsv_filename, 'r', encoding="utf-8") as tsv:
+        for line in tsv:
+            line = line.strip().split("\t")
+            if len(line) > 1:
+                contig = line[0]
+                mx_pos_split = line[1].split(" ")
+                mxs.append([mx_pos.split(":")[0] for mx_pos in mx_pos_split])
+                for mx_pos in mx_pos_split:
+                    mx, pos, seq = mx_pos.split(":")
+                    if mx in mx_info or (repeat_bf and repeat_bf.contains(seq)):  # Duplicate, add to dup set
+                        dup_mxs.add(mx)
                     else:
-                        print("Unexpected case!")
-                        print(region1_before, region2_before, region1_after, region1_after)
+                        mx_info[mx] = (contig, int(pos))
 
-                i += 1
-                j += 1
+    mx_info = {mx: mx_entry_info for mx, mx_entry_info in mx_info.items() if mx not in dup_mxs}
 
-        return return_regions
+    mxs_filt = []
+    for mx_list in mxs:
+        mx_list_filt = [mx for mx in mx_list if mx not in dup_mxs]
+        mxs_filt.append(mx_list_filt)
+    return mx_info, mxs_filt
+
+def run_indexlr(assembly, k, w, t, **kwargs):
+    "Run indexlr on the given assembly with the specified k and w"
+    extra_args = " ".join([f"-{key} {val}" for key, val in kwargs.items()])
+    cmd = f"indexlr {assembly} --seq --long --pos -k{k} -w{w} -t{t} {extra_args} -o {assembly}.k{k}.w{w}.tsv"
+    cmd = shlex.split(cmd)
+    ret_code = subprocess.call(cmd)
+    assert ret_code == 0
+    return f"{assembly}.k{k}.w{w}.tsv"
