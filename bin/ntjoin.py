@@ -163,7 +163,7 @@ class Ntjoin:
 
     def make_minimizer_graph(self):
         "Run ntJoin graph stage"
-        print(datetime.datetime.today(), ": Generating ntJoin minimizer graph ...\n")
+        print(datetime.datetime.today(), ": Generating minimizer graph ...\n")
 
         # Print the weights of the input assemblies
         weight_str = "\n".join([f"{assembly}: {asm_weight}" for assembly, asm_weight in self.weights.items()])
