@@ -35,7 +35,7 @@ def parse_arguments():
                                     "increasing/decreasing to assign contig orientation [90]\n "
                                     "Note: Only used with --mkt is NOT specified", default=90, type=int)
     parser.add_argument('-t', help="Number of threads for multiprocessing [1]", default=1, type=int)
-    parser.add_argument("-v", "--version", action='version', version='ntJoin v1.1.3')
+    parser.add_argument("-v", "--version", action='version', version='ntJoin v1.1.4')
     parser.add_argument("--agp", help="Output AGP file describing scaffolds", action="store_true")
     parser.add_argument("--no_cut", help="Do not cut input contigs, place in most representative path",
                         action="store_true")
