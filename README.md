@@ -97,6 +97,7 @@ ntJoin assemble target=my_scaffolds.fa target_weight=1 references='assembly_ref1
 reference1.fa,reference1_weight
 reference2.fa,reference2_weight
 ```
+  * It is important to ensure that there are no commas in the name of your reference fasta file
 * Then, the ntJoin command would use the file specified by `reference_config` for determining the reference(s) and reference weight(s) instead of `references` and `reference_weights`
   * If both the `reference_config` and the `references` variables are specified, `reference_config` will override the other variables
 * Example config files can be found in the `tests` directory: `test_config_single.csv`, `test_config_multiple.csv`
