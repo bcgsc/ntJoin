@@ -573,6 +573,7 @@ class NtjoinScaffolder(ntjoin.Ntjoin):
                     print(f"out_coords: {out_coords}")
                     my_seq = my_seq[:out_coords[0]] + "N"*(out_coords[1] - out_coords[0]) + my_seq[out_coords[1]:]
                     print(f"my_seq: {my_seq} ({len(my_seq)}bp) ; node: {node.get_aligned_length()}")
+                    print("-------")
                     assert len(my_seq) == node.get_aligned_length()
                     path_segments_file.write(f">{node.contig}_{node.start}_{node.end} { node.raw_gap_size}\n{my_seq}\n")
                 filtered_paths.append(nodes)
