@@ -121,6 +121,7 @@ ntJoin assemble target=my_scaffolds.fa target_weight=1 reference_config=config_f
 
 ### Overlap feature
 * As of version 1.1.0, ntJoin can detect and trim overlaps between joined sequences. This feature is controlled by the `overlap` parameter, and is on `overlap=True` by default. To turn this behaviour off, specify `overlap=False`
+* Ensure that none of the sequences in your target assembly have terminal N characters. If they do, strip them from the sequence prior to running ntJoin
 
 ## Installation Instructions
 
