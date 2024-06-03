@@ -48,7 +48,7 @@ jobs:
 
 - job: macOS_default_clang
   pool:
-    vmImage: macOS-13
+    vmImage: macOS-latest
   steps:
   - script: echo "##vso[task.prependpath]$CONDA/bin"
     displayName: Add conda to PATH
