@@ -58,7 +58,7 @@ jobs:
 
   - script: |
       source activate ntjoin_CI
-      conda install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda python=3.9 mamba
+      conda install --yes --quiet --name ntjoin_CI -c conda-forge -c bioconda python mamba
       mamba install --yes --quiet -c conda-forge -c bioconda pylint samtools python-igraph pybedtools pymannkendall btllib
     displayName: Install Anaconda packages
   - script: |
