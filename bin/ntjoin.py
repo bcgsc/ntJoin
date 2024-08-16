@@ -8,8 +8,8 @@ import datetime
 import multiprocessing
 import sys
 import warnings
-import ntjoin_utils
 from collections import namedtuple
+import ntjoin_utils
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 VertexPosition = namedtuple('VertexPosition', ['vertex_index', 'position'])
