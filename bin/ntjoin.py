@@ -8,9 +8,11 @@ import datetime
 import multiprocessing
 import sys
 import warnings
+from collections import namedtuple
 import ntjoin_utils
 warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
+VertexPosition = namedtuple('VertexPosition', ['vertex_index', 'position'])
 
 class Ntjoin:
     "ntJoin: Scaffolding and analyzing synteny in assemblies using reference assemblies and minimizer graphs"
@@ -110,6 +112,27 @@ class Ntjoin:
                 return False
         return True
 
+    def check_circularity(self, graph):
+        "Check if the graph is circular"
+        if all(u.degree() == 2 for u in graph.vs()): # Is circular graph, find reasonable source/target nodes
+            highest_wt_asm, _ = sorted(list(self.weights.items()),
+                                    key=lambda x: x[1], reverse=True)[0]
+            min_pos_vertex = None
+            for vertex in graph.vs():
+                vertex_name = ntjoin_utils.vertex_name(graph, vertex.index)
+                if min_pos_vertex is None or \
+                    self.list_mx_info[highest_wt_asm][vertex_name][1] < min_pos_vertex.position:
+                    min_pos_vertex = VertexPosition(vertex.index,
+                                                    self.list_mx_info[highest_wt_asm][vertex_name][1])
+            neighbours = graph.neighbors(min_pos_vertex.vertex_index)
+            highest_pos_neighbour = sorted(neighbours,
+                                           key=lambda x: self.list_mx_info[highest_wt_asm][
+                                               ntjoin_utils.vertex_name(graph, x)][1],
+                                           reverse=True)[0]
+            # Break circularity for sake of scaffolding
+            graph.delete_edges(graph.get_eid(min_pos_vertex.vertex_index, highest_pos_neighbour))
+            return min_pos_vertex.vertex_index, highest_pos_neighbour
+        return []
 
     def find_paths_process(self, component):
         "Find paths given a component of the graph"
@@ -124,6 +147,8 @@ class Ntjoin:
         for subcomponent in component_graph.components():
             subcomponent_graph = component_graph.subgraph(subcomponent)
             source_nodes = [node.index for node in subcomponent_graph.vs() if node.degree() == 1]
+            if not source_nodes:
+                source_nodes = self.check_circularity(subcomponent_graph)
             if len(source_nodes) == 2:
                 source, target = self.determine_source_vertex(source_nodes, subcomponent_graph)
                 path = subcomponent_graph.get_shortest_paths(source, target)[0]

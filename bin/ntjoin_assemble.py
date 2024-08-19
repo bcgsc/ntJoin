@@ -771,7 +771,6 @@ class NtjoinScaffolder(ntjoin.Ntjoin):
 
         # Find the paths through the graph
         paths = self.find_paths()
-
         # Format the paths to PathNodes, tally incorporated segments
         paths, incorporated_segments = self.format_adjust_paths(paths)
 
