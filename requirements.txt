@@ -2,3 +2,4 @@ python-igraph
 pybedtools
 pymannkendall
 btllib
+packaging
