@@ -148,6 +148,7 @@ curl -L --output ntJoin-1.1.5.tar.gz https://github.com/bcgsc/ntJoin/releases/do
 * [samtools](https://github.com/samtools/samtools)
 * [zlib](https://www.zlib.net/)
 * [btllib](https://github.com/bcgsc/btllib)
+* [packaging](https://pypi.org/project/packaging/)
 
 Python dependencies can be installed with:
 ```sh
