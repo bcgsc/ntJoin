@@ -118,6 +118,7 @@ ntJoin assemble target=my_scaffolds.fa target_weight=1 reference_config=config_f
 
 * We recommend setting the reference weight(s) to be higher than the target weight
 * If you are using a reference-grade assembly as the reference, set `n=2`, otherwise use the default `n=1`
+* When using `no_cut=True`, if you find that the output genome size is inflated, it is likely due to large gaps being incorporated into your output assembly. You can set the maximum gap size (`G`) to offset this.
 
 ### Overlap feature
 * As of version 1.1.0, ntJoin can detect and trim overlaps between joined sequences. This feature is controlled by the `overlap` parameter, and is on `overlap=True` by default. To turn this behaviour off, specify `overlap=False`
